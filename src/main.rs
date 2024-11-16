@@ -56,7 +56,7 @@ fn main() {
             .take(rows_available as usize)
             .collect::<Vec<&String>>();
         for (i, file) in files_to_display.iter().enumerate() {
-            if i == files_view.selected {
+            if i == files_view.selected - files_view.start {
                 print!("> ");
             } else {
                 print!("  ");
