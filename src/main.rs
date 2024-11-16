@@ -7,7 +7,7 @@ use crossterm::{
 use std::env;
 use std::io::{stdout, Write};
 use std::path::PathBuf;
-use std::{fs, path::MAIN_SEPARATOR};
+use std::{fs, path::MAIN_SEPARATOR, process::Command};
 
 struct FilesView {
     files: Vec<String>,
@@ -96,14 +96,14 @@ fn main() {
                         }
                     }
                 }
+                KeyCode::Backspace => {
+                    go_up_one_level(&mut files_view);
+                    update_files_view(&mut files_view);
+                }
                 KeyCode::Enter => {
                     let selected_file = &files_view.files[files_view.selected];
                     if selected_file == ".." {
-                        let parent_dir = PathBuf::from(&files_view.pwd)
-                            .parent()
-                            .unwrap()
-                            .to_path_buf();
-                        files_view.pwd = parent_dir.to_str().unwrap().to_string();
+                        go_up_one_level(&mut files_view);
                     } else if selected_file.ends_with('/') {
                         let separator_string = MAIN_SEPARATOR.to_string();
                         let separator = if files_view.pwd.ends_with(MAIN_SEPARATOR) {
@@ -117,6 +117,19 @@ fn main() {
                             separator,
                             selected_file.trim_end_matches("/")
                         );
+                    } else {
+                        let file_path =
+                            format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
+                        if cfg!(target_os = "windows") {
+                            Command::new("cmd")
+                                .args(&["/C", "start", "", &file_path])
+                                .spawn()
+                                .unwrap();
+                        } else if cfg!(target_os = "macos") {
+                            Command::new("open").arg(&file_path).spawn().unwrap();
+                        } else {
+                            Command::new("xdg-open").arg(&file_path).spawn().unwrap();
+                        }
                     }
                     update_files_view(&mut files_view);
                 }
@@ -125,6 +138,14 @@ fn main() {
             }
         }
     }
+}
+
+fn go_up_one_level(files_view: &mut FilesView) {
+    let parent_dir = PathBuf::from(&files_view.pwd)
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    files_view.pwd = parent_dir.to_str().unwrap().to_string();
 }
 
 fn update_files_view(files_view: &mut FilesView) {
