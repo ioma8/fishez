@@ -95,20 +95,30 @@ fn draw_ui(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u16, r
     );
     let _ = queue!(stdout, cursor::MoveTo(0, 0));
 
-    // header
-    print!("PWD: {}", &files_view.pwd);
+    draw_header(stdout, &files_view.pwd, columns);
+
+    draw_files_list(stdout, files_view, rows);
+
+    draw_footer(stdout, files_view, columns, rows);
+
+    let _ = stdout.flush();
+}
+
+fn draw_header(stdout: &mut std::io::Stdout, pwd: &str, columns: u16) {
+    print!("PWD: {}", pwd);
     let title = "FISHEZ";
     let _ = queue!(stdout, cursor::MoveTo(columns - title.len() as u16, 0));
     println!("{}", title);
     draw_full_line(columns);
+}
 
-    // files list view (scrollable)
+fn draw_files_list(stdout: &mut std::io::Stdout, files_view: &FilesView, rows: u16) {
     let rows_available = rows - HEADER_ROWS - FOOTER_ROWS;
     let files_to_display = files_view.files[files_view.start..]
         .iter()
-        .take(rows_available as usize)
-        .collect::<Vec<&String>>();
-    for (i, file) in files_to_display.iter().enumerate() {
+        .take(rows_available as usize);
+
+    for (i, file) in files_to_display.enumerate() {
         let name = if file.ends_with('/') {
             file.as_str().yellow()
         } else {
@@ -123,10 +133,12 @@ fn draw_ui(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u16, r
 
         println!("{}", name_final);
     }
+}
 
-    // footer
+fn draw_footer(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u16, rows: u16) {
     queue!(stdout, cursor::MoveTo(0, rows - FOOTER_ROWS)).unwrap();
     draw_full_line(columns);
+
     if files_view.mode == FilewViewMode::Filter {
         print!("Filter: {}", files_view.filter_string);
     } else {
@@ -138,8 +150,6 @@ fn draw_ui(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u16, r
         let total_files = files_view.files.len() - total_dirs - 1;
         print!("Total: {} dirs, {} files", total_dirs, total_files);
     }
-
-    let _ = stdout.flush();
 }
 
 fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_available: u16) {
