@@ -1,7 +1,7 @@
 use crossterm::style::Stylize;
 use crossterm::{
     cursor,
-    event::{self, Event, KeyCode, KeyEvent},
+    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     execute, queue, terminal,
 };
 use std::env;
@@ -50,10 +50,22 @@ fn main() {
     loop {
         draw_ui(&mut stdout, &files_view, columns, rows);
 
-        if let Event::Key(KeyEvent { code, kind, .. }) = event::read().unwrap() {
+        if let Event::Key(KeyEvent {
+            code,
+            modifiers,
+            kind,
+            ..
+        }) = event::read().unwrap()
+        {
             if kind != event::KeyEventKind::Press {
                 continue;
             }
+
+            // Check for Ctrl+C
+            if code == KeyCode::Char('c') && modifiers.contains(KeyModifiers::CONTROL) {
+                break;
+            }
+
             match files_view.mode {
                 FilewViewMode::Normal => match code {
                     KeyCode::Char('s') => {
