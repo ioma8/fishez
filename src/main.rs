@@ -32,7 +32,7 @@ enum FilewViewMode {
 }
 
 static HEADER_ROWS: u16 = 2;
-static FOOTER_ROWS: u16 = 2;
+static FOOTER_ROWS: u16 = 3;
 
 fn main() {
     setup_terminal();
@@ -164,12 +164,17 @@ fn draw_footer(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u1
     queue!(stdout, cursor::MoveTo(0, rows - FOOTER_ROWS)).unwrap();
     draw_full_line(columns);
 
-    if files_view.mode == FilewViewMode::Filter {
-    } else if files_view.mode == FilewViewMode::RecursiveSearch
+    if files_view.mode == FilewViewMode::Filter
+        || files_view.mode == FilewViewMode::RecursiveSearch
         || files_view.mode == FilewViewMode::RipGrep
     {
-        print!("Search: {}", files_view.filter_string);
-        print!("Filter: {}", files_view.filter_string);
+        let filter_name = match files_view.mode {
+            FilewViewMode::Filter => "Filter",
+            FilewViewMode::RecursiveSearch => "Search",
+            FilewViewMode::RipGrep => "RipGrep",
+            _ => "",
+        };
+        println!("{}: {}", filter_name, files_view.filter_string);
     } else {
         let total_dirs = files_view
             .files
@@ -177,8 +182,20 @@ fn draw_footer(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u1
             .filter(|name| name.ends_with('/'))
             .count();
         let total_files = files_view.files.len() - total_dirs - 1;
-        print!("Total: {} dirs, {} files", total_dirs, total_files);
+        println!("{} dirs, {} files", total_dirs, total_files);
     }
+    let actions = vec![
+        "[s]earch",
+        "[f]ind",
+        "[r]ipgrep",
+        "[f3]view",
+        "[f4]edit",
+        "[q]uit",
+    ];
+    let actions_str = actions.join(" ");
+    let padding = (columns as usize - actions_str.len()) / (actions.len() - 1);
+    let padded_actions = actions.join(&" ".repeat(padding));
+    print!("{}", padded_actions);
 }
 
 fn handle_key_event(files_view: &mut FilesView, code: KeyCode, rows: u16) {
@@ -264,6 +281,10 @@ fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_availa
         KeyCode::End => navigate_end(files_view, rows_available),
         KeyCode::Backspace => go_up_one_level(files_view),
         KeyCode::Enter => open_selected_file(files_view),
+        KeyCode::Char('q') => {
+            reset_terminal();
+            std::process::exit(0);
+        }
         _ => {}
     }
 }
