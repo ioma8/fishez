@@ -86,7 +86,13 @@ fn main() {
         if files_view.mode == FilewViewMode::Filter {
             print!("Filter: {}", files_view.filter_string);
         } else {
-            print!("{} files", files_view.files.len());
+            let total_dirs = files_view
+                .files
+                .iter()
+                .filter(|name| name.ends_with('/'))
+                .count();
+            let total_files = files_view.files.len() - total_dirs - 1;
+            print!("Total: {} dirs, {} files", total_dirs, total_files);
         }
 
         let _ = stdout.flush();
