@@ -1,10 +1,9 @@
-use crossterm::style::{Color, PrintStyledContent, Stylize};
+use crossterm::style::{Color, Stylize};
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent},
     execute, queue, terminal,
 };
-use ctrlc;
 use std::env;
 use std::io::{stdout, Write};
 use std::panic;
@@ -193,7 +192,7 @@ fn draw_footer(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u1
             format!("{} dirs, {} files", total_dirs, total_files).with(Color::Green)
         );
     }
-    let actions = vec![
+    let actions = [
         "[s]earch",
         "[f]ind",
         "[r]ipgrep",
@@ -211,7 +210,7 @@ fn handle_key_event(files_view: &mut FilesView, code: KeyCode, rows: u16) {
     match files_view.mode {
         FilewViewMode::Normal => handle_normal_mode(files_view, code, rows),
         FilewViewMode::Filter => handle_filter_mode(files_view, code, rows),
-        FilewViewMode::QuickView => handle_quick_view_mode(files_view, code, rows),
+        FilewViewMode::QuickView => handle_quick_view_mode(files_view, code),
         FilewViewMode::RecursiveSearch => handle_recursive_search_mode(files_view, code),
         FilewViewMode::RipGrep => handle_ripgrep_mode(files_view, code),
     }
@@ -239,7 +238,7 @@ fn handle_filter_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
     }
 }
 
-fn handle_quick_view_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
+fn handle_quick_view_mode(files_view: &mut FilesView, code: KeyCode) {
     match code {
         KeyCode::Up => scroll_content(files_view, -1),
         KeyCode::Down => scroll_content(files_view, 1),
@@ -473,15 +472,13 @@ fn perform_recursive_search(files_view: &mut FilesView) {
 
 fn recursive_search(dir: &str, query: &str, results: &mut Vec<String>) {
     if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_dir() {
-                    recursive_search(path.to_str().unwrap(), query, results);
-                } else if let Ok(content) = fs::read_to_string(&path) {
-                    if content.contains(query) {
-                        results.push(path.to_str().unwrap().to_string());
-                    }
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                recursive_search(path.to_str().unwrap(), query, results);
+            } else if let Ok(content) = fs::read_to_string(&path) {
+                if content.contains(query) {
+                    results.push(path.to_str().unwrap().to_string());
                 }
             }
         }
@@ -496,15 +493,13 @@ fn perform_ripgrep_search(files_view: &mut FilesView) {
 
 fn ripgrep_search(dir: &str, query: &str, results: &mut Vec<String>) {
     if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_dir() {
-                    ripgrep_search(path.to_str().unwrap(), query, results);
-                } else if let Ok(content) = fs::read_to_string(&path) {
-                    if content.contains(query) {
-                        results.push(path.to_str().unwrap().to_string());
-                    }
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                ripgrep_search(path.to_str().unwrap(), query, results);
+            } else if let Ok(content) = fs::read_to_string(&path) {
+                if content.contains(query) {
+                    results.push(path.to_str().unwrap().to_string());
                 }
             }
         }
