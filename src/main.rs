@@ -219,7 +219,7 @@ fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_availa
                 }
             }
         }
-        KeyCode::F(3) => {
+        KeyCode::F(4) => {
             let selected_file = &files_view.files[files_view.selected];
             let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
 
