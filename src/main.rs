@@ -14,6 +14,14 @@ struct FilesView {
     selected: usize,
     start: usize,
     pwd: String,
+    mode: FilewViewMode,
+    filter_string: String,
+}
+
+#[derive(PartialEq)]
+enum FilewViewMode {
+    Normal,
+    Filter,
 }
 
 static HEADER_ROWS: u16 = 2;
@@ -28,6 +36,8 @@ fn main() {
         selected: 0,
         start: 0,
         pwd: env::current_dir().unwrap().to_str().unwrap().to_string(),
+        filter_string: String::new(),
+        mode: FilewViewMode::Normal,
     };
 
     update_files_view(&mut files_view);
@@ -40,7 +50,6 @@ fn main() {
             cursor::Hide
         );
         let _ = queue!(stdout, cursor::MoveTo(0, 0));
-        let mut filter_string = String::new();
 
         // header
         print!("PWD: {}", &files_view.pwd);
@@ -56,22 +65,29 @@ fn main() {
             .take(rows_available as usize)
             .collect::<Vec<&String>>();
         for (i, file) in files_to_display.iter().enumerate() {
-            if i == files_view.selected - files_view.start {
-                print!("> ");
+            let name = if file.ends_with('/') {
+                file.as_str().yellow()
             } else {
-                print!("  ");
-            }
-            if file.ends_with('/') {
-                println!("{}", file.as_str().yellow())
+                file.as_str().dark_yellow()
+            };
+
+            let name_final = if i == files_view.selected - files_view.start {
+                name.negative()
             } else {
-                println!("{}", file.as_str().dark_yellow());
-            }
+                name
+            };
+
+            println!("{}", name_final);
         }
 
         // footer
         queue!(stdout, cursor::MoveTo(0, rows - FOOTER_ROWS)).unwrap();
         draw_full_line(columns);
-        print!("Filter: {}", filter_string);
+        if files_view.mode == FilewViewMode::Filter {
+            print!("Filter: {}", files_view.filter_string);
+        } else {
+            print!("{} files", files_view.files.len());
+        }
 
         let _ = stdout.flush();
 
@@ -79,64 +95,106 @@ fn main() {
             if kind != event::KeyEventKind::Press {
                 continue;
             }
-            match code {
-                KeyCode::Up => {
-                    if files_view.selected > 0 {
-                        files_view.selected -= 1;
-                        if files_view.selected < files_view.start {
-                            files_view.start -= 1;
-                        }
+            match files_view.mode {
+                FilewViewMode::Normal => match code {
+                    KeyCode::Char('s') => {
+                        files_view.mode = FilewViewMode::Filter;
                     }
-                }
-                KeyCode::Down => {
-                    if files_view.selected < files_view.files.len() - 1 {
-                        files_view.selected += 1;
-                        if files_view.selected >= files_view.start + rows_available as usize {
-                            files_view.start += 1;
-                        }
+                    KeyCode::Esc => break,
+                    _ => handle_navigation_keys(&mut files_view, code, rows_available),
+                },
+                FilewViewMode::Filter => match code {
+                    KeyCode::Esc => {
+                        files_view.mode = FilewViewMode::Normal;
+                        files_view.filter_string.clear();
+                        update_files_view(&mut files_view);
                     }
-                }
-                KeyCode::Backspace => {
-                    go_up_one_level(&mut files_view);
-                    update_files_view(&mut files_view);
-                }
-                KeyCode::Enter => {
-                    let selected_file = &files_view.files[files_view.selected];
-                    if selected_file == ".." {
-                        go_up_one_level(&mut files_view);
-                    } else if selected_file.ends_with('/') {
-                        let separator_string = MAIN_SEPARATOR.to_string();
-                        let separator = if files_view.pwd.ends_with(MAIN_SEPARATOR) {
-                            ""
-                        } else {
-                            separator_string.as_str()
-                        };
-                        files_view.pwd = format!(
-                            "{}{}{}",
-                            files_view.pwd,
-                            separator,
-                            selected_file.trim_end_matches("/")
-                        );
-                    } else {
-                        let file_path =
-                            format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
-                        if cfg!(target_os = "windows") {
-                            Command::new("cmd")
-                                .args(&["/C", "start", "", &file_path])
-                                .spawn()
-                                .unwrap();
-                        } else if cfg!(target_os = "macos") {
-                            Command::new("open").arg(&file_path).spawn().unwrap();
-                        } else {
-                            Command::new("xdg-open").arg(&file_path).spawn().unwrap();
-                        }
+                    KeyCode::Backspace => {
+                        files_view.filter_string.pop();
+                        update_files_view(&mut files_view);
                     }
-                    update_files_view(&mut files_view);
-                }
-                KeyCode::Esc => break,
-                _ => {}
+                    KeyCode::Char(c) => {
+                        files_view.filter_string.push(c);
+                        update_files_view(&mut files_view);
+                    }
+                    _ => handle_navigation_keys(&mut files_view, code, rows_available),
+                },
             }
         }
+    }
+}
+
+fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_available: u16) {
+    match code {
+        KeyCode::Up => {
+            if files_view.selected > 0 {
+                files_view.selected -= 1;
+                if files_view.selected < files_view.start {
+                    files_view.start -= 1;
+                }
+            }
+        }
+        KeyCode::Down => {
+            if files_view.selected < files_view.files.len() - 1 {
+                files_view.selected += 1;
+                if files_view.selected >= files_view.start + rows_available as usize {
+                    files_view.start += 1;
+                }
+            }
+        }
+        KeyCode::Home => {
+            files_view.selected = 0;
+            files_view.start = 0;
+        }
+        KeyCode::End => {
+            files_view.selected = files_view.files.len() - 1;
+            files_view.start = if files_view.files.len() > rows_available as usize {
+                files_view.files.len() - rows_available as usize
+            } else {
+                0
+            };
+        }
+        KeyCode::Backspace => {
+            files_view.mode = FilewViewMode::Normal;
+            files_view.filter_string.clear();
+            go_up_one_level(files_view);
+            update_files_view(files_view);
+        }
+        KeyCode::Enter => {
+            files_view.mode = FilewViewMode::Normal;
+            files_view.filter_string.clear();
+            let selected_file = &files_view.files[files_view.selected];
+            if selected_file == ".." {
+                go_up_one_level(files_view);
+            } else if selected_file.ends_with('/') {
+                let separator_string = MAIN_SEPARATOR.to_string();
+                let separator = if files_view.pwd.ends_with(MAIN_SEPARATOR) {
+                    ""
+                } else {
+                    separator_string.as_str()
+                };
+                files_view.pwd = format!(
+                    "{}{}{}",
+                    files_view.pwd,
+                    separator,
+                    selected_file.trim_end_matches("/")
+                );
+            } else {
+                let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
+                if cfg!(target_os = "windows") {
+                    Command::new("cmd")
+                        .args(&["/C", "start", "", &file_path])
+                        .spawn()
+                        .unwrap();
+                } else if cfg!(target_os = "macos") {
+                    Command::new("open").arg(&file_path).spawn().unwrap();
+                } else {
+                    Command::new("xdg-open").arg(&file_path).spawn().unwrap();
+                }
+            }
+            update_files_view(files_view);
+        }
+        _ => {}
     }
 }
 
@@ -161,6 +219,12 @@ fn update_files_view(files_view: &mut FilesView) {
                 } else {
                     file_name
                 }
+            })
+            .filter(|name| {
+                files_view.filter_string.is_empty()
+                    || name
+                        .to_lowercase()
+                        .contains(&files_view.filter_string.to_lowercase())
             })
             .collect::<Vec<String>>(),
     );
