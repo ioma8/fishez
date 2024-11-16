@@ -4,10 +4,12 @@ use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     execute, queue, terminal,
 };
+use ctrlc;
 use std::env;
 use std::io::{stdout, Write};
+use std::panic;
 use std::path::PathBuf;
-use std::{fs, path::MAIN_SEPARATOR, process::Command};
+use std::{fs, path::MAIN_SEPARATOR, process::Command}; // Add this line to import the panic module
 
 struct FilesView {
     files: Vec<String>,
@@ -33,6 +35,18 @@ static FOOTER_ROWS: u16 = 2;
 fn main() {
     let mut stdout = stdout();
     let (columns, rows) = terminal::size().unwrap();
+
+    // Add this block to handle program termination
+    ctrlc::set_handler(|| {
+        reset_terminal();
+        std::process::exit(0);
+    })
+    .expect("Error setting Ctrl-C handler");
+
+    // Add this block to handle panics
+    panic::set_hook(Box::new(|_| {
+        reset_terminal();
+    }));
 
     let mut files_view = FilesView {
         files: vec![],
@@ -126,6 +140,16 @@ fn main() {
     // After exiting the loop, reset cursor settings and clear the terminal
     let _ = execute!(
         stdout,
+        cursor::Show,
+        cursor::EnableBlinking,
+        terminal::Clear(terminal::ClearType::All)
+    );
+}
+
+fn reset_terminal() {
+    let _ = execute!(
+        stdout(),
+        cursor::MoveTo(0, 0),
         cursor::Show,
         cursor::EnableBlinking,
         terminal::Clear(terminal::ClearType::All)
