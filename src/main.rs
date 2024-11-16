@@ -114,6 +114,9 @@ fn main() {
                     KeyCode::Esc => {
                         files_view.mode = FilewViewMode::Normal;
                     }
+                    KeyCode::F(3) => {
+                        files_view.mode = FilewViewMode::Normal;
+                    }
                     _ => {}
                 },
             }
@@ -216,100 +219,13 @@ fn draw_footer(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u1
 }
 
 fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_available: u16) {
-    match files_view.mode {
-        FilewViewMode::QuickView => match code {
-            KeyCode::Up => {
-                if files_view.content_start > 0 {
-                    files_view.content_start -= 1;
-                }
-            }
-            KeyCode::Down => {
-                if (files_view.content_start + rows_available as usize)
-                    < files_view.content_lines.len()
-                {
-                    files_view.content_start += 1;
-                }
-            }
-            KeyCode::Esc => {
+    match code {
+        KeyCode::F(3) => {
+            if files_view.mode == FilewViewMode::QuickView {
+                // Exit QuickView mode
                 files_view.mode = FilewViewMode::Normal;
-            }
-            _ => {}
-        },
-        _ => match code {
-            KeyCode::Up => {
-                if files_view.selected > 0 {
-                    files_view.selected -= 1;
-                    if files_view.selected < files_view.start {
-                        files_view.start -= 1;
-                    }
-                }
-            }
-            KeyCode::Down => {
-                if files_view.selected < files_view.files.len() - 1 {
-                    files_view.selected += 1;
-                    if files_view.selected >= files_view.start + rows_available as usize {
-                        files_view.start += 1;
-                    }
-                }
-            }
-            KeyCode::Home => {
-                files_view.selected = 0;
-                files_view.start = 0;
-            }
-            KeyCode::End => {
-                files_view.selected = files_view.files.len() - 1;
-                files_view.start = if files_view.files.len() > rows_available as usize {
-                    files_view.files.len() - rows_available as usize
-                } else {
-                    0
-                };
-            }
-            KeyCode::Backspace => {
-                go_up_one_level(files_view);
-            }
-            KeyCode::Enter => {
-                let selected_file = &files_view.files[files_view.selected];
-                if selected_file == ".." {
-                    go_up_one_level(files_view);
-                } else if selected_file.ends_with('/') {
-                    files_view.mode = FilewViewMode::Normal;
-                    files_view.filter_string.clear();
-                    let separator_string = MAIN_SEPARATOR.to_string();
-                    let separator = if files_view.pwd.ends_with(MAIN_SEPARATOR) {
-                        ""
-                    } else {
-                        separator_string.as_str()
-                    };
-                    files_view.pwd = format!(
-                        "{}{}{}",
-                        files_view.pwd,
-                        separator,
-                        selected_file.trim_end_matches('/')
-                    );
-                    update_files_view(files_view);
-                } else {
-                    let file_path =
-                        format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
-                    if cfg!(target_os = "windows") {
-                        Command::new("cmd")
-                            .args(["/C", "start", "", &file_path])
-                            .spawn()
-                            .unwrap();
-                    } else if cfg!(target_os = "macos") {
-                        Command::new("open").arg(&file_path).spawn().unwrap();
-                    } else {
-                        Command::new("xdg-open").arg(&file_path).spawn().unwrap();
-                    }
-                }
-            }
-            KeyCode::F(3) => {
-                if files_view.mode == FilewViewMode::QuickView {
-                    files_view.mode = FilewViewMode::Normal;
-                    return;
-                } else {
-                    files_view.mode = FilewViewMode::QuickView;
-                }
-
+            } else {
+                // Enter QuickView mode
                 let selected_file = &files_view.files[files_view.selected];
                 let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
 
@@ -323,27 +239,116 @@ fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_availa
                     }
                 }
             }
-            KeyCode::F(4) => {
-                let selected_file = &files_view.files[files_view.selected];
-                let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
-
-                if cfg!(target_os = "windows") {
-                    Command::new("cmd")
-                        .args(["/C", "start", "/B", "code", &file_path])
-                        .spawn()
-                        .unwrap();
-                } else if cfg!(target_os = "macos") {
-                    Command::new("open")
-                        .arg("-a")
-                        .arg("Visual Studio Code")
-                        .arg(&file_path)
-                        .spawn()
-                        .unwrap();
-                } else {
-                    Command::new("code").arg(&file_path).spawn().unwrap();
+        }
+        _ => match files_view.mode {
+            FilewViewMode::QuickView => match code {
+                KeyCode::Up => {
+                    if files_view.content_start > 0 {
+                        files_view.content_start -= 1;
+                    }
                 }
-            }
-            _ => {}
+                KeyCode::Down => {
+                    if (files_view.content_start + rows_available as usize)
+                        < files_view.content_lines.len()
+                    {
+                        files_view.content_start += 1;
+                    }
+                }
+                KeyCode::Esc => {
+                    files_view.mode = FilewViewMode::Normal;
+                }
+                _ => {}
+            },
+            _ => match code {
+                KeyCode::Up => {
+                    if files_view.selected > 0 {
+                        files_view.selected -= 1;
+                        if files_view.selected < files_view.start {
+                            files_view.start -= 1;
+                        }
+                    }
+                }
+                KeyCode::Down => {
+                    if files_view.selected < files_view.files.len() - 1 {
+                        files_view.selected += 1;
+                        if files_view.selected >= files_view.start + rows_available as usize {
+                            files_view.start += 1;
+                        }
+                    }
+                }
+                KeyCode::Home => {
+                    files_view.selected = 0;
+                    files_view.start = 0;
+                }
+                KeyCode::End => {
+                    files_view.selected = files_view.files.len() - 1;
+                    files_view.start = if files_view.files.len() > rows_available as usize {
+                        files_view.files.len() - rows_available as usize
+                    } else {
+                        0
+                    };
+                }
+                KeyCode::Backspace => {
+                    go_up_one_level(files_view);
+                }
+                KeyCode::Enter => {
+                    let selected_file = &files_view.files[files_view.selected];
+                    if selected_file == ".." {
+                        go_up_one_level(files_view);
+                    } else if selected_file.ends_with('/') {
+                        files_view.mode = FilewViewMode::Normal;
+                        files_view.filter_string.clear();
+                        let separator_string = MAIN_SEPARATOR.to_string();
+                        let separator = if files_view.pwd.ends_with(MAIN_SEPARATOR) {
+                            ""
+                        } else {
+                            separator_string.as_str()
+                        };
+                        files_view.pwd = format!(
+                            "{}{}{}",
+                            files_view.pwd,
+                            separator,
+                            selected_file.trim_end_matches('/')
+                        );
+                        update_files_view(files_view);
+                    } else {
+                        let file_path =
+                            format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
+                        if cfg!(target_os = "windows") {
+                            Command::new("cmd")
+                                .args(["/C", "start", "", &file_path])
+                                .spawn()
+                                .unwrap();
+                        } else if cfg!(target_os = "macos") {
+                            Command::new("open").arg(&file_path).spawn().unwrap();
+                        } else {
+                            Command::new("xdg-open").arg(&file_path).spawn().unwrap();
+                        }
+                    }
+                }
+                KeyCode::F(4) => {
+                    let selected_file = &files_view.files[files_view.selected];
+                    let file_path =
+                        format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
+
+                    if cfg!(target_os = "windows") {
+                        Command::new("cmd")
+                            .args(["/C", "start", "/B", "code", &file_path])
+                            .spawn()
+                            .unwrap();
+                    } else if cfg!(target_os = "macos") {
+                        Command::new("open")
+                            .arg("-a")
+                            .arg("Visual Studio Code")
+                            .arg(&file_path)
+                            .spawn()
+                            .unwrap();
+                    } else {
+                        Command::new("code").arg(&file_path).spawn().unwrap();
+                    }
+                }
+                _ => {}
+            },
         },
     }
 }
