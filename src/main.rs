@@ -43,59 +43,7 @@ fn main() {
     update_files_view(&mut files_view);
 
     loop {
-        let _ = execute!(
-            stdout,
-            terminal::Clear(terminal::ClearType::All),
-            cursor::DisableBlinking,
-            cursor::Hide
-        );
-        let _ = queue!(stdout, cursor::MoveTo(0, 0));
-
-        // header
-        print!("PWD: {}", &files_view.pwd);
-        let title = "FISHEZ";
-        let _ = queue!(stdout, cursor::MoveTo(columns - title.len() as u16, 0));
-        println!("{}", title);
-        draw_full_line(columns);
-
-        // files list view (scrollable)
-        let rows_available = rows - HEADER_ROWS - FOOTER_ROWS;
-        let files_to_display = files_view.files[files_view.start..]
-            .iter()
-            .take(rows_available as usize)
-            .collect::<Vec<&String>>();
-        for (i, file) in files_to_display.iter().enumerate() {
-            let name = if file.ends_with('/') {
-                file.as_str().yellow()
-            } else {
-                file.as_str().dark_yellow()
-            };
-
-            let name_final = if i == files_view.selected - files_view.start {
-                name.negative()
-            } else {
-                name
-            };
-
-            println!("{}", name_final);
-        }
-
-        // footer
-        queue!(stdout, cursor::MoveTo(0, rows - FOOTER_ROWS)).unwrap();
-        draw_full_line(columns);
-        if files_view.mode == FilewViewMode::Filter {
-            print!("Filter: {}", files_view.filter_string);
-        } else {
-            let total_dirs = files_view
-                .files
-                .iter()
-                .filter(|name| name.ends_with('/'))
-                .count();
-            let total_files = files_view.files.len() - total_dirs - 1;
-            print!("Total: {} dirs, {} files", total_dirs, total_files);
-        }
-
-        let _ = stdout.flush();
+        draw_ui(&mut stdout, &files_view, columns, rows);
 
         if let Event::Key(KeyEvent { code, kind, .. }) = event::read().unwrap() {
             if kind != event::KeyEventKind::Press {
@@ -107,7 +55,11 @@ fn main() {
                         files_view.mode = FilewViewMode::Filter;
                     }
                     KeyCode::Esc => break,
-                    _ => handle_navigation_keys(&mut files_view, code, rows_available),
+                    _ => handle_navigation_keys(
+                        &mut files_view,
+                        code,
+                        rows - HEADER_ROWS - FOOTER_ROWS,
+                    ),
                 },
                 FilewViewMode::Filter => match code {
                     KeyCode::Esc => {
@@ -123,11 +75,71 @@ fn main() {
                         files_view.filter_string.push(c);
                         update_files_view(&mut files_view);
                     }
-                    _ => handle_navigation_keys(&mut files_view, code, rows_available),
+                    _ => handle_navigation_keys(
+                        &mut files_view,
+                        code,
+                        rows - HEADER_ROWS - FOOTER_ROWS,
+                    ),
                 },
             }
         }
     }
+}
+
+fn draw_ui(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u16, rows: u16) {
+    let _ = execute!(
+        stdout,
+        terminal::Clear(terminal::ClearType::All),
+        cursor::DisableBlinking,
+        cursor::Hide
+    );
+    let _ = queue!(stdout, cursor::MoveTo(0, 0));
+
+    // header
+    print!("PWD: {}", &files_view.pwd);
+    let title = "FISHEZ";
+    let _ = queue!(stdout, cursor::MoveTo(columns - title.len() as u16, 0));
+    println!("{}", title);
+    draw_full_line(columns);
+
+    // files list view (scrollable)
+    let rows_available = rows - HEADER_ROWS - FOOTER_ROWS;
+    let files_to_display = files_view.files[files_view.start..]
+        .iter()
+        .take(rows_available as usize)
+        .collect::<Vec<&String>>();
+    for (i, file) in files_to_display.iter().enumerate() {
+        let name = if file.ends_with('/') {
+            file.as_str().yellow()
+        } else {
+            file.as_str().dark_yellow()
+        };
+
+        let name_final = if i == files_view.selected - files_view.start {
+            name.negative()
+        } else {
+            name
+        };
+
+        println!("{}", name_final);
+    }
+
+    // footer
+    queue!(stdout, cursor::MoveTo(0, rows - FOOTER_ROWS)).unwrap();
+    draw_full_line(columns);
+    if files_view.mode == FilewViewMode::Filter {
+        print!("Filter: {}", files_view.filter_string);
+    } else {
+        let total_dirs = files_view
+            .files
+            .iter()
+            .filter(|name| name.ends_with('/'))
+            .count();
+        let total_files = files_view.files.len() - total_dirs - 1;
+        print!("Total: {} dirs, {} files", total_dirs, total_files);
+    }
+
+    let _ = stdout.flush();
 }
 
 fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_available: u16) {
@@ -161,18 +173,15 @@ fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_availa
             };
         }
         KeyCode::Backspace => {
-            files_view.mode = FilewViewMode::Normal;
-            files_view.filter_string.clear();
             go_up_one_level(files_view);
-            update_files_view(files_view);
         }
         KeyCode::Enter => {
-            files_view.mode = FilewViewMode::Normal;
-            files_view.filter_string.clear();
             let selected_file = &files_view.files[files_view.selected];
             if selected_file == ".." {
                 go_up_one_level(files_view);
             } else if selected_file.ends_with('/') {
+                files_view.mode = FilewViewMode::Normal;
+                files_view.filter_string.clear();
                 let separator_string = MAIN_SEPARATOR.to_string();
                 let separator = if files_view.pwd.ends_with(MAIN_SEPARATOR) {
                     ""
@@ -185,6 +194,7 @@ fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_availa
                     separator,
                     selected_file.trim_end_matches("/")
                 );
+                update_files_view(files_view);
             } else {
                 let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
                 if cfg!(target_os = "windows") {
@@ -198,18 +208,20 @@ fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_availa
                     Command::new("xdg-open").arg(&file_path).spawn().unwrap();
                 }
             }
-            update_files_view(files_view);
         }
         _ => {}
     }
 }
 
 fn go_up_one_level(files_view: &mut FilesView) {
+    files_view.mode = FilewViewMode::Normal;
+    files_view.filter_string.clear();
     let parent_dir = PathBuf::from(&files_view.pwd)
         .parent()
         .unwrap()
         .to_path_buf();
     files_view.pwd = parent_dir.to_str().unwrap().to_string();
+    update_files_view(files_view);
 }
 
 fn update_files_view(files_view: &mut FilesView) {
