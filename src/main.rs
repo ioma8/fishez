@@ -27,6 +27,8 @@ enum FilewViewMode {
     Normal,
     Filter,
     QuickView,
+    RecursiveSearch,
+    RipGrep,
 }
 
 static HEADER_ROWS: u16 = 2;
@@ -163,6 +165,10 @@ fn draw_footer(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u1
     draw_full_line(columns);
 
     if files_view.mode == FilewViewMode::Filter {
+    } else if files_view.mode == FilewViewMode::RecursiveSearch
+        || files_view.mode == FilewViewMode::RipGrep
+    {
+        print!("Search: {}", files_view.filter_string);
         print!("Filter: {}", files_view.filter_string);
     } else {
         let total_dirs = files_view
@@ -180,12 +186,16 @@ fn handle_key_event(files_view: &mut FilesView, code: KeyCode, rows: u16) {
         FilewViewMode::Normal => handle_normal_mode(files_view, code, rows),
         FilewViewMode::Filter => handle_filter_mode(files_view, code, rows),
         FilewViewMode::QuickView => handle_quick_view_mode(files_view, code, rows),
+        FilewViewMode::RecursiveSearch => handle_recursive_search_mode(files_view, code),
+        FilewViewMode::RipGrep => handle_ripgrep_mode(files_view, code),
     }
 }
 
 fn handle_normal_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
     match code {
         KeyCode::Char('s') => files_view.mode = FilewViewMode::Filter,
+        KeyCode::Char('f') => files_view.mode = FilewViewMode::RecursiveSearch,
+        KeyCode::Char('r') => files_view.mode = FilewViewMode::RipGrep,
         _ => handle_navigation_keys(files_view, code, rows - HEADER_ROWS - FOOTER_ROWS),
     }
 }
@@ -209,6 +219,38 @@ fn handle_quick_view_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) 
         KeyCode::Down => scroll_content(files_view, 1),
         KeyCode::Esc | KeyCode::F(3) => files_view.mode = FilewViewMode::Normal,
         _ => {}
+    }
+}
+
+fn handle_recursive_search_mode(files_view: &mut FilesView, code: KeyCode) {
+    match code {
+        KeyCode::Esc => {
+            reset_filter_mode(files_view);
+        }
+        KeyCode::Char(c) => {
+            files_view.filter_string.push(c);
+            perform_recursive_search(files_view);
+        }
+        KeyCode::Backspace => {
+            files_view.filter_string.pop();
+            perform_recursive_search(files_view);
+        }
+        _ => todo!("handle navigation keys"),
+    }
+}
+
+fn handle_ripgrep_mode(files_view: &mut FilesView, code: KeyCode) {
+    match code {
+        KeyCode::Esc => reset_filter_mode(files_view),
+        KeyCode::Char(c) => {
+            files_view.filter_string.push(c);
+            perform_ripgrep_search(files_view);
+        }
+        KeyCode::Backspace => {
+            files_view.filter_string.pop();
+            perform_ripgrep_search(files_view);
+        }
+        _ => todo!("handle navigation keys"),
     }
 }
 
@@ -391,6 +433,52 @@ fn update_files_view(files_view: &mut FilesView) {
     );
     files_view.selected = 0;
     files_view.start = 0;
+}
+
+fn perform_recursive_search(files_view: &mut FilesView) {
+    let mut results = Vec::new();
+    recursive_search(&files_view.pwd, &files_view.filter_string, &mut results);
+    files_view.files = results;
+}
+
+fn recursive_search(dir: &str, query: &str, results: &mut Vec<String>) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.is_dir() {
+                    recursive_search(path.to_str().unwrap(), query, results);
+                } else if let Ok(content) = fs::read_to_string(&path) {
+                    if content.contains(query) {
+                        results.push(path.to_str().unwrap().to_string());
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn perform_ripgrep_search(files_view: &mut FilesView) {
+    let mut results = Vec::new();
+    ripgrep_search(&files_view.pwd, &files_view.filter_string, &mut results);
+    files_view.files = results;
+}
+
+fn ripgrep_search(dir: &str, query: &str, results: &mut Vec<String>) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+                if path.is_dir() {
+                    ripgrep_search(path.to_str().unwrap(), query, results);
+                } else if let Ok(content) = fs::read_to_string(&path) {
+                    if content.contains(query) {
+                        results.push(path.to_str().unwrap().to_string());
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn draw_full_line(width: u16) {
