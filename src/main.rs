@@ -97,7 +97,7 @@ fn draw_ui(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u16, r
 
     draw_header(stdout, &files_view.pwd, columns);
 
-    draw_files_list(stdout, files_view, rows);
+    draw_files_list(files_view, rows);
 
     draw_footer(stdout, files_view, columns, rows);
 
@@ -112,7 +112,7 @@ fn draw_header(stdout: &mut std::io::Stdout, pwd: &str, columns: u16) {
     draw_full_line(columns);
 }
 
-fn draw_files_list(stdout: &mut std::io::Stdout, files_view: &FilesView, rows: u16) {
+fn draw_files_list(files_view: &FilesView, rows: u16) {
     let rows_available = rows - HEADER_ROWS - FOOTER_ROWS;
     let files_to_display = files_view.files[files_view.start..]
         .iter()
@@ -202,14 +202,14 @@ fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_availa
                     "{}{}{}",
                     files_view.pwd,
                     separator,
-                    selected_file.trim_end_matches("/")
+                    selected_file.trim_end_matches('/')
                 );
                 update_files_view(files_view);
             } else {
                 let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
                 if cfg!(target_os = "windows") {
                     Command::new("cmd")
-                        .args(&["/C", "start", "", &file_path])
+                        .args(["/C", "start", "", &file_path])
                         .spawn()
                         .unwrap();
                 } else if cfg!(target_os = "macos") {
@@ -217,6 +217,26 @@ fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_availa
                 } else {
                     Command::new("xdg-open").arg(&file_path).spawn().unwrap();
                 }
+            }
+        }
+        KeyCode::F(3) => {
+            let selected_file = &files_view.files[files_view.selected];
+            let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
+
+            if cfg!(target_os = "windows") {
+                Command::new("cmd")
+                    .args(["/C", "start", "/B", "code", &file_path])
+                    .spawn()
+                    .unwrap();
+            } else if cfg!(target_os = "macos") {
+                Command::new("open")
+                    .arg("-a")
+                    .arg("Visual Studio Code")
+                    .arg(&file_path)
+                    .spawn()
+                    .unwrap();
+            } else {
+                Command::new("code").arg(&file_path).spawn().unwrap();
             }
         }
         _ => {}
