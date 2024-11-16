@@ -9,7 +9,7 @@ use std::env;
 use std::io::{stdout, Write};
 use std::panic;
 use std::path::PathBuf;
-use std::{fs, path::MAIN_SEPARATOR, process::Command}; // Add this line to import the panic module
+use std::{fs, path::MAIN_SEPARATOR, process::Command};
 
 struct FilesView {
     files: Vec<String>,
@@ -33,32 +33,11 @@ static HEADER_ROWS: u16 = 2;
 static FOOTER_ROWS: u16 = 2;
 
 fn main() {
+    setup_terminal();
     let mut stdout = stdout();
     let (columns, rows) = terminal::size().unwrap();
 
-    // Add this block to handle program termination
-    ctrlc::set_handler(|| {
-        reset_terminal();
-        std::process::exit(0);
-    })
-    .expect("Error setting Ctrl-C handler");
-
-    // Add this block to handle panics
-    panic::set_hook(Box::new(|_| {
-        reset_terminal();
-    }));
-
-    let mut files_view = FilesView {
-        files: vec![],
-        selected: 0,
-        start: 0,
-        pwd: env::current_dir().unwrap().to_str().unwrap().to_string(),
-        filter_string: String::new(),
-        mode: FilewViewMode::Normal,
-        content_lines: vec![],
-        content_start: 0,
-    };
-
+    let mut files_view = FilesView::new();
     update_files_view(&mut files_view);
 
     loop {
@@ -75,75 +54,27 @@ fn main() {
                 continue;
             }
 
-            // Check for Ctrl+C
             if code == KeyCode::Char('c') && modifiers.contains(KeyModifiers::CONTROL) {
                 break;
             }
 
-            match files_view.mode {
-                FilewViewMode::Normal => match code {
-                    KeyCode::Char('s') => {
-                        files_view.mode = FilewViewMode::Filter;
-                    }
-                    KeyCode::Esc => break,
-                    _ => handle_navigation_keys(
-                        &mut files_view,
-                        code,
-                        rows - HEADER_ROWS - FOOTER_ROWS,
-                    ),
-                },
-                FilewViewMode::Filter => match code {
-                    KeyCode::Esc => {
-                        files_view.mode = FilewViewMode::Normal;
-                        files_view.filter_string.clear();
-                        update_files_view(&mut files_view);
-                    }
-                    KeyCode::Backspace => {
-                        files_view.filter_string.pop();
-                        update_files_view(&mut files_view);
-                    }
-                    KeyCode::Char(c) => {
-                        files_view.filter_string.push(c);
-                        update_files_view(&mut files_view);
-                    }
-                    _ => handle_navigation_keys(
-                        &mut files_view,
-                        code,
-                        rows - HEADER_ROWS - FOOTER_ROWS,
-                    ),
-                },
-                FilewViewMode::QuickView => match code {
-                    KeyCode::Up => {
-                        if files_view.content_start > 0 {
-                            files_view.content_start -= 1;
-                        }
-                    }
-                    KeyCode::Down => {
-                        if (files_view.content_start + (rows - HEADER_ROWS - FOOTER_ROWS) as usize)
-                            < files_view.content_lines.len()
-                        {
-                            files_view.content_start += 1;
-                        }
-                    }
-                    KeyCode::Esc => {
-                        files_view.mode = FilewViewMode::Normal;
-                    }
-                    KeyCode::F(3) => {
-                        files_view.mode = FilewViewMode::Normal;
-                    }
-                    _ => {}
-                },
-            }
+            handle_key_event(&mut files_view, code, rows);
         }
     }
 
-    // After exiting the loop, reset cursor settings and clear the terminal
-    let _ = execute!(
-        stdout,
-        cursor::Show,
-        cursor::EnableBlinking,
-        terminal::Clear(terminal::ClearType::All)
-    );
+    reset_terminal();
+}
+
+fn setup_terminal() {
+    ctrlc::set_handler(|| {
+        reset_terminal();
+        std::process::exit(0);
+    })
+    .expect("Error setting Ctrl-C handler");
+
+    panic::set_hook(Box::new(|_| {
+        reset_terminal();
+    }));
 }
 
 fn reset_terminal() {
@@ -154,6 +85,21 @@ fn reset_terminal() {
         cursor::EnableBlinking,
         terminal::Clear(terminal::ClearType::All)
     );
+}
+
+impl FilesView {
+    fn new() -> Self {
+        FilesView {
+            files: vec![],
+            selected: 0,
+            start: 0,
+            pwd: env::current_dir().unwrap().to_str().unwrap().to_string(),
+            filter_string: String::new(),
+            mode: FilewViewMode::Normal,
+            content_lines: vec![],
+            content_start: 0,
+        }
+    }
 }
 
 fn draw_ui(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u16, rows: u16) {
@@ -174,7 +120,6 @@ fn draw_ui(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u16, r
     }
 
     draw_footer(stdout, files_view, columns, rows);
-
     let _ = stdout.flush();
 }
 
@@ -242,138 +187,178 @@ fn draw_footer(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u1
     }
 }
 
-fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_available: u16) {
-    match code {
-        KeyCode::F(3) => {
-            if files_view.mode == FilewViewMode::QuickView {
-                // Exit QuickView mode
-                files_view.mode = FilewViewMode::Normal;
-            } else {
-                // Enter QuickView mode
-                let selected_file = &files_view.files[files_view.selected];
-                let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
+fn handle_key_event(files_view: &mut FilesView, code: KeyCode, rows: u16) {
+    match files_view.mode {
+        FilewViewMode::Normal => handle_normal_mode(files_view, code, rows),
+        FilewViewMode::Filter => handle_filter_mode(files_view, code, rows),
+        FilewViewMode::QuickView => handle_quick_view_mode(files_view, code, rows),
+    }
+}
 
-                if !selected_file.ends_with('/') && fs::metadata(&file_path).is_ok() {
-                    if let Ok(content) = fs::read_to_string(&file_path) {
-                        files_view.content_lines = content.lines().map(String::from).collect();
-                        files_view.content_start = 0;
-                        files_view.mode = FilewViewMode::QuickView;
-                    } else {
-                        println!("Could not read file: {}", selected_file);
-                    }
-                }
+fn handle_normal_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
+    match code {
+        KeyCode::Char('s') => files_view.mode = FilewViewMode::Filter,
+        KeyCode::Esc => reset_terminal(),
+        _ => handle_navigation_keys(files_view, code, rows - HEADER_ROWS - FOOTER_ROWS),
+    }
+}
+
+fn handle_filter_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
+    match code {
+        KeyCode::Esc => {
+            files_view.mode = FilewViewMode::Normal;
+            files_view.filter_string.clear();
+            update_files_view(files_view);
+        }
+        KeyCode::Backspace => {
+            files_view.filter_string.pop();
+            update_files_view(files_view);
+        }
+        KeyCode::Char(c) => {
+            files_view.filter_string.push(c);
+            update_files_view(files_view);
+        }
+        _ => handle_navigation_keys(files_view, code, rows - HEADER_ROWS - FOOTER_ROWS),
+    }
+}
+
+fn handle_quick_view_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
+    match code {
+        KeyCode::Up => {
+            if files_view.content_start > 0 {
+                files_view.content_start -= 1;
             }
         }
-        _ => match files_view.mode {
-            FilewViewMode::QuickView => match code {
-                KeyCode::Up => {
-                    if files_view.content_start > 0 {
-                        files_view.content_start -= 1;
-                    }
-                }
-                KeyCode::Down => {
-                    if (files_view.content_start + rows_available as usize)
-                        < files_view.content_lines.len()
-                    {
-                        files_view.content_start += 1;
-                    }
-                }
-                KeyCode::Esc => {
-                    files_view.mode = FilewViewMode::Normal;
-                }
-                _ => {}
-            },
-            _ => match code {
-                KeyCode::Up => {
-                    if files_view.selected > 0 {
-                        files_view.selected -= 1;
-                        if files_view.selected < files_view.start {
-                            files_view.start -= 1;
-                        }
-                    }
-                }
-                KeyCode::Down => {
-                    if files_view.selected < files_view.files.len() - 1 {
-                        files_view.selected += 1;
-                        if files_view.selected >= files_view.start + rows_available as usize {
-                            files_view.start += 1;
-                        }
-                    }
-                }
-                KeyCode::Home => {
-                    files_view.selected = 0;
-                    files_view.start = 0;
-                }
-                KeyCode::End => {
-                    files_view.selected = files_view.files.len() - 1;
-                    files_view.start = if files_view.files.len() > rows_available as usize {
-                        files_view.files.len() - rows_available as usize
-                    } else {
-                        0
-                    };
-                }
-                KeyCode::Backspace => {
-                    go_up_one_level(files_view);
-                }
-                KeyCode::Enter => {
-                    let selected_file = &files_view.files[files_view.selected];
-                    if selected_file == ".." {
-                        go_up_one_level(files_view);
-                    } else if selected_file.ends_with('/') {
-                        files_view.mode = FilewViewMode::Normal;
-                        files_view.filter_string.clear();
-                        let separator_string = MAIN_SEPARATOR.to_string();
-                        let separator = if files_view.pwd.ends_with(MAIN_SEPARATOR) {
-                            ""
-                        } else {
-                            separator_string.as_str()
-                        };
-                        files_view.pwd = format!(
-                            "{}{}{}",
-                            files_view.pwd,
-                            separator,
-                            selected_file.trim_end_matches('/')
-                        );
-                        update_files_view(files_view);
-                    } else {
-                        let file_path =
-                            format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
-                        if cfg!(target_os = "windows") {
-                            Command::new("cmd")
-                                .args(["/C", "start", "", &file_path])
-                                .spawn()
-                                .unwrap();
-                        } else if cfg!(target_os = "macos") {
-                            Command::new("open").arg(&file_path).spawn().unwrap();
-                        } else {
-                            Command::new("xdg-open").arg(&file_path).spawn().unwrap();
-                        }
-                    }
-                }
-                KeyCode::F(4) => {
-                    let selected_file = &files_view.files[files_view.selected];
-                    let file_path =
-                        format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
+        KeyCode::Down => {
+            if (files_view.content_start + (rows - HEADER_ROWS - FOOTER_ROWS) as usize)
+                < files_view.content_lines.len()
+            {
+                files_view.content_start += 1;
+            }
+        }
+        KeyCode::Esc | KeyCode::F(3) => files_view.mode = FilewViewMode::Normal,
+        _ => {}
+    }
+}
 
-                    if cfg!(target_os = "windows") {
-                        Command::new("cmd")
-                            .args(["/C", "start", "/B", "code", &file_path])
-                            .spawn()
-                            .unwrap();
-                    } else if cfg!(target_os = "macos") {
-                        Command::new("open")
-                            .arg("-a")
-                            .arg("Visual Studio Code")
-                            .arg(&file_path)
-                            .spawn()
-                            .unwrap();
-                    } else {
-                        Command::new("code").arg(&file_path).spawn().unwrap();
-                    }
-                }
-                _ => {}
-            },
-        },
+fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_available: u16) {
+    match code {
+        KeyCode::F(3) => toggle_quick_view(files_view),
+        KeyCode::Up => navigate_up(files_view),
+        KeyCode::Down => navigate_down(files_view, rows_available),
+        KeyCode::Home => navigate_home(files_view),
+        KeyCode::End => navigate_end(files_view, rows_available),
+        KeyCode::Backspace => go_up_one_level(files_view),
+        KeyCode::Enter => open_selected_file(files_view),
+        KeyCode::F(4) => open_in_editor(files_view),
+        _ => {}
+    }
+}
+
+fn toggle_quick_view(files_view: &mut FilesView) {
+    if files_view.mode == FilewViewMode::QuickView {
+        files_view.mode = FilewViewMode::Normal;
+    } else {
+        let selected_file = &files_view.files[files_view.selected];
+        let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
+
+        if (!selected_file.ends_with('/')) && fs::metadata(&file_path).is_ok() {
+            if let Ok(content) = fs::read_to_string(&file_path) {
+                files_view.content_lines = content.lines().map(String::from).collect();
+                files_view.content_start = 0;
+                files_view.mode = FilewViewMode::QuickView;
+            } else {
+                println!("Could not read file: {}", selected_file);
+            }
+        }
+    }
+}
+
+fn navigate_up(files_view: &mut FilesView) {
+    if files_view.selected > 0 {
+        files_view.selected -= 1;
+        if files_view.selected < files_view.start {
+            files_view.start -= 1;
+        }
+    }
+}
+
+fn navigate_down(files_view: &mut FilesView, rows_available: u16) {
+    if files_view.selected < files_view.files.len() - 1 {
+        files_view.selected += 1;
+        if files_view.selected >= files_view.start + rows_available as usize {
+            files_view.start += 1;
+        }
+    }
+}
+
+fn navigate_home(files_view: &mut FilesView) {
+    files_view.selected = 0;
+    files_view.start = 0;
+}
+
+fn navigate_end(files_view: &mut FilesView, rows_available: u16) {
+    files_view.selected = files_view.files.len() - 1;
+    files_view.start = if files_view.files.len() > rows_available as usize {
+        files_view.files.len() - rows_available as usize
+    } else {
+        0
+    };
+}
+
+fn open_selected_file(files_view: &mut FilesView) {
+    let selected_file = &files_view.files[files_view.selected];
+    if selected_file == ".." {
+        go_up_one_level(files_view);
+    } else if selected_file.ends_with('/') {
+        files_view.mode = FilewViewMode::Normal;
+        files_view.filter_string.clear();
+        let separator_string = MAIN_SEPARATOR.to_string();
+        let separator = if files_view.pwd.ends_with(MAIN_SEPARATOR) {
+            ""
+        } else {
+            separator_string.as_str()
+        };
+        files_view.pwd = format!(
+            "{}{}{}",
+            files_view.pwd,
+            separator,
+            selected_file.trim_end_matches('/')
+        );
+        update_files_view(files_view);
+    } else {
+        let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
+        if cfg!(target_os = "windows") {
+            Command::new("cmd")
+                .args(["/C", "start", "", &file_path])
+                .spawn()
+                .unwrap();
+        } else if cfg!(target_os = "macos") {
+            Command::new("open").arg(&file_path).spawn().unwrap();
+        } else {
+            Command::new("xdg-open").arg(&file_path).spawn().unwrap();
+        }
+    }
+}
+
+fn open_in_editor(files_view: &mut FilesView) {
+    let selected_file = &files_view.files[files_view.selected];
+    let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
+
+    if cfg!(target_os = "windows") {
+        Command::new("cmd")
+            .args(["/C", "start", "/B", "code", &file_path])
+            .spawn()
+            .unwrap();
+    } else if cfg!(target_os = "macos") {
+        Command::new("open")
+            .arg("-a")
+            .arg("Visual Studio Code")
+            .arg(&file_path)
+            .spawn()
+            .unwrap();
+    } else {
+        Command::new("code").arg(&file_path).spawn().unwrap();
     }
 }
 
