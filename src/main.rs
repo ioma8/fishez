@@ -1,4 +1,4 @@
-use crossterm::style::Stylize;
+use crossterm::style::{Color, PrintStyledContent, Stylize};
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent},
@@ -115,13 +115,16 @@ fn draw_ui(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u16, r
 
 fn draw_header(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u16) {
     if files_view.mode == FilewViewMode::QuickView {
-        println!("Viewing: {}", &files_view.files[files_view.selected]);
+        println!(
+            "{}",
+            format!("Viewing: {}", &files_view.files[files_view.selected]).with(Color::Cyan)
+        );
     } else {
-        println!("PWD: {}", files_view.pwd);
+        println!("{}", format!("PWD: {}", files_view.pwd).with(Color::Cyan));
     }
     let title = "FISHEZ";
     let _ = queue!(stdout, cursor::MoveTo(columns - title.len() as u16, 0));
-    println!("{}", title);
+    println!("{}", title.with(Color::Cyan));
     draw_full_line(columns);
 }
 
@@ -174,7 +177,10 @@ fn draw_footer(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u1
             FilewViewMode::RipGrep => "RipGrep",
             _ => "",
         };
-        println!("{}: {}", filter_name, files_view.filter_string);
+        println!(
+            "{}",
+            format!("{}: {}", filter_name, files_view.filter_string).with(Color::Green)
+        );
     } else {
         let total_dirs = files_view
             .files
@@ -182,7 +188,10 @@ fn draw_footer(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u1
             .filter(|name| name.ends_with('/'))
             .count();
         let total_files = files_view.files.len() - total_dirs - 1;
-        println!("{} dirs, {} files", total_dirs, total_files);
+        println!(
+            "{}",
+            format!("{} dirs, {} files", total_dirs, total_files).with(Color::Green)
+        );
     }
     let actions = vec![
         "[s]earch",
@@ -195,7 +204,7 @@ fn draw_footer(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u1
     let actions_str = actions.join(" ");
     let padding = (columns as usize - actions_str.len()) / (actions.len() - 1);
     let padded_actions = actions.join(&" ".repeat(padding));
-    print!("{}", padded_actions);
+    print!("{}", padded_actions.with(Color::Green));
 }
 
 fn handle_key_event(files_view: &mut FilesView, code: KeyCode, rows: u16) {
@@ -503,6 +512,9 @@ fn ripgrep_search(dir: &str, query: &str, results: &mut Vec<String>) {
 }
 
 fn draw_full_line(width: u16) {
-    let text = (0..width).map(|_| "-").collect::<String>();
+    let text = (0..width)
+        .map(|_| "─")
+        .collect::<String>()
+        .with(Color::Blue);
     println!("{}", text);
 }
