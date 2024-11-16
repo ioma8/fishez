@@ -43,26 +43,14 @@ fn main() {
     loop {
         draw_ui(&mut stdout, &files_view, columns, rows);
 
-        if let Event::Key(KeyEvent {
-            code,
-            modifiers,
-            kind,
-            ..
-        }) = event::read().unwrap()
-        {
+        if let Event::Key(KeyEvent { code, kind, .. }) = event::read().unwrap() {
             if kind != event::KeyEventKind::Press {
                 continue;
-            }
-
-            if code == KeyCode::Char('c') && modifiers.contains(KeyModifiers::CONTROL) {
-                break;
             }
 
             handle_key_event(&mut files_view, code, rows);
         }
     }
-
-    reset_terminal();
 }
 
 fn setup_terminal() {
@@ -198,7 +186,6 @@ fn handle_key_event(files_view: &mut FilesView, code: KeyCode, rows: u16) {
 fn handle_normal_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
     match code {
         KeyCode::Char('s') => files_view.mode = FilewViewMode::Filter,
-        KeyCode::Esc => reset_terminal(),
         _ => handle_navigation_keys(files_view, code, rows - HEADER_ROWS - FOOTER_ROWS),
     }
 }
@@ -244,13 +231,13 @@ fn handle_quick_view_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) 
 fn handle_navigation_keys(files_view: &mut FilesView, code: KeyCode, rows_available: u16) {
     match code {
         KeyCode::F(3) => toggle_quick_view(files_view),
+        KeyCode::F(4) => open_in_editor(files_view),
         KeyCode::Up => navigate_up(files_view),
         KeyCode::Down => navigate_down(files_view, rows_available),
         KeyCode::Home => navigate_home(files_view),
         KeyCode::End => navigate_end(files_view, rows_available),
         KeyCode::Backspace => go_up_one_level(files_view),
         KeyCode::Enter => open_selected_file(files_view),
-        KeyCode::F(4) => open_in_editor(files_view),
         _ => {}
     }
 }
