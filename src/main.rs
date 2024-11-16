@@ -144,7 +144,7 @@ fn draw_ui(stdout: &mut std::io::Stdout, files_view: &FilesView, columns: u16, r
     draw_header(stdout, files_view, columns);
 
     if files_view.mode == FilewViewMode::QuickView {
-        draw_file_content(stdout, files_view, rows);
+        draw_file_content(files_view, rows);
     } else {
         draw_files_list(files_view, rows);
     }
@@ -189,7 +189,7 @@ fn draw_files_list(files_view: &FilesView, rows: u16) {
     }
 }
 
-fn draw_file_content(stdout: &mut std::io::Stdout, files_view: &FilesView, rows: u16) {
+fn draw_file_content(files_view: &FilesView, rows: u16) {
     let rows_available = rows - HEADER_ROWS - FOOTER_ROWS;
 
     let content_to_display = files_view.content_lines[files_view.content_start..]
