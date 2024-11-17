@@ -3,7 +3,14 @@ use std::fs;
 use std::path::PathBuf;
 use std::path::MAIN_SEPARATOR;
 use std::process::Command;
+use std::time::Instant;
 
+use image::DynamicImage;
+use image::ImageBuffer;
+
+use crate::logger::log;
+
+#[derive(Debug)]
 pub struct FilesView {
     pub files: Vec<String>,
     pub selected: usize,
@@ -11,17 +18,27 @@ pub struct FilesView {
     pub pwd: String,
     pub mode: FilesViewMode,
     pub filter_string: String,
-    pub content_lines: Vec<String>,
-    pub content_start: usize,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum FilesViewMode {
     Normal,
     Filter,
-    QuickView,
+    QuickView(QuickViewMode),
     RecursiveSearch,
     RipGrep,
+}
+
+#[derive(PartialEq, Debug)]
+pub enum QuickViewMode {
+    Text(Vec<String>, usize, usize),
+    Image(ImageBuffer<image::Rgb<u8>, Vec<u8>>),
+}
+
+enum FileType {
+    Text,
+    Image,
+    Other,
 }
 
 pub static HEADER_ROWS: u16 = 2;
@@ -36,8 +53,6 @@ impl FilesView {
             pwd: env::current_dir().unwrap().to_str().unwrap().to_string(),
             filter_string: String::new(),
             mode: FilesViewMode::Normal,
-            content_lines: vec![],
-            content_start: 0,
         }
     }
 
@@ -82,9 +97,15 @@ impl FilesView {
     }
 
     pub fn scroll_content(&mut self, direction: isize) {
-        let new_start = self.content_start as isize + direction;
-        if new_start >= 0 && (new_start as usize) < self.content_lines.len() {
-            self.content_start = new_start as usize;
+        if let FilesViewMode::QuickView(QuickViewMode::Text(content, start, len)) = &self.mode {
+            let new_start = *start as isize + direction;
+            if new_start >= 0 && (new_start as usize) < *len {
+                self.mode = FilesViewMode::QuickView(QuickViewMode::Text(
+                    content.clone(),
+                    new_start as usize,
+                    *len,
+                ));
+            }
         }
     }
 
@@ -179,22 +200,67 @@ impl FilesView {
     }
 
     pub fn toggle_quick_view(&mut self) {
-        if self.mode == FilesViewMode::QuickView {
+        if let FilesViewMode::QuickView(_) = self.mode {
             self.mode = FilesViewMode::Normal;
         } else {
-            let selected_file = &self.files[self.selected];
+            let selected_file = self.files[self.selected].clone();
             let file_path = format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file);
+            log(&format!("file_path: {}", file_path));
 
             if !selected_file.ends_with('/') && fs::metadata(&file_path).is_ok() {
-                if let Ok(content) = fs::read_to_string(&file_path) {
-                    self.content_lines = content.lines().map(String::from).collect();
-                    self.content_start = 0;
-                    self.mode = FilesViewMode::QuickView;
-                } else {
-                    println!("Could not read file: {}", selected_file);
+                self.show_file_quick_view(file_path, &selected_file);
+            }
+        }
+    }
+
+    fn get_type_from_path(&self, file_path: &String) -> FileType {
+        let mime_type = tree_magic_mini::from_filepath(std::path::Path::new(&file_path)).unwrap();
+        match mime_type.split('/').next() {
+            Some("text") => FileType::Text,
+            Some("image") => FileType::Image,
+            _ => {
+                match std::path::Path::new(file_path)
+                    .extension()
+                    .and_then(std::ffi::OsStr::to_str)
+                {
+                    Some("txt") | Some("md") | Some("rs") | Some("toml") => FileType::Text,
+                    Some("png") | Some("jpg") | Some("jpeg") | Some("gif") => FileType::Image,
+                    _ => FileType::Other,
                 }
             }
         }
+    }
+
+    fn show_file_quick_view(&mut self, file_path: String, selected_file: &String) {
+        let ftype = self.get_type_from_path(&file_path);
+        match ftype {
+            FileType::Text => self.show_file_quick_view_text(file_path.clone(), selected_file),
+            FileType::Image => self.show_file_quick_view_image(file_path.clone()),
+            _ => log(&format!("Unsupported file type: {}", file_path)),
+        }
+
+        self.show_file_quick_view_text(file_path.clone(), selected_file);
+    }
+
+    fn show_file_quick_view_text(&mut self, file_path: String, selected_file: &String) {
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            let lines: Vec<String> = content.lines().map(String::from).collect();
+            let lines_len = lines.len();
+            self.mode = FilesViewMode::QuickView(QuickViewMode::Text(lines, 0, lines_len));
+        } else {
+            println!("Could not read file: {}", selected_file);
+        }
+    }
+
+    fn show_file_quick_view_image(&mut self, file_path: String) {
+        let now = Instant::now();
+        // toto je pomale... pul vteriny nacita obr
+        let image_pixels = image::open(&file_path)
+            .unwrap()
+            .resize(200, 200, image::imageops::FilterType::Nearest)
+            .to_rgb8();
+        log(&format!("Image loading took: {:?}", now.elapsed()));
+        self.mode = FilesViewMode::QuickView(QuickViewMode::Image(image_pixels));
     }
 
     pub fn go_up_one_level(&mut self) {

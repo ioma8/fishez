@@ -1,9 +1,13 @@
-use crossterm::style::{Color, Print, Stylize};
+use crossterm::style::{Color, Print, StyledContent, Stylize};
 use crossterm::terminal::ClearType;
 use crossterm::{cursor, queue, terminal};
+use image::{self, DynamicImage, ImageBuffer};
 use std::io::Write;
+use std::str;
+use std::time::Instant;
 
-use crate::files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
+use crate::files_view::{FilesView, FilesViewMode, QuickViewMode, FOOTER_ROWS, HEADER_ROWS};
+use crate::logger::log;
 
 pub struct TerminalUI {
     pub columns: u16,
@@ -25,11 +29,12 @@ impl TerminalUI {
         let _ = queue!(&self.stdout, cursor::DisableBlinking, cursor::Hide);
 
         self.draw_header(files_view);
+        log(&format!("mode: {:?}", files_view.mode));
 
-        if files_view.mode == FilesViewMode::QuickView {
-            self.draw_file_content(files_view);
-        } else {
-            self.draw_files_list(files_view);
+        match &files_view.mode {
+            FilesViewMode::Normal | FilesViewMode::Filter => self.draw_files_list(files_view),
+            FilesViewMode::QuickView(quick_view) => self.draw_file_content(quick_view),
+            _ => {}
         }
 
         self.draw_footer(files_view);
@@ -39,7 +44,7 @@ impl TerminalUI {
     fn draw_header(&self, files_view: &FilesView) {
         let _ = queue!(&self.stdout, cursor::MoveTo(0, 0));
 
-        let left = if files_view.mode == FilesViewMode::QuickView {
+        let left = if let FilesViewMode::QuickView(_) = files_view.mode {
             format!("Viewing: {}", &files_view.files[files_view.selected]).with(Color::Cyan)
         } else {
             format!("PWD: {}", files_view.pwd).with(Color::Cyan)
@@ -56,7 +61,7 @@ impl TerminalUI {
         self.draw_full_line(1);
     }
 
-    fn draw_files_list(&self, files_view: &FilesView) {
+    fn draw_files_list(&mut self, files_view: &FilesView) {
         let rows_available = self.rows - HEADER_ROWS - FOOTER_ROWS;
         let files_to_display = files_view.files[files_view.start..]
             .iter()
@@ -85,22 +90,34 @@ impl TerminalUI {
             );
         }
 
-        let rows_to_clear = rows_available - files_view.files.len() as u16;
-        for _ in 0..rows_to_clear {
-            let _ = queue!(
-                &self.stdout,
-                terminal::Clear(ClearType::UntilNewLine),
-                cursor::MoveToNextLine(1)
-            );
+        let rows_to_clear: i16 = rows_available as i16 - files_view.files.len() as i16;
+
+        if rows_to_clear > 0 {
+            for _ in 0..rows_to_clear {
+                let _ = queue!(
+                    &self.stdout,
+                    terminal::Clear(ClearType::UntilNewLine),
+                    cursor::MoveToNextLine(1)
+                );
+            }
         }
     }
 
-    fn draw_file_content(&self, files_view: &FilesView) {
+    fn draw_file_content(&mut self, quick_view: &QuickViewMode) {
         let rows_available = self.rows - HEADER_ROWS - FOOTER_ROWS;
+        log(&format!("rows_available: {}", rows_available));
+        match quick_view {
+            QuickViewMode::Text(content, start, _) => {
+                self.draw_text_content(content, *start, rows_available);
+            }
+            QuickViewMode::Image(data) => {
+                self.draw_image_content(data.clone());
+            }
+        }
+    }
 
-        let content_to_display = files_view.content_lines[files_view.content_start..]
-            .iter()
-            .take(rows_available as usize);
+    fn draw_text_content(&self, content: &Vec<String>, start: usize, rows_available: u16) {
+        let content_to_display = content[start..].iter().take(rows_available as usize);
 
         let _ = queue!(&self.stdout, cursor::MoveTo(0, HEADER_ROWS));
         for line in content_to_display {
@@ -111,13 +128,62 @@ impl TerminalUI {
                 cursor::MoveToNextLine(1)
             );
         }
-        let rows_to_clear = rows_available - files_view.content_lines.len() as u16;
+        let rows_to_clear = rows_available - content.len() as u16;
         for _ in 0..rows_to_clear {
             let _ = queue!(
                 &self.stdout,
                 terminal::Clear(ClearType::UntilNewLine),
                 cursor::MoveToNextLine(1)
             );
+        }
+    }
+
+    fn draw_image_content(&mut self, data: ImageBuffer<image::Rgb<u8>, Vec<u8>>) {
+        let now = Instant::now();
+        let (orig_width, orig_height) = data.dimensions();
+        let (new_width, new_height) = self.calculate_aspect_ratio_fit(orig_width * 2, orig_height);
+        let duration = now.elapsed();
+        log(&format!("calculate_aspect_ratio_fit {:?}", duration));
+
+        let now = Instant::now();
+        let resized = image::imageops::resize(
+            &data,
+            new_width,
+            new_height,
+            image::imageops::FilterType::Nearest,
+        );
+        let duration = now.elapsed();
+        log(&format!("resize {:?}", duration));
+
+        let now = Instant::now();
+        let mut i = 0;
+        for pixel in resized.pixels() {
+            let [r, g, b] = pixel.0;
+            let color: Color = Color::Rgb { r, g, b };
+            let _ = queue!(&self.stdout, Print(" ".with(color).on(color)));
+            i += 1;
+            if i == new_width {
+                let _ = queue!(
+                    &self.stdout,
+                    terminal::Clear(ClearType::UntilNewLine),
+                    cursor::MoveToNextLine(1)
+                );
+                i = 0;
+            }
+        }
+        let duration = now.elapsed();
+        log(&format!("draw {:?}", duration));
+    }
+
+    fn calculate_aspect_ratio_fit(&self, orig_width: u32, orig_height: u32) -> (u32, u32) {
+        let max_width = self.columns as u32;
+        let max_height = (self.rows - HEADER_ROWS - FOOTER_ROWS) as u32;
+        let aspect_ratio = orig_width as f32 / orig_height as f32;
+
+        if max_width as f32 / aspect_ratio <= max_height as f32 {
+            (max_width, (max_width as f32 / aspect_ratio) as u32)
+        } else {
+            ((max_height as f32 * aspect_ratio) as u32, max_height)
         }
     }
 

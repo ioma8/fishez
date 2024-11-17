@@ -1,4 +1,5 @@
 mod files_view;
+mod logger;
 mod terminal_ui;
 use crossterm::{
     cursor,
@@ -63,7 +64,7 @@ fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
     match files_view.mode {
         FilesViewMode::Normal => handle_normal_mode(files_view, event.code, rows),
         FilesViewMode::Filter => handle_filter_mode(files_view, event.code, rows),
-        FilesViewMode::QuickView => handle_quick_view_mode(files_view, event.code),
+        FilesViewMode::QuickView(_) => handle_quick_view_mode(files_view, event.code),
         FilesViewMode::RecursiveSearch => {
             handle_recursive_search_mode(files_view, event.code, rows)
         }
