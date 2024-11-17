@@ -1,9 +1,8 @@
-use crossterm::style::{Color, Print, StyledContent, Stylize};
+use crossterm::style::{Color, Print, Stylize};
 use crossterm::terminal::ClearType;
 use crossterm::{cursor, queue, terminal};
-use image::{self, DynamicImage, ImageBuffer};
+use image::{self, ImageBuffer};
 use std::io::Write;
-use std::str;
 use std::time::Instant;
 
 use crate::files_view::{FilesView, FilesViewMode, QuickViewMode, FOOTER_ROWS, HEADER_ROWS};

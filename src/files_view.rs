@@ -1,19 +1,13 @@
 use std::env;
 use std::fs;
-use std::fs::File;
-use std::io::Seek;
-use std::io::Write;
 use std::path::PathBuf;
 use std::path::MAIN_SEPARATOR;
 use std::process::Command;
 use std::time::Instant;
 
 use image::load_from_memory;
-use image::load_from_memory_with_format;
-use image::ImageFormat;
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
-use std::io::Read;
 
 use image::DynamicImage;
 use image::ImageBuffer;
