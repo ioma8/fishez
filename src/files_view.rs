@@ -219,31 +219,42 @@ impl FilesView {
 }
 
 fn recursive_search(dir: &str, query: &str, results: &mut Vec<String>) {
-    if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                recursive_search(path.to_str().unwrap(), query, results);
-            } else if let Ok(content) = fs::read_to_string(&path) {
-                if content.contains(query) {
-                    results.push(path.to_str().unwrap().to_string());
-                }
+    let output = Command::new("cmd")
+        .args(&["/C", "dir", "/s", "/b", &format!("*{}*", query)])
+        .current_dir(dir)
+        .output()
+        .expect("Failed to execute dir command");
+
+    if output.status.success() {
+        let result_str = String::from_utf8_lossy(&output.stdout);
+        for line in result_str.lines() {
+            let path_relative = line.trim_start_matches(dir);
+            results.push(path_relative.to_string());
+        }
+    }
+
+    // TODO: implementace pro linux a macos: nejdřív zkusí najít command fd a když není tak find
+}
+
+fn ripgrep_search(dir: &str, query: &str, results: &mut Vec<String>) {
+    let query = format!("\"{}\"", query);
+    let output = Command::new("cmd")
+        .args(&["/C", "findstr", "/s", "/i", "/p", &query, "*"])
+        .current_dir(dir)
+        .output()
+        .expect("Failed to execute findstr");
+
+    // TODO: implementace pro linux a macos: nejdřív zkusí najít command rg
+    // (pomcí --version při startu programu), pokud není tak použije grep
+
+    if output.status.success() {
+        let result_str = String::from_utf8_lossy(&output.stdout);
+        for line in result_str.lines() {
+            if let Some(file_path) = line.split(':').next() {
+                results.push(file_path.to_string());
             }
         }
     }
 }
 
-fn ripgrep_search(dir: &str, query: &str, results: &mut Vec<String>) {
-    if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                ripgrep_search(path.to_str().unwrap(), query, results);
-            } else if let Ok(content) = fs::read_to_string(&path) {
-                if content.contains(query) {
-                    results.push(path.to_str().unwrap().to_string());
-                }
-            }
-        }
-    }
-}
+// findstr /s /i /p "filesview" *
