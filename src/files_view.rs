@@ -237,24 +237,25 @@ fn recursive_search(dir: &str, query: &str, results: &mut Vec<String>) {
 }
 
 fn ripgrep_search(dir: &str, query: &str, results: &mut Vec<String>) {
-    let query = format!("\"{}\"", query);
     let output = Command::new("cmd")
         .args(&["/C", "findstr", "/s", "/i", "/p", &query, "*"])
         .current_dir(dir)
         .output()
         .expect("Failed to execute findstr");
 
-    // TODO: implementace pro linux a macos: nejdřív zkusí najít command rg
-    // (pomcí --version při startu programu), pokud není tak použije grep
-
     if output.status.success() {
         let result_str = String::from_utf8_lossy(&output.stdout);
-        for line in result_str.lines() {
-            if let Some(file_path) = line.split(':').next() {
-                results.push(file_path.to_string());
-            }
-        }
+        let paths = result_str
+            .lines()
+            .filter_map(|line| line.split(':').next())
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .map(String::from);
+        results.extend(paths);
     }
+
+    // TODO: implementace pro linux a macos: nejdřív zkusí najít command rg
+    // (pomcí --version při startu programu), pokud není tak použije grep
 }
 
 // findstr /s /i /p "filesview" *
