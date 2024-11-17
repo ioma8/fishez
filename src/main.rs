@@ -22,12 +22,13 @@ fn main() {
     loop {
         ui.draw_ui(&files_view);
 
-        if let Event::Key(KeyEvent { code, kind, .. }) = event::read().unwrap() {
-            if kind != event::KeyEventKind::Press {
-                continue;
+        match event::read().unwrap() {
+            Event::Key(event) => handle_key_event(&mut files_view, event, ui.rows),
+            Event::Resize(cols, rows) => {
+                ui.columns = cols;
+                ui.rows = rows;
             }
-
-            handle_key_event(&mut files_view, code, ui.rows);
+            _ => {}
         }
     }
 }
@@ -54,13 +55,19 @@ fn reset_terminal() {
     );
 }
 
-fn handle_key_event(files_view: &mut FilesView, code: KeyCode, rows: u16) {
+fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
+    if event.kind != event::KeyEventKind::Press {
+        return;
+    }
+
     match files_view.mode {
-        FilesViewMode::Normal => handle_normal_mode(files_view, code, rows),
-        FilesViewMode::Filter => handle_filter_mode(files_view, code, rows),
-        FilesViewMode::QuickView => handle_quick_view_mode(files_view, code),
-        FilesViewMode::RecursiveSearch => handle_recursive_search_mode(files_view, code, rows),
-        FilesViewMode::RipGrep => handle_ripgrep_mode(files_view, code, rows),
+        FilesViewMode::Normal => handle_normal_mode(files_view, event.code, rows),
+        FilesViewMode::Filter => handle_filter_mode(files_view, event.code, rows),
+        FilesViewMode::QuickView => handle_quick_view_mode(files_view, event.code),
+        FilesViewMode::RecursiveSearch => {
+            handle_recursive_search_mode(files_view, event.code, rows)
+        }
+        FilesViewMode::RipGrep => handle_ripgrep_mode(files_view, event.code, rows),
     }
 }
 
