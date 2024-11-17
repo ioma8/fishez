@@ -15,6 +15,12 @@ pub struct TerminalUI {
     stdout: std::io::Stdout,
 }
 
+impl Default for TerminalUI {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TerminalUI {
     pub fn new() -> Self {
         let (columns, rows) = terminal::size().expect("Error getting terminal size");

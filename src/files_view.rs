@@ -53,6 +53,12 @@ enum FileType {
 pub static HEADER_ROWS: u16 = 2;
 pub static FOOTER_ROWS: u16 = 3;
 
+impl Default for FilesView {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FilesView {
     pub fn new() -> Self {
         FilesView {
@@ -327,7 +333,7 @@ impl FilesView {
 
     fn extract_embedded_thumbnail(&self, path: &str) -> Option<DynamicImage> {
         let image_path = std::path::Path::new(path);
-        let metadata = Metadata::new_from_path(&image_path).ok()?;
+        let metadata = Metadata::new_from_path(image_path).ok()?;
 
         let thumb_offset = metadata
             .get_tag(&ExifTag::ThumbnailOffset(vec![], vec![]))
@@ -339,7 +345,7 @@ impl FilesView {
             return None;
         };
 
-        let img = load_from_memory(&thumb_data).ok()?;
+        let img = load_from_memory(thumb_data).ok()?;
         Some(img)
     }
 
@@ -348,12 +354,10 @@ impl FilesView {
         let thumb = self.extract_embedded_thumbnail(&file_path);
         let image_pixels = if let Some(thumb) = thumb {
             Some(thumb.to_rgb8())
+        } else if let Ok(img) = image::open(&file_path) {
+            Some(img.to_rgb8())
         } else {
-            if let Ok(img) = image::open(&file_path) {
-                Some(img.to_rgb8())
-            } else {
-                None
-            }
+            None
         };
         log(&format!("Image loading took: {:?}", now.elapsed()));
 
@@ -393,7 +397,7 @@ impl FilesView {
 
 fn recursive_search(dir: &str, query: &str, results: &mut Vec<String>) {
     let output = Command::new("cmd")
-        .args(&["/C", "dir", "/s", "/b", &format!("*{}*", query)])
+        .args(["/C", "dir", "/s", "/b", &format!("*{}*", query)])
         .current_dir(dir)
         .output()
         .expect("Failed to execute dir command");
@@ -411,7 +415,7 @@ fn recursive_search(dir: &str, query: &str, results: &mut Vec<String>) {
 
 fn ripgrep_search(dir: &str, query: &str, results: &mut Vec<String>) {
     let output = Command::new("cmd")
-        .args(&["/C", "findstr", "/s", "/i", "/p", &query, "*"])
+        .args(["/C", "findstr", "/s", "/i", "/p", query, "*"])
         .current_dir(dir)
         .output()
         .expect("Failed to execute findstr");

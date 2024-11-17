@@ -94,12 +94,9 @@ fn handle_normal_navigation(files_view: &mut FilesView, event: KeyEvent, rows: u
 }
 
 fn handle_quit(files_view: &mut FilesView, code: KeyCode) {
-    match code {
-        KeyCode::F(10) => {
-            reset_terminal();
-            std::process::exit(0);
-        }
-        _ => {}
+    if let KeyCode::F(10) = code {
+        reset_terminal();
+        std::process::exit(0);
     }
 }
 
