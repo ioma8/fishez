@@ -257,5 +257,3 @@ fn ripgrep_search(dir: &str, query: &str, results: &mut Vec<String>) {
     // TODO: implementace pro linux a macos: nejdřív zkusí najít command rg
     // (pomcí --version při startu programu), pokud není tak použije grep
 }
-
-// findstr /s /i /p "filesview" *
