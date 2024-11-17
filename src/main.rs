@@ -12,8 +12,7 @@ use terminal_ui::TerminalUI;
 
 fn main() {
     setup_terminal();
-    let mut stdout = stdout();
-    let ui = TerminalUI::new();
+    let mut ui = TerminalUI::new();
     let mut files_view = FilesView::new();
     files_view.update();
 
@@ -21,7 +20,7 @@ fn main() {
     // TODO: nejak pridat zoxide?
 
     loop {
-        ui.draw_ui(&mut stdout, &files_view);
+        ui.draw_ui(&files_view);
 
         if let Event::Key(KeyEvent { code, kind, .. }) = event::read().unwrap() {
             if kind != event::KeyEventKind::Press {
