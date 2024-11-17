@@ -21,6 +21,8 @@ fn main() {
     // TODO: nejak pridat zoxide?
 
     loop {
+        files_view.clear_notification();
+
         ui.draw_ui(&files_view);
 
         match event::read().unwrap() {

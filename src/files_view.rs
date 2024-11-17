@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::path::MAIN_SEPARATOR;
 use std::process::Command;
+use std::time::Duration;
 use std::time::Instant;
 
 use clipboard::ClipboardContext;
@@ -24,6 +25,8 @@ pub struct FilesView {
     pub pwd: String,
     pub mode: FilesViewMode,
     pub filter_string: String,
+    pub notification: Option<String>,
+    pub notification_created: Instant,
 }
 
 #[derive(PartialEq, Debug)]
@@ -52,6 +55,7 @@ enum FileType {
 
 pub static HEADER_ROWS: u16 = 2;
 pub static FOOTER_ROWS: u16 = 3;
+pub static NOTIFICATION_TIMEOUT: usize = 3000;
 
 impl Default for FilesView {
     fn default() -> Self {
@@ -72,6 +76,8 @@ impl FilesView {
                 .to_string(),
             filter_string: String::new(),
             mode: FilesViewMode::Normal,
+            notification: None,
+            notification_created: Instant::now(),
         }
     }
 
@@ -111,6 +117,22 @@ impl FilesView {
         );
         self.selected = 0;
         self.start = 0;
+    }
+
+    pub fn set_notification(&mut self, notification: String) {
+        self.notification = Some(notification);
+        self.notification_created = Instant::now();
+    }
+
+    pub fn clear_notification(&mut self) {
+        if self.notification.is_none() {
+            return;
+        }
+
+        if self.notification_created.elapsed() > Duration::from_millis(NOTIFICATION_TIMEOUT as u64)
+        {
+            self.notification = None;
+        }
     }
 
     pub fn reset_filter_mode(&mut self) {
@@ -230,7 +252,7 @@ impl FilesView {
         }
     }
 
-    pub fn copy_selected_to_clipboard(&self, absolute_path: bool) {
+    pub fn copy_selected_to_clipboard(&mut self, absolute_path: bool) {
         let selected_file = &self.files[self.selected];
         let file_path = if absolute_path {
             format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file)
@@ -239,7 +261,12 @@ impl FilesView {
         };
 
         let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
-        ctx.set_contents(file_path).unwrap();
+        ctx.set_contents(file_path.clone()).unwrap();
+        if absolute_path {
+            self.set_notification(format!("Copied absolute path to clipboard: {}", file_path));
+        } else {
+            self.set_notification(format!("Copied name to clipboard: {}", selected_file));
+        }
     }
 
     pub fn open_quick_view(&mut self) {

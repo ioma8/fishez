@@ -6,7 +6,7 @@ use std::io::Write;
 use std::path::MAIN_SEPARATOR;
 use std::time::Instant;
 
-use crate::files_view::{FilesView, FilesViewMode, QuickViewMode, FOOTER_ROWS, HEADER_ROWS};
+use crate::files_view::{self, FilesView, FilesViewMode, QuickViewMode, FOOTER_ROWS, HEADER_ROWS};
 use crate::logger::log;
 
 pub struct TerminalUI {
@@ -55,7 +55,11 @@ impl TerminalUI {
         } else {
             format!("PWD: {}", files_view.pwd).with(Color::Cyan)
         };
-        let right = "FISHEZ".with(Color::Cyan);
+        let right = if let Some(notification) = files_view.notification.clone() {
+            notification.on(Color::DarkMagenta)
+        } else {
+            "FISHEZ".to_string().with(Color::Cyan)
+        };
         let _ = queue!(
             &self.stdout,
             cursor::MoveTo(0, 0),
