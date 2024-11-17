@@ -163,7 +163,7 @@ impl FilesView {
 
         if cfg!(target_os = "windows") {
             Command::new("cmd")
-                .args(["/C", "start", "/B", "code", &file_path])
+                .args(["/C", "code", &file_path])
                 .spawn()
                 .unwrap();
         } else if cfg!(target_os = "macos") {

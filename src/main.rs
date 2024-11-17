@@ -17,6 +17,9 @@ fn main() {
     let mut files_view = FilesView::new();
     files_view.update();
 
+    // TODO: favorites - oblibene polozky
+    // TODO: nejak pridat zoxide?
+
     loop {
         ui.draw_ui(&mut stdout, &files_view);
 
