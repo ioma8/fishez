@@ -72,24 +72,40 @@ fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
     }
 }
 
-fn handle_normal_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
+fn handle_normal_navigation(files_view: &mut FilesView, code: KeyCode, rows: u16) {
     match code {
-        KeyCode::Char('s') => files_view.mode = FilesViewMode::Filter,
-        KeyCode::Char('f') => files_view.mode = FilesViewMode::RecursiveSearch,
-        KeyCode::Char('r') => files_view.mode = FilesViewMode::RipGrep,
-        KeyCode::F(3) => files_view.open_quick_view(),
-        KeyCode::F(4) => files_view.open_in_editor(),
         KeyCode::Up => files_view.navigate(-1, rows - HEADER_ROWS - FOOTER_ROWS),
         KeyCode::Down => files_view.navigate(1, rows - HEADER_ROWS - FOOTER_ROWS),
         KeyCode::Home => files_view.navigate_home(),
         KeyCode::End => files_view.navigate_end(rows - HEADER_ROWS - FOOTER_ROWS),
-        KeyCode::Backspace => files_view.go_up_one_level(),
         KeyCode::Enter => files_view.open_selected_file(),
-        KeyCode::Char('q') => {
+        KeyCode::F(3) => files_view.open_quick_view(),
+        KeyCode::F(4) => files_view.open_in_editor(),
+        rest => handle_quit(files_view, rest),
+    }
+}
+
+fn handle_quit(files_view: &mut FilesView, code: KeyCode) {
+    match code {
+        KeyCode::F(10) => {
             reset_terminal();
             std::process::exit(0);
         }
         _ => {}
+    }
+}
+
+fn handle_normal_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
+    match code {
+        KeyCode::Char(char) => {
+            files_view.mode = FilesViewMode::Filter;
+            files_view.filter_string.push(char);
+        }
+        KeyCode::Backspace => files_view.go_up_one_level(),
+        KeyCode::F(6) => files_view.mode = FilesViewMode::RecursiveSearch,
+        KeyCode::F(7) => files_view.mode = FilesViewMode::RipGrep,
+
+        rest => handle_normal_navigation(files_view, rest, rows),
     }
 }
 
@@ -102,11 +118,7 @@ fn handle_filter_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
         KeyCode::Char(c) => files_view.update_filter_string(|s| {
             s.push(c);
         }),
-        KeyCode::Up => files_view.navigate(-1, rows - HEADER_ROWS - FOOTER_ROWS),
-        KeyCode::Down => files_view.navigate(1, rows - HEADER_ROWS - FOOTER_ROWS),
-        KeyCode::Home => files_view.navigate_home(),
-        KeyCode::End => files_view.navigate_end(rows - HEADER_ROWS - FOOTER_ROWS),
-        _ => {}
+        rest => handle_normal_navigation(files_view, rest, rows),
     }
 }
 
@@ -125,7 +137,7 @@ fn handle_quick_view_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16
             files_view.open_quick_view();
         }
         KeyCode::Esc | KeyCode::F(3) => files_view.mode = FilesViewMode::Normal,
-        _ => {}
+        rest => handle_quit(files_view, rest),
     }
 }
 
@@ -140,11 +152,7 @@ fn handle_recursive_search_mode(files_view: &mut FilesView, code: KeyCode, rows:
             files_view.filter_string.pop();
             files_view.perform_recursive_search();
         }
-        KeyCode::Up => files_view.navigate(-1, rows - HEADER_ROWS - FOOTER_ROWS),
-        KeyCode::Down => files_view.navigate(1, rows - HEADER_ROWS - FOOTER_ROWS),
-        KeyCode::Home => files_view.navigate_home(),
-        KeyCode::End => files_view.navigate_end(rows - HEADER_ROWS - FOOTER_ROWS),
-        _ => {}
+        rest => handle_normal_navigation(files_view, rest, rows),
     }
 }
 
@@ -159,10 +167,6 @@ fn handle_ripgrep_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
             files_view.filter_string.pop();
             files_view.perform_ripgrep_search();
         }
-        KeyCode::Up => files_view.navigate(-1, rows - HEADER_ROWS - FOOTER_ROWS),
-        KeyCode::Down => files_view.navigate(1, rows - HEADER_ROWS - FOOTER_ROWS),
-        KeyCode::Home => files_view.navigate_home(),
-        KeyCode::End => files_view.navigate_end(rows - HEADER_ROWS - FOOTER_ROWS),
-        _ => {}
+        rest => handle_normal_navigation(files_view, rest, rows),
     }
 }

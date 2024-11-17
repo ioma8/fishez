@@ -202,14 +202,13 @@ impl TerminalUI {
     fn get_footer_actions_by_mode(&self, mode: &FilesViewMode) -> Vec<&str> {
         match mode {
             FilesViewMode::Normal => vec![
-                "[s]earch",
-                "[f]ind",
-                "[r]ipgrep",
                 "[f3]view",
                 "[f4]edit",
-                "[q]uit",
+                "[f6]recursive",
+                "[f7]ripgrep",
+                "[f10]quit",
             ],
-            FilesViewMode::Filter => vec!["[abc]enter text", "[esc]close filter"],
+            FilesViewMode::Filter => vec!["[f3]view", "[f4]edit", "[esc]clear", "[f10]quit"],
             FilesViewMode::QuickView(_) => vec![
                 "[up]scroll up",
                 "[down]scroll down",
@@ -217,8 +216,8 @@ impl TerminalUI {
                 "[right]next file",
                 "[f3]close view",
             ],
-            FilesViewMode::RecursiveSearch => vec!["[esc]close search"],
-            FilesViewMode::RipGrep => vec!["[esc]close ripgrep"],
+            FilesViewMode::RecursiveSearch => vec!["[esc]close search", "[f10]quit"],
+            FilesViewMode::RipGrep => vec!["[esc]close ripgrep", "[f10]quit"],
         }
     }
 
