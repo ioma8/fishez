@@ -5,6 +5,8 @@ use std::path::MAIN_SEPARATOR;
 use std::process::Command;
 use std::time::Instant;
 
+use clipboard::ClipboardContext;
+use clipboard::ClipboardProvider;
 use image::load_from_memory;
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
@@ -208,6 +210,18 @@ impl FilesView {
         } else {
             Command::new("code").arg(&file_path).spawn().unwrap();
         }
+    }
+
+    pub fn copy_selected_to_clipboard(&self, absolute_path: bool) {
+        let selected_file = &self.files[self.selected];
+        let file_path = if absolute_path {
+            format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file)
+        } else {
+            selected_file.clone()
+        };
+
+        let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
+        ctx.set_contents(file_path).unwrap();
     }
 
     pub fn open_quick_view(&mut self) {
