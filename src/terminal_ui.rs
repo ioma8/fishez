@@ -120,7 +120,7 @@ impl TerminalUI {
 
     fn draw_text_content(&self, content: &Vec<String>, start: usize, rows_available: u16) {
         let content_to_display = content[start..].iter().take(rows_available as usize);
-
+        log(&format!("content_to_display: {:?}", content_to_display));
         let _ = queue!(&self.stdout, cursor::MoveTo(0, HEADER_ROWS));
         for line in content_to_display {
             let _ = queue!(
@@ -130,13 +130,15 @@ impl TerminalUI {
                 cursor::MoveToNextLine(1)
             );
         }
-        let rows_to_clear = rows_available - content.len() as u16;
-        for _ in 0..rows_to_clear {
-            let _ = queue!(
-                &self.stdout,
-                terminal::Clear(ClearType::UntilNewLine),
-                cursor::MoveToNextLine(1)
-            );
+        let rows_to_clear: i16 = rows_available as i16 - content.len() as i16;
+        if rows_to_clear > 0 {
+            for _ in 0..rows_to_clear {
+                let _ = queue!(
+                    &self.stdout,
+                    terminal::Clear(ClearType::UntilNewLine),
+                    cursor::MoveToNextLine(1)
+                );
+            }
         }
     }
 

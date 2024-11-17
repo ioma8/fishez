@@ -258,11 +258,13 @@ impl FilesView {
 
     fn show_file_quick_view_text(&mut self, file_path: String, selected_file: &String) {
         if let Ok(content) = fs::read_to_string(&file_path) {
-            let lines: Vec<String> = content.lines().map(String::from).collect();
+            // TODO: předávat asi přímo Reader namísto celého filu ve stringu
+            // TODO: ve filu implementovat End / Home pro přesun na začátek a konec souboru kk
+            let lines: Vec<String> = content.lines().map(String::from).take(1000).collect();
             let lines_len = lines.len();
             self.mode = FilesViewMode::QuickView(QuickViewMode::Text(lines, 0, lines_len));
         } else {
-            println!("Could not read file: {}", selected_file);
+            log(&format!("Could not read file: {}", selected_file));
         }
     }
 
