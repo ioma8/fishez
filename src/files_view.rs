@@ -1,9 +1,19 @@
 use std::env;
 use std::fs;
+use std::fs::File;
+use std::io::Seek;
+use std::io::Write;
 use std::path::PathBuf;
 use std::path::MAIN_SEPARATOR;
 use std::process::Command;
 use std::time::Instant;
+
+use image::load_from_memory;
+use image::load_from_memory_with_format;
+use image::ImageFormat;
+use little_exif::exif_tag::ExifTag;
+use little_exif::metadata::Metadata;
+use std::io::Read;
 
 use image::DynamicImage;
 use image::ImageBuffer;
@@ -252,13 +262,33 @@ impl FilesView {
         }
     }
 
+    fn extract_embedded_thumbnail(&self, path: &str) -> Option<DynamicImage> {
+        let image_path = std::path::Path::new(path);
+        let metadata = Metadata::new_from_path(&image_path).ok()?;
+
+        let thumb_offset = metadata
+            .get_tag(&ExifTag::ThumbnailOffset(vec![], vec![]))
+            .next()?;
+
+        let thumb_data = if let ExifTag::ThumbnailOffset(_, data) = thumb_offset {
+            data
+        } else {
+            return None;
+        };
+
+        let img = load_from_memory(&thumb_data).unwrap();
+        Some(img)
+    }
+
     fn show_file_quick_view_image(&mut self, file_path: String) {
         let now = Instant::now();
-        // toto je pomale... pul vteriny nacita obr
-        let image_pixels = image::open(&file_path)
-            .unwrap()
-            .resize(200, 200, image::imageops::FilterType::Nearest)
-            .to_rgb8();
+        let thumb = self.extract_embedded_thumbnail(&file_path);
+        let image_pixels = if let Some(thumb) = thumb {
+            thumb.to_rgb8()
+        } else {
+            let img = image::open(&file_path).unwrap();
+            img.to_rgb8()
+        };
         log(&format!("Image loading took: {:?}", now.elapsed()));
         self.mode = FilesViewMode::QuickView(QuickViewMode::Image(image_pixels));
     }
