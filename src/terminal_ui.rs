@@ -16,7 +16,7 @@ pub struct TerminalUI {
 
 impl TerminalUI {
     pub fn new() -> Self {
-        let (columns, rows) = terminal::size().unwrap();
+        let (columns, rows) = terminal::size().expect("Error getting terminal size");
         TerminalUI {
             columns,
             rows,
@@ -209,7 +209,7 @@ impl TerminalUI {
                 "[f4]edit",
                 "[q]uit",
             ],
-            FilesViewMode::Filter => vec!["[esc]close filter"],
+            FilesViewMode::Filter => vec!["[abc]enter text", "[esc]close filter"],
             FilesViewMode::QuickView(_) => vec![
                 "[up]scroll up",
                 "[down]scroll down",

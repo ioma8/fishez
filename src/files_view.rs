@@ -57,7 +57,11 @@ impl FilesView {
             files: vec![],
             selected: 0,
             start: 0,
-            pwd: env::current_dir().unwrap().to_str().unwrap().to_string(),
+            pwd: env::current_dir()
+                .unwrap_or("/".into())
+                .to_str()
+                .unwrap_or("/")
+                .to_string(),
             filter_string: String::new(),
             mode: FilesViewMode::Normal,
         }
@@ -269,20 +273,22 @@ impl FilesView {
     }
 
     fn show_file_quick_view_directory(&mut self, file_path: String) {
-        let entries = fs::read_dir(&file_path).unwrap();
-        let mut files = vec![];
-        let mut dirs = vec![];
-        for entry in entries {
-            let entry = entry.unwrap();
-            let file_name = entry.file_name().into_string().unwrap();
-            if entry.file_type().unwrap().is_dir() {
-                dirs.push(file_name);
-            } else {
-                files.push(file_name);
+        let entries = fs::read_dir(&file_path);
+        if let Ok(entries) = entries {
+            let mut files = vec![];
+            let mut dirs = vec![];
+            for entry in entries {
+                let entry = entry.unwrap();
+                let file_name = entry.file_name().into_string().unwrap();
+                if entry.file_type().unwrap().is_dir() {
+                    dirs.push(file_name);
+                } else {
+                    files.push(file_name);
+                }
             }
+            // TODO: zobrazit základní informace o souborech a složkách
+            self.mode = FilesViewMode::QuickView(QuickViewMode::Directory);
         }
-        // TODO: zobrazit základní informace o souborech a složkách
-        self.mode = FilesViewMode::QuickView(QuickViewMode::Directory);
     }
 
     fn show_file_quick_view_binary(&mut self, file_path: String) {
@@ -333,9 +339,10 @@ impl FilesView {
     pub fn go_up_one_level(&mut self) {
         self.mode = FilesViewMode::Normal;
         self.filter_string.clear();
-        let parent_dir = PathBuf::from(&self.pwd).parent().unwrap().to_path_buf();
-        self.pwd = parent_dir.to_str().unwrap().to_string();
-        self.update();
+        if let Some(parent_dir) = PathBuf::from(&self.pwd).parent() {
+            self.pwd = parent_dir.to_str().unwrap().to_string();
+            self.update();
+        }
     }
 
     pub fn perform_recursive_search(&mut self) {
