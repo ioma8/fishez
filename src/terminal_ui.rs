@@ -159,8 +159,10 @@ impl TerminalUI {
             &self.stdout,
             cursor::MoveTo(0, self.rows - FOOTER_ROWS + 1),
             Print(indicator_row),
+            terminal::Clear(ClearType::UntilNewLine),
             cursor::MoveTo(0, self.rows - FOOTER_ROWS + 2),
-            Print(actions_row)
+            Print(actions_row),
+            terminal::Clear(ClearType::UntilNewLine),
         );
     }
 
