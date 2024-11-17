@@ -3,6 +3,7 @@ use crossterm::terminal::ClearType;
 use crossterm::{cursor, queue, terminal};
 use image::{self, ImageBuffer};
 use std::io::Write;
+use std::path::MAIN_SEPARATOR;
 use std::time::Instant;
 
 use crate::files_view::{FilesView, FilesViewMode, QuickViewMode, FOOTER_ROWS, HEADER_ROWS};
@@ -69,7 +70,7 @@ impl TerminalUI {
         let _ = queue!(&self.stdout, cursor::MoveTo(0, HEADER_ROWS));
 
         for (i, file) in files_to_display.enumerate() {
-            let name = if file.ends_with('/') {
+            let name = if file.ends_with(MAIN_SEPARATOR) {
                 file.as_str().yellow()
             } else {
                 file.as_str().dark_yellow()
@@ -245,7 +246,7 @@ impl TerminalUI {
             let total_dirs = files_view
                 .files
                 .iter()
-                .filter(|name| name.ends_with('/'))
+                .filter(|name| name.ends_with(MAIN_SEPARATOR))
                 .count();
             let total_files = files_view.files.len() - total_dirs - 1;
             format!("{} dirs, {} files", total_dirs, total_files).with(Color::Green)

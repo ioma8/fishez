@@ -69,6 +69,14 @@ impl FilesView {
         }
     }
 
+    pub fn update_and_focus(&mut self, focus_on: &str) {
+        self.update();
+        self.selected = self.files.iter().position(|f| f == focus_on).unwrap_or(0);
+        if self.selected >= self.start + 10 {
+            self.start = self.selected - 10;
+        }
+    }
+
     pub fn update(&mut self) {
         self.files = vec![];
         if self.mode == FilesViewMode::Normal {
@@ -82,7 +90,7 @@ impl FilesView {
                     let entry = entry.unwrap();
                     let file_name = entry.file_name().into_string().unwrap();
                     if entry.file_type().unwrap().is_dir() {
-                        format!("{}/", file_name)
+                        format!("{}{}", file_name, MAIN_SEPARATOR)
                     } else {
                         file_name
                     }
@@ -156,7 +164,7 @@ impl FilesView {
         let selected_file = self.files[self.selected].clone();
         if selected_file == ".." {
             self.go_up_one_level();
-        } else if selected_file.ends_with('/') {
+        } else if selected_file.ends_with(MAIN_SEPARATOR) {
             self.change_directory(&selected_file);
         } else {
             self.open_file(&selected_file);
@@ -176,7 +184,7 @@ impl FilesView {
             "{}{}{}",
             self.pwd,
             separator,
-            selected_file.trim_end_matches('/')
+            selected_file.trim_end_matches(MAIN_SEPARATOR)
         );
         self.update();
     }
@@ -265,7 +273,7 @@ impl FilesView {
             return;
         }
 
-        if file_path.ends_with('/') {
+        if file_path.ends_with(MAIN_SEPARATOR) {
             self.show_file_quick_view_directory(file_path.clone());
             return;
         }
@@ -357,9 +365,16 @@ impl FilesView {
     pub fn go_up_one_level(&mut self) {
         self.mode = FilesViewMode::Normal;
         self.filter_string.clear();
+        let old_dir = self.pwd.clone();
         if let Some(parent_dir) = PathBuf::from(&self.pwd).parent() {
-            self.pwd = parent_dir.to_str().unwrap().to_string();
-            self.update();
+            let parent_dir = parent_dir.to_str().unwrap();
+            let old_dir = old_dir
+                .trim_start_matches(parent_dir)
+                .trim_start_matches(MAIN_SEPARATOR)
+                .trim_end_matches(MAIN_SEPARATOR);
+            self.pwd = parent_dir.to_string();
+            let old_dir = format!("{}{}", old_dir, MAIN_SEPARATOR);
+            self.update_and_focus(&old_dir);
         }
     }
 
