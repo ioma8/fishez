@@ -154,9 +154,17 @@ impl TerminalUI {
         let duration = now.elapsed();
         log(&format!("resize {:?}", duration));
 
+        let rem_horizontal_padding = (self.columns - new_width as u16) / 2;
+
         let now = Instant::now();
         let mut i = 0;
         for pixel in resized.pixels() {
+            if i == 0 {
+                let _ = queue!(
+                    &self.stdout,
+                    Print(" ".repeat(rem_horizontal_padding as usize))
+                );
+            }
             let [r, g, b] = pixel.0;
             let color: Color = Color::Rgb { r, g, b };
             let _ = queue!(&self.stdout, Print(" ".with(color).on(color)));
