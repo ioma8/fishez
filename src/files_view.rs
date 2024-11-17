@@ -70,7 +70,11 @@ impl FilesView {
     }
 
     pub fn update(&mut self) {
-        self.files = vec!["..".to_string()];
+        self.files = vec![];
+        if self.mode != FilesViewMode::Filter {
+            self.files.push("..".to_string());
+        }
+
         self.files.extend(
             fs::read_dir(&self.pwd)
                 .unwrap()
