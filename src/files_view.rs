@@ -71,7 +71,7 @@ impl FilesView {
 
     pub fn update(&mut self) {
         self.files = vec![];
-        if self.mode != FilesViewMode::Filter {
+        if self.mode == FilesViewMode::Normal {
             self.files.push("..".to_string());
         }
 
