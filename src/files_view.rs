@@ -37,6 +37,9 @@ pub enum FilesViewMode {
 pub enum QuickViewMode {
     Text(Vec<String>, usize, usize),
     Image(ImageBuffer<image::Rgb<u8>, Vec<u8>>),
+    Directory,
+    NotSupported,
+    Binary, // TODO: implement
 }
 
 enum FileType {
@@ -208,38 +211,49 @@ impl FilesView {
         let file_path = format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file);
         log(&format!("file_path: {}", file_path));
 
-        if !selected_file.ends_with('/') && fs::metadata(&file_path).is_ok() {
-            self.show_file_quick_view(file_path, &selected_file);
-        }
+        self.show_file_quick_view(file_path, &selected_file);
     }
 
     fn get_type_from_path(&self, file_path: &String) -> FileType {
-        let mime_type = tree_magic_mini::from_filepath(std::path::Path::new(&file_path)).unwrap();
-        match mime_type.split('/').next() {
-            Some("text") => FileType::Text,
-            Some("image") => FileType::Image,
-            _ => {
-                match std::path::Path::new(file_path)
-                    .extension()
-                    .and_then(std::ffi::OsStr::to_str)
-                {
-                    Some("txt") | Some("md") | Some("rs") | Some("toml") => FileType::Text,
-                    Some("png") | Some("jpg") | Some("jpeg") | Some("gif") => FileType::Image,
-                    _ => FileType::Other,
+        if let Some(mime_type) = tree_magic_mini::from_filepath(std::path::Path::new(&file_path)) {
+            match mime_type.split('/').next() {
+                Some("text") => FileType::Text,
+                Some("image") => FileType::Image,
+                _ => {
+                    match std::path::Path::new(file_path)
+                        .extension()
+                        .and_then(std::ffi::OsStr::to_str)
+                    {
+                        Some("txt") | Some("md") | Some("rs") | Some("toml") => FileType::Text,
+                        Some("png") | Some("jpg") | Some("jpeg") | Some("gif") => FileType::Image,
+                        _ => FileType::Other,
+                    }
                 }
             }
+        } else {
+            FileType::Other
         }
     }
 
     fn show_file_quick_view(&mut self, file_path: String, selected_file: &String) {
+        let meta = fs::metadata(&file_path).is_ok();
+
+        if !meta {
+            self.mode = FilesViewMode::QuickView(QuickViewMode::NotSupported);
+            return;
+        }
+
+        if file_path.ends_with('/') {
+            self.show_file_quick_view_directory(file_path.clone());
+            return;
+        }
+
         let ftype = self.get_type_from_path(&file_path);
         match ftype {
             FileType::Text => self.show_file_quick_view_text(file_path.clone(), selected_file),
             FileType::Image => self.show_file_quick_view_image(file_path.clone()),
-            _ => log(&format!("Unsupported file type: {}", file_path)),
+            _ => self.show_file_quick_view_not_supported(file_path.clone()),
         }
-
-        self.show_file_quick_view_text(file_path.clone(), selected_file);
     }
 
     fn show_file_quick_view_text(&mut self, file_path: String, selected_file: &String) {
@@ -250,6 +264,31 @@ impl FilesView {
         } else {
             println!("Could not read file: {}", selected_file);
         }
+    }
+
+    fn show_file_quick_view_directory(&mut self, file_path: String) {
+        let entries = fs::read_dir(&file_path).unwrap();
+        let mut files = vec![];
+        let mut dirs = vec![];
+        for entry in entries {
+            let entry = entry.unwrap();
+            let file_name = entry.file_name().into_string().unwrap();
+            if entry.file_type().unwrap().is_dir() {
+                dirs.push(file_name);
+            } else {
+                files.push(file_name);
+            }
+        }
+        // TODO: zobrazit základní informace o souborech a složkách
+        self.mode = FilesViewMode::QuickView(QuickViewMode::Directory);
+    }
+
+    fn show_file_quick_view_binary(&mut self, file_path: String) {
+        self.mode = FilesViewMode::QuickView(QuickViewMode::Binary);
+    }
+
+    fn show_file_quick_view_not_supported(&mut self, file_path: String) {
+        self.mode = FilesViewMode::QuickView(QuickViewMode::NotSupported);
     }
 
     fn extract_embedded_thumbnail(&self, path: &str) -> Option<DynamicImage> {
@@ -266,7 +305,7 @@ impl FilesView {
             return None;
         };
 
-        let img = load_from_memory(&thumb_data).unwrap();
+        let img = load_from_memory(&thumb_data).ok()?;
         Some(img)
     }
 
@@ -274,13 +313,19 @@ impl FilesView {
         let now = Instant::now();
         let thumb = self.extract_embedded_thumbnail(&file_path);
         let image_pixels = if let Some(thumb) = thumb {
-            thumb.to_rgb8()
+            Some(thumb.to_rgb8())
         } else {
-            let img = image::open(&file_path).unwrap();
-            img.to_rgb8()
+            if let Ok(img) = image::open(&file_path) {
+                Some(img.to_rgb8())
+            } else {
+                None
+            }
         };
         log(&format!("Image loading took: {:?}", now.elapsed()));
-        self.mode = FilesViewMode::QuickView(QuickViewMode::Image(image_pixels));
+
+        if let Some(image_pixels) = image_pixels {
+            self.mode = FilesViewMode::QuickView(QuickViewMode::Image(image_pixels));
+        }
     }
 
     pub fn go_up_one_level(&mut self) {

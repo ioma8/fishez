@@ -112,6 +112,9 @@ impl TerminalUI {
             QuickViewMode::Image(data) => {
                 self.draw_image_content(data.clone());
             }
+            _ => {
+                self.draw_text_content(&vec!["".to_string()], 0, rows_available);
+            }
         }
     }
 
@@ -230,6 +233,13 @@ impl TerminalUI {
                 _ => "",
             };
             format!("{}: {}", filter_name, files_view.filter_string).with(Color::Green)
+        } else if matches!(files_view.mode, FilesViewMode::QuickView(_)) {
+            format!(
+                "File {} / {}",
+                files_view.selected + 1,
+                files_view.files.len()
+            )
+            .with(Color::Green)
         } else {
             let total_dirs = files_view
                 .files
