@@ -64,7 +64,7 @@ fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
     match files_view.mode {
         FilesViewMode::Normal => handle_normal_mode(files_view, event.code, rows),
         FilesViewMode::Filter => handle_filter_mode(files_view, event.code, rows),
-        FilesViewMode::QuickView(_) => handle_quick_view_mode(files_view, event.code),
+        FilesViewMode::QuickView(_) => handle_quick_view_mode(files_view, event, rows),
         FilesViewMode::RecursiveSearch => {
             handle_recursive_search_mode(files_view, event.code, rows)
         }
@@ -77,7 +77,7 @@ fn handle_normal_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
         KeyCode::Char('s') => files_view.mode = FilesViewMode::Filter,
         KeyCode::Char('f') => files_view.mode = FilesViewMode::RecursiveSearch,
         KeyCode::Char('r') => files_view.mode = FilesViewMode::RipGrep,
-        KeyCode::F(3) => files_view.toggle_quick_view(),
+        KeyCode::F(3) => files_view.open_quick_view(),
         KeyCode::F(4) => files_view.open_in_editor(),
         KeyCode::Up => files_view.navigate(-1, rows - HEADER_ROWS - FOOTER_ROWS),
         KeyCode::Down => files_view.navigate(1, rows - HEADER_ROWS - FOOTER_ROWS),
@@ -110,10 +110,20 @@ fn handle_filter_mode(files_view: &mut FilesView, code: KeyCode, rows: u16) {
     }
 }
 
-fn handle_quick_view_mode(files_view: &mut FilesView, code: KeyCode) {
-    match code {
+fn handle_quick_view_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
+    match event.code {
         KeyCode::Up => files_view.scroll_content(-1),
         KeyCode::Down => files_view.scroll_content(1),
+        KeyCode::PageUp => files_view.scroll_content(-10),
+        KeyCode::PageDown => files_view.scroll_content(10),
+        KeyCode::Left => {
+            files_view.navigate(-1, rows - HEADER_ROWS - FOOTER_ROWS);
+            files_view.open_quick_view();
+        }
+        KeyCode::Right => {
+            files_view.navigate(1, rows - HEADER_ROWS - FOOTER_ROWS);
+            files_view.open_quick_view();
+        }
         KeyCode::Esc | KeyCode::F(3) => files_view.mode = FilesViewMode::Normal,
         _ => {}
     }

@@ -203,17 +203,13 @@ impl FilesView {
         }
     }
 
-    pub fn toggle_quick_view(&mut self) {
-        if let FilesViewMode::QuickView(_) = self.mode {
-            self.mode = FilesViewMode::Normal;
-        } else {
-            let selected_file = self.files[self.selected].clone();
-            let file_path = format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file);
-            log(&format!("file_path: {}", file_path));
+    pub fn open_quick_view(&mut self) {
+        let selected_file = self.files[self.selected].clone();
+        let file_path = format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file);
+        log(&format!("file_path: {}", file_path));
 
-            if !selected_file.ends_with('/') && fs::metadata(&file_path).is_ok() {
-                self.show_file_quick_view(file_path, &selected_file);
-            }
+        if !selected_file.ends_with('/') && fs::metadata(&file_path).is_ok() {
+            self.show_file_quick_view(file_path, &selected_file);
         }
     }
 
