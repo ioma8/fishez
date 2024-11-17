@@ -112,7 +112,7 @@ fn handle_normal_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
         KeyCode::Backspace => files_view.go_up_one_level(),
         KeyCode::F(6) => files_view.mode = FilesViewMode::RecursiveSearch,
         KeyCode::F(7) => files_view.mode = FilesViewMode::RipGrep,
-        rest => handle_normal_navigation(files_view, event, rows),
+        _ => handle_normal_navigation(files_view, event, rows),
     }
 }
 
@@ -125,7 +125,7 @@ fn handle_filter_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
         KeyCode::Char(c) => files_view.update_filter_string(|s| {
             s.push(c);
         }),
-        rest => handle_normal_navigation(files_view, event, rows),
+        _ => handle_normal_navigation(files_view, event, rows),
     }
 }
 
