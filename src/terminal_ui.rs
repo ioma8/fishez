@@ -194,6 +194,27 @@ impl TerminalUI {
         }
     }
 
+    fn get_footer_actions_by_mode(&self, mode: &FilesViewMode) -> Vec<&str> {
+        match mode {
+            FilesViewMode::Normal => vec![
+                "[s]earch",
+                "[f]ind",
+                "[r]ipgrep",
+                "[f3]view",
+                "[f4]edit",
+                "[q]uit",
+            ],
+            FilesViewMode::Filter => vec!["[esc]close filter"],
+            FilesViewMode::QuickView(_) => vec![
+                "[Up/Down]scroll content",
+                "[Left/Right]prev/next file",
+                "[f3]close",
+            ],
+            FilesViewMode::RecursiveSearch => vec!["[esc]close search"],
+            FilesViewMode::RipGrep => vec!["[esc]close ripgrep"],
+        }
+    }
+
     fn draw_footer(&self, files_view: &FilesView) {
         self.draw_full_line(self.rows - FOOTER_ROWS);
         let indicator_row = if files_view.mode == FilesViewMode::Filter
@@ -216,14 +237,7 @@ impl TerminalUI {
             let total_files = files_view.files.len() - total_dirs - 1;
             format!("{} dirs, {} files", total_dirs, total_files).with(Color::Green)
         };
-        let actions = [
-            "[s]earch",
-            "[f]ind",
-            "[r]ipgrep",
-            "[f3]view",
-            "[f4]edit",
-            "[q]uit",
-        ];
+        let actions = self.get_footer_actions_by_mode(&files_view.mode);
         let actions_str = actions.join(" ");
         let padding = (self.columns as usize - actions_str.len()) / (actions.len() - 1);
         let actions_row = actions.join(&" ".repeat(padding)).with(Color::Green);
