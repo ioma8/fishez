@@ -54,7 +54,7 @@ impl FeatureTrait for FavouritesFeature {
 
         match event.code {
             KeyCode::Up => self.selected_index = self.selected_index.saturating_sub(1),
-            KeyCode::Down => self.selected_index = self.selected_index.saturating_add(1),
+            KeyCode::Down => self.selected_index = self.selected_index.saturating_add(1).min(self.items.len() - 1),
             KeyCode::Enter => {
                 if let Some(item) = self.items.get(self.selected_index) {
                     files_view.pwd = item.clone();
