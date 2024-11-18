@@ -13,11 +13,21 @@ use crate::logger::log;
 
 pub trait FeatureTrait {
     fn get_id(&self) -> &'static str;
-    fn general_shortcuts(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool;
-    fn view_shortcuts(&mut self, event: KeyEvent, files_view: &mut FilesView);
-    fn draw_header(&self, files_view: &FilesView, terminal_ui: &TerminalUI);
-    fn draw_content(&self, files_view: &FilesView, terminal_ui: &TerminalUI);
-    fn draw_footer(&self, files_view: &FilesView, terminal_ui: &TerminalUI);
+    fn general_shortcuts(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+        false
+    }
+    fn view_shortcuts(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+        false
+    }
+    fn draw_header(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+        false
+    }
+    fn draw_content(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+        false
+    }
+    fn draw_footer(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+        false
+    }
 }
 
 pub struct TerminalUI {
