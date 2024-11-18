@@ -225,6 +225,8 @@ fn handle_normal_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
         KeyCode::Backspace => files_view.go_up_one_level(),
         KeyCode::F(6) => files_view.mode = FilesViewMode::RecursiveSearch,
         KeyCode::F(7) => files_view.mode = FilesViewMode::RipGrep,
+        // TODO: mkdir shortcut
+        // TODO: touch shortcut
         _ => handle_normal_navigation(files_view, event, rows),
     }
 }
