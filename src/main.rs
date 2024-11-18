@@ -133,7 +133,9 @@ fn handle_normal_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
 fn handle_filter_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
     match event.code {
         KeyCode::Esc => files_view.reset_filter_mode(),
-        KeyCode::Backspace => files_view.reset_filter_mode(),
+        KeyCode::Backspace => files_view.update_filter_string(|s| {
+            s.pop();
+        }),
         KeyCode::Char(c) => files_view.update_filter_string(|s| {
             s.push(c);
         }),
