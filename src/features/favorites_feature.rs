@@ -1,7 +1,15 @@
-use crossterm::{cursor, event::{self, KeyCode, KeyEvent}, queue, style::{Print, Stylize}, terminal::{self, ClearType}};
+use crossterm::{
+    cursor,
+    event::{self, KeyCode, KeyEvent},
+    queue,
+    style::{Print, Stylize},
+    terminal::{self, ClearType},
+};
 
-use crate::{files_view::{FilesView, FOOTER_ROWS, HEADER_ROWS}, terminal_ui::{FeatureTrait, TerminalUI}};
-
+use crate::{
+    files_view::{FilesView, FOOTER_ROWS, HEADER_ROWS},
+    terminal_ui::{FeatureTrait, TerminalUI},
+};
 
 pub struct FavouritesFeature {
     items: Vec<String>,
@@ -26,15 +34,22 @@ impl FavouritesFeature {
 
 impl FeatureTrait for FavouritesFeature {
     fn captured_key_event(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
-        if event.code == KeyCode::Char('d')
-            && event.modifiers.contains(event::KeyModifiers::CONTROL)
-        {
-            self.active = !self.active;
-            return true;
-        }
-
         if !self.active {
-            return false;
+            if event.code == KeyCode::Char('d')
+                && event.modifiers.contains(event::KeyModifiers::CONTROL)
+            {
+                if event.modifiers.contains(event::KeyModifiers::SHIFT) { // TODO: not workimg on macos
+                    if let Some(selected_file) = files_view.get_selected_file_abs() {
+                        self.items.push(selected_file);
+                        self.items.dedup();
+                        let _ = std::fs::write("favorites.txt", self.items.join("\n"));
+                    }
+                }
+                self.active = true;
+                return true;
+            } else {
+                return false;
+            }
         }
 
         match event.code {
@@ -48,7 +63,7 @@ impl FeatureTrait for FavouritesFeature {
                 }
             }
             KeyCode::Esc => self.active = false,
-            _ => return false
+            _ => {},
         }
 
         return true;
@@ -58,7 +73,7 @@ impl FeatureTrait for FavouritesFeature {
         if !self.active {
             return false;
         }
-        
+
         let rows_available = terminal_ui.rows - HEADER_ROWS - FOOTER_ROWS;
         // TODO: add scroll of items if they dont fit on screen
 
@@ -93,12 +108,17 @@ impl FeatureTrait for FavouritesFeature {
 
         return true;
     }
-    
+
     fn drawn_header(&self, _: &FilesView, terminal_ui: &TerminalUI) -> bool {
         if !self.active {
             return false;
         }
-        let _ = queue!(&terminal_ui.stdout, cursor::MoveTo(0, 0), Print("Favourites"), terminal::Clear(ClearType::UntilNewLine));
+        let _ = queue!(
+            &terminal_ui.stdout,
+            cursor::MoveTo(0, 0),
+            Print("Favourites"),
+            terminal::Clear(ClearType::UntilNewLine)
+        );
         true
     }
 }
