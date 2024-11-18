@@ -9,13 +9,15 @@ use files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
 use std::io::stdout;
 use std::panic;
 use terminal_ui::TerminalUI;
-use features::{delete_feature::DeleteFeature, favorites_feature::FavouritesFeature};
+use features::{delete_feature::DeleteFeature, favorites_feature::FavouritesFeature, find_feature::FindFeature, ripgrep_feature::RipGrepFeature};
 
 fn main() {
     setup_terminal();
     let mut ui = TerminalUI::new();
     ui.add_feature(Box::new(FavouritesFeature::new()));
     ui.add_feature(Box::new(DeleteFeature::new()));
+    ui.add_feature(Box::new(FindFeature::new()));
+    ui.add_feature(Box::new(RipGrepFeature::new()));
 
     let mut files_view = FilesView::new();
     files_view.update();
