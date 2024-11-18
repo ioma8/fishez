@@ -36,8 +36,6 @@ fn main() {
             }
             _ => {}
         }
-
-        ui.draw_ui(&files_view);
     }
 }
 
