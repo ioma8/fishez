@@ -124,6 +124,7 @@ impl FeatureTrait for FavouritesFeature {
     
     fn draw_header(&self, files_view: &FilesView, terminal_ui: &TerminalUI) {
         let _ = queue!(&terminal_ui.stdout, cursor::MoveTo(0, 0), Print("Favourites"));
+        // TODO: better drawing of the header - the right part (FISHEZ / NOTIFICATION)
     }
     
     fn draw_footer(&self, files_view: &FilesView, terminal_ui: &TerminalUI) {
