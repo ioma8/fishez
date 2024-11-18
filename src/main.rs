@@ -2,19 +2,18 @@ mod files_view;
 mod logger;
 mod terminal_ui;
 use crossterm::{
-    cursor,
-    event::{self, Event, KeyCode, KeyEvent},
-    execute,
-    terminal::{self, disable_raw_mode, enable_raw_mode},
+    cursor, event::{self, Event, KeyCode, KeyEvent}, execute, queue, style::{Print, Stylize}, terminal::{self, disable_raw_mode, enable_raw_mode, ClearType}
 };
 use files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
-use std::panic;
 use std::io::stdout;
-use terminal_ui::TerminalUI;
+use std::panic;
+use terminal_ui::{FeatureTrait, TerminalUI};
 
 fn main() {
     setup_terminal();
     let mut ui = TerminalUI::new();
+    ui.add_feature(Box::new(FavouritesFeature::new()));
+
     let mut files_view = FilesView::new();
     files_view.update();
 
@@ -29,13 +28,106 @@ fn main() {
         ui.draw_ui(&files_view);
 
         match event::read().unwrap() {
-            Event::Key(event) => handle_key_event(&mut files_view, event, ui.rows),
+            Event::Key(event) => handle_key_event(&mut files_view, event, &mut ui),
             Event::Resize(cols, rows) => {
                 ui.columns = cols;
                 ui.rows = rows;
             }
             _ => {}
         }
+    }
+}
+
+struct FavouritesFeature {
+    items: Vec<String>,
+    selected_index: usize,
+}
+
+impl FavouritesFeature {
+    fn new() -> Self {
+        let items = std::fs::read_to_string("favorites.txt")
+            .unwrap_or_else(|_| String::new())
+            .lines()
+            .map(|line| line.to_string())
+            .collect();
+        Self {
+            items: items,
+            selected_index: 0,
+        }
+    }
+}
+
+impl FeatureTrait for FavouritesFeature {
+    fn get_id(&self) -> &'static str {
+        "favourites"
+    }
+
+    fn general_shortcuts(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+        if event.code == KeyCode::Char('d')
+            && event.modifiers.contains(event::KeyModifiers::CONTROL)
+        {
+            files_view.feature_active = Some(self.get_id().to_string());
+            return true;
+        }
+        return false;
+    }
+
+    fn view_shortcuts(&mut self, event: KeyEvent, files_view: &mut FilesView) {
+        match event.code {
+            KeyCode::Up => self.selected_index = self.selected_index.saturating_sub(1),
+            KeyCode::Down => self.selected_index = self.selected_index.saturating_add(1),
+            KeyCode::Enter => {
+                if let Some(item) = self.items.get(self.selected_index) {
+                    files_view.pwd = item.clone();
+                    files_view.update();
+                    files_view.feature_active = None;
+                }
+            }
+            KeyCode::Esc => files_view.feature_active = None,
+            _ => {}
+        }
+    }
+
+    fn draw_content(&self, files_view: &FilesView, terminal_ui: &TerminalUI) {
+        let rows_available = terminal_ui.rows - HEADER_ROWS - FOOTER_ROWS;
+        // TODO: add scroll of items if they dont fit on screen
+
+        let _ = queue!(&terminal_ui.stdout, cursor::MoveTo(0, HEADER_ROWS));
+
+        for (i, item) in self.items.iter().enumerate() {
+            let name = if (i == self.selected_index) {
+                item.clone().dark_magenta().negative()
+            } else {
+                item.clone().dark_magenta()
+            };
+
+            let _ = queue!(
+                &terminal_ui.stdout,
+                Print(name),
+                terminal::Clear(ClearType::UntilNewLine),
+                cursor::MoveToNextLine(1)
+            );
+        }
+
+        let rows_to_clear: i16 = rows_available as i16 - self.items.len() as i16;
+
+        if rows_to_clear > 0 {
+            for _ in 0..rows_to_clear {
+                let _ = queue!(
+                    &terminal_ui.stdout,
+                    terminal::Clear(ClearType::UntilNewLine),
+                    cursor::MoveToNextLine(1)
+                );
+            }
+        }
+    }
+    
+    fn draw_header(&self, files_view: &FilesView, terminal_ui: &TerminalUI) {
+        let _ = queue!(&terminal_ui.stdout, cursor::MoveTo(0, 0), Print("Favourites"));
+    }
+    
+    fn draw_footer(&self, files_view: &FilesView, terminal_ui: &TerminalUI) {
+        todo!()
     }
 }
 
@@ -62,7 +154,7 @@ fn reset_terminal() {
     disable_raw_mode().expect("Failed to disable raw mode");
 }
 
-fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
+fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, ui: &mut TerminalUI) {
     if event.kind != event::KeyEventKind::Press {
         return;
     }
@@ -71,12 +163,17 @@ fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
         return;
     }
 
-    match files_view.mode {
-        FilesViewMode::Normal => handle_normal_mode(files_view, event, rows),
-        FilesViewMode::Filter => handle_filter_mode(files_view, event, rows),
-        FilesViewMode::QuickView(_) => handle_quick_view_mode(files_view, event, rows),
-        FilesViewMode::RecursiveSearch => handle_recursive_search_mode(files_view, event, rows),
-        FilesViewMode::RipGrep => handle_ripgrep_mode(files_view, event, rows),
+    if ui.handle_features_shortcuts(event, files_view) {
+        return;
+    }
+    
+
+    match &files_view.mode {
+        FilesViewMode::Normal => handle_normal_mode(files_view, event, ui.rows),
+        FilesViewMode::Filter => handle_filter_mode(files_view, event, ui.rows),
+        FilesViewMode::QuickView(_) => handle_quick_view_mode(files_view, event, ui.rows),
+        FilesViewMode::RecursiveSearch => handle_recursive_search_mode(files_view, event, ui.rows),
+        FilesViewMode::RipGrep => handle_ripgrep_mode(files_view, event, ui.rows),
     }
 }
 
@@ -99,20 +196,21 @@ fn handle_normal_navigation(files_view: &mut FilesView, event: KeyEvent, rows: u
         }
         KeyCode::F(3) => files_view.open_quick_view(),
         KeyCode::F(4) => files_view.open_in_editor(),
-        _ => {},
+        _ => {}
     }
 }
 
 fn handle_quit(event: KeyEvent) -> bool {
-    if (KeyCode::F(10) == event.code) || (KeyCode::Char('c') == event.code
-    && event.modifiers.contains(event::KeyModifiers::CONTROL)) {
+    if (KeyCode::F(10) == event.code)
+        || (KeyCode::Char('c') == event.code
+            && event.modifiers.contains(event::KeyModifiers::CONTROL))
+    {
         std::thread::spawn(|| {
             reset_terminal();
             std::process::exit(0);
         });
         return true;
-    } else
-    {
+    } else {
         return false;
     }
 }

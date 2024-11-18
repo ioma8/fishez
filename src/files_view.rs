@@ -24,6 +24,7 @@ pub struct FilesView {
     pub start: usize,
     pub pwd: String,
     pub mode: FilesViewMode,
+    pub feature_active: Option<String>,
     pub filter_string: String,
     pub notification: Option<String>,
     pub notification_created: Instant,
@@ -78,6 +79,7 @@ impl FilesView {
             mode: FilesViewMode::Normal,
             notification: None,
             notification_created: Instant::now(),
+            feature_active: None,
         }
     }
 
