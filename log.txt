@@ -1,96 +1,55 @@
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Filter
-mode: Filter
-mode: Filter
-mode: Filter
-mode: Filter
-mode: Filter
-mode: Normal
-mode: Normal
-mode: Filter
-mode: Filter
-mode: Filter
-mode: Filter
-mode: Filter
-mode: Filter
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
-mode: Normal
+Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Up, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Up, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Up, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Backspace, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Backspace, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Backspace, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Backspace, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Backspace, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Backspace, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+Before drawing UI
+Redrawing UI
+Handling key event: KeyEvent { code: F(10), modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }

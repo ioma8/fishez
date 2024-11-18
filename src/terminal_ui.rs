@@ -35,7 +35,6 @@ impl TerminalUI {
         let _ = queue!(&self.stdout, cursor::DisableBlinking, cursor::Hide);
 
         self.draw_header(files_view);
-        log(&format!("mode: {:?}", files_view.mode));
 
         match &files_view.mode {
             FilesViewMode::Normal | FilesViewMode::Filter => self.draw_files_list(files_view),

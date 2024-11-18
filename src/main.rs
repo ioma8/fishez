@@ -4,11 +4,13 @@ mod terminal_ui;
 use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent},
-    execute, terminal,
+    execute,
+    terminal::{self, enable_raw_mode, disable_raw_mode},
 };
 use files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
-use std::io::stdout;
+use fishez::logger::log;
 use std::panic;
+use std::{io::stdout, time::Duration};
 use terminal_ui::TerminalUI;
 
 fn main() {
@@ -16,6 +18,8 @@ fn main() {
     let mut ui = TerminalUI::new();
     let mut files_view = FilesView::new();
     files_view.update();
+
+    enable_raw_mode().expect("Failed to enable raw mode");
 
     // TODO: favorites - oblibene polozky
     // TODO: nejak pridat zoxide?
@@ -31,8 +35,12 @@ fn main() {
                 ui.columns = cols;
                 ui.rows = rows;
             }
-            _ => {}
+            rest => log(&format!("Unhandled event: {:?}", rest)),
         }
+        log("Before drawing UI");
+
+        ui.draw_ui(&files_view);
+        log("Redrawing UI");
     }
 }
 
@@ -56,9 +64,12 @@ fn reset_terminal() {
         cursor::EnableBlinking,
         terminal::Clear(terminal::ClearType::All)
     );
+    disable_raw_mode().expect("Failed to disable raw mode");
 }
 
 fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
+    log(&format!("Handling key event: {:?}", event));
+
     if event.kind != event::KeyEventKind::Press {
         return;
     }
