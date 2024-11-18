@@ -1,8 +1,9 @@
 use crossterm::event::KeyEvent;
-use crossterm::style::{Color, Print, Stylize};
+use crossterm::style::{Color, Print, StyledContent, Stylize};
 use crossterm::terminal::ClearType;
 use crossterm::{cursor, queue, terminal};
 use image::{self, ImageBuffer};
+use std::fmt::Display;
 use std::io::Write;
 use std::path::MAIN_SEPARATOR;
 use std::time::Instant;
@@ -25,6 +26,9 @@ pub trait FeatureTrait {
         false
     }
     fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
+    }
+    fn map_item(&self, item: StyledContent<String>, index: usize) -> StyledContent<String> {
+        item
     }
 }
 
@@ -160,9 +164,9 @@ impl TerminalUI {
 
         for (i, file) in files_to_display.enumerate() {
             let name = if file.ends_with(MAIN_SEPARATOR) {
-                file.as_str().yellow()
+                file.to_string().yellow()
             } else {
-                file.as_str().dark_yellow()
+                file.to_string().dark_yellow()
             };
 
             let name_final = if i == files_view.selected - files_view.start {
@@ -171,9 +175,15 @@ impl TerminalUI {
                 name
             };
 
+            let mut name_after_features = name_final;
+
+            for feature in &self.features {
+                name_after_features = feature.map_item(name_after_features, i);
+            }
+
             let _ = queue!(
                 &self.stdout,
-                Print(name_final),
+                Print(name_after_features),
                 terminal::Clear(ClearType::UntilNewLine),
                 cursor::MoveToNextLine(1)
             );
