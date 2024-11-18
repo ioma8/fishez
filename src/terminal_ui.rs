@@ -3,37 +3,35 @@ use crossterm::style::{Color, Print, Stylize};
 use crossterm::terminal::ClearType;
 use crossterm::{cursor, queue, terminal};
 use image::{self, ImageBuffer};
-use std::collections::HashMap;
 use std::io::Write;
 use std::path::MAIN_SEPARATOR;
 use std::time::Instant;
+use std::vec;
 
 use crate::files_view::{FilesView, FilesViewMode, QuickViewMode, FOOTER_ROWS, HEADER_ROWS};
 use crate::logger::log;
 
 pub trait FeatureTrait {
-    fn get_id(&self) -> &'static str;
-    fn general_shortcuts(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+    fn captured_key_event(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
         false
     }
-    fn view_shortcuts(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+    fn drawn_header(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
         false
     }
-    fn draw_header(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+    fn drawn_content(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
         false
     }
-    fn draw_content(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+    fn drawn_footer(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
         false
     }
-    fn draw_footer(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
-        false
+    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
     }
 }
 
 pub struct TerminalUI {
     pub columns: u16,
     pub rows: u16,
-    features: HashMap<String, Box<dyn FeatureTrait>>,
+    features: Vec<Box<dyn FeatureTrait>>,
     pub stdout: std::io::Stdout,
 }
 
@@ -50,13 +48,12 @@ impl TerminalUI {
             columns,
             rows,
             stdout: std::io::stdout(),
-            features: HashMap::new(),
+            features: vec![],
         }
     }
 
     pub fn add_feature(&mut self, feature: Box<dyn FeatureTrait>) {
-        let id = feature.get_id();
-        self.features.insert(id.to_string(), feature);
+        self.features.push(feature);
     }
 
     pub fn handle_features_shortcuts(
@@ -64,46 +61,52 @@ impl TerminalUI {
         event: KeyEvent,
         files_view: &mut FilesView,
     ) -> bool {
-        if let Some(feature_id) = &files_view.feature_active {
-            let feature = self.features.get_mut(feature_id).unwrap();
-            feature.view_shortcuts(event, files_view);
-            return true;
-        }
-
-        if files_view.feature_active.is_none() {
-            for feature in self.features.values_mut() {
-                if feature.general_shortcuts(event, files_view) {
-                    return true;
-                }
+        for feature in self.features.iter_mut() {
+            if feature.captured_key_event(event, files_view) {
+                return true;
             }
         }
 
         return false;
     }
 
+    fn draw_feature_header(&self, files_view: &FilesView) -> bool {
+        for feature in self.features.iter() {
+            if feature.drawn_header(files_view, self) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn draw_feature_footer(&self, files_view: &FilesView) -> bool {
+        for feature in self.features.iter() {
+            if feature.drawn_footer(files_view, self) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    fn draw_feature_content(&self, files_view: &FilesView) -> bool {
+        for feature in self.features.iter() {
+            if feature.drawn_content(files_view, self) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     pub fn draw_ui(&mut self, files_view: &FilesView) {
         let _ = queue!(&self.stdout, cursor::DisableBlinking, cursor::Hide);
-
-        let feature = if files_view.feature_active.is_some() {
-            let feature_id = files_view.feature_active.as_ref().unwrap();
-            let feature = self.features.get(feature_id).unwrap();
-            Some(feature)
-        } else {
-            None
-        };
-
         
-        if let Some(feature) = feature {
-            feature.draw_header(files_view, self);
-        } else {
-            self.draw_header(files_view);
+        if !self.draw_feature_header(files_view) {
+            self.draw_default_header(files_view);
         }
-
         self.draw_system_header(files_view);
 
-        if let Some(feature) = feature {
-            feature.draw_content(files_view, self);
-        } else {
+
+        if !self.draw_feature_content(files_view) {
             match &files_view.mode {
                 FilesViewMode::Normal | FilesViewMode::Filter => self.draw_files_list(files_view),
                 FilesViewMode::QuickView(quick_view) => self.draw_file_content(quick_view),
@@ -111,11 +114,13 @@ impl TerminalUI {
             }
         }
 
-        self.draw_footer(files_view);
+        if !self.draw_feature_footer(files_view) {
+            self.draw_default_footer(files_view);
+        }
         let _ = &self.stdout.flush();
     }
 
-    fn draw_header(&self, files_view: &FilesView) {
+    fn draw_default_header(&self, files_view: &FilesView) {
         let _ = queue!(&self.stdout, cursor::MoveTo(0, 0));
 
         let left = if let FilesViewMode::QuickView(_) = files_view.mode {
@@ -330,7 +335,7 @@ impl TerminalUI {
         }
     }
 
-    fn draw_footer(&self, files_view: &FilesView) {
+    fn draw_default_footer(&self, files_view: &FilesView) {
         self.draw_full_line(self.rows - FOOTER_ROWS);
         let indicator_row = if files_view.mode == FilesViewMode::Filter
             || files_view.mode == FilesViewMode::RecursiveSearch
