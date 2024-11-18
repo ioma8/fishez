@@ -1,2 +1,3 @@
-/Users/jakubkolcar/custom-projects/
 /Users/jakubkolcar/
+/Users/jakubkolcar/custom-projects/
+/Users/jakubkolcar/photos

@@ -82,10 +82,14 @@ impl TerminalUI {
             None
         };
 
-        self.draw_header(files_view);
+        
         if let Some(feature) = feature {
             feature.draw_header(files_view, self);
+        } else {
+            self.draw_header(files_view);
         }
+
+        self.draw_system_header(files_view);
 
         if let Some(feature) = feature {
             feature.draw_content(files_view, self);
@@ -109,6 +113,15 @@ impl TerminalUI {
         } else {
             format!("PWD: {}", files_view.pwd).with(Color::Cyan)
         };
+        let _ = queue!(
+            &self.stdout,
+            cursor::MoveTo(0, 0),
+            Print(left),
+            terminal::Clear(ClearType::UntilNewLine),
+        );
+    }
+
+    fn draw_system_header(&self, files_view: &FilesView) {
         let right = if let Some(notification) = files_view.notification.clone() {
             notification.on(Color::DarkMagenta)
         } else {
@@ -116,9 +129,6 @@ impl TerminalUI {
         };
         let _ = queue!(
             &self.stdout,
-            cursor::MoveTo(0, 0),
-            Print(left),
-            terminal::Clear(ClearType::UntilNewLine),
             cursor::MoveTo(self.columns - right.content().len() as u16, 0),
             Print(right)
         );
