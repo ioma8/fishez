@@ -54,7 +54,7 @@ impl FeatureTrait for FavouritesFeature {
         return true;
     }
 
-    fn drawn_content(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+    fn drawn_content(&self, _: &FilesView, terminal_ui: &TerminalUI) -> bool {
         if !self.active {
             return false;
         }
@@ -65,7 +65,7 @@ impl FeatureTrait for FavouritesFeature {
         let _ = queue!(&terminal_ui.stdout, cursor::MoveTo(0, HEADER_ROWS));
 
         for (i, item) in self.items.iter().enumerate() {
-            let name = if (i == self.selected_index) {
+            let name = if i == self.selected_index {
                 item.clone().dark_magenta().negative()
             } else {
                 item.clone().dark_magenta()
@@ -94,11 +94,11 @@ impl FeatureTrait for FavouritesFeature {
         return true;
     }
     
-    fn drawn_header(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+    fn drawn_header(&self, _: &FilesView, terminal_ui: &TerminalUI) -> bool {
         if !self.active {
             return false;
         }
-        let _ = queue!(&terminal_ui.stdout, cursor::MoveTo(0, 0), Print("Favourites"));
+        let _ = queue!(&terminal_ui.stdout, cursor::MoveTo(0, 0), Print("Favourites"), terminal::Clear(ClearType::UntilNewLine));
         true
     }
 }
