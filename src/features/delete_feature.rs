@@ -50,7 +50,7 @@ impl FeatureTrait for DeleteFeature {
         false
     }
 
-    fn drawn_footer(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+    fn drawn_footer(&self, _: &FilesView, terminal_ui: &TerminalUI) -> bool {
         if let Some(path) = &self.path {
             let _ = queue!(
                 &terminal_ui.stdout,

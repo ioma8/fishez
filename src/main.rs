@@ -3,7 +3,7 @@ mod logger;
 mod terminal_ui;
 mod features;
 use crossterm::{
-    cursor, event::{self, Event, KeyCode, KeyEvent}, execute, terminal::{self, disable_raw_mode, enable_raw_mode, ClearType}
+    cursor, event::{self, Event, KeyCode, KeyEvent}, execute, terminal::{self, disable_raw_mode, enable_raw_mode}
 };
 use files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
 use std::io::stdout;

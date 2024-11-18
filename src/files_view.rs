@@ -24,7 +24,6 @@ pub struct FilesView {
     pub start: usize,
     pub pwd: String,
     pub mode: FilesViewMode,
-    pub feature_active: Option<String>,
     pub filter_string: String,
     pub notification: Option<String>,
     pub notification_created: Instant,
@@ -45,7 +44,6 @@ pub enum QuickViewMode {
     Image(ImageBuffer<image::Rgb<u8>, Vec<u8>>),
     Directory,
     NotSupported,
-    Binary, // TODO: implement
 }
 
 enum FileType {
@@ -78,8 +76,7 @@ impl FilesView {
             filter_string: String::new(),
             mode: FilesViewMode::Normal,
             notification: None,
-            notification_created: Instant::now(),
-            feature_active: None,
+            notification_created: Instant::now()
         }
     }
 
@@ -365,11 +362,7 @@ impl FilesView {
         }
     }
 
-    fn show_file_quick_view_binary(&mut self, file_path: String) {
-        self.mode = FilesViewMode::QuickView(QuickViewMode::Binary);
-    }
-
-    fn show_file_quick_view_not_supported(&mut self, file_path: String) {
+    fn show_file_quick_view_not_supported(&mut self, _: String) {
         self.mode = FilesViewMode::QuickView(QuickViewMode::NotSupported);
     }
 
