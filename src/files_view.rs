@@ -190,6 +190,19 @@ impl FilesView {
         };
     }
 
+    pub fn get_selected_file_abs(&self) -> Option<String> {
+        if self.selected < self.files.len() {
+            let selected_file = &self.files[self.selected];
+            if selected_file == ".." {
+                None
+            } else {
+                Some(format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file))
+            }
+        } else {
+            None
+        }
+    }
+
     pub fn open_selected_file(&mut self) {
         let selected_file = self.files[self.selected].clone();
         if selected_file == ".." {
