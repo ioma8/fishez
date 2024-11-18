@@ -13,8 +13,8 @@ impl DeleteFeature {
     }
 
     fn delete_file_or_dir(&self, path: &str) {
-        if let Err(e) = std::fs::remove_file(path).or_else(|_| std::fs::remove_dir_all(path)) {
-            eprintln!("Error removing file or directory: {}", e);
+        if let Err(e) = trash::delete(path) {
+            eprintln!("Error moving file or directory to trash: {}", e);
         }
     }
 

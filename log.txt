@@ -1,318 +1,150 @@
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 649.417µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 77.875µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 199.083µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 379.625µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 389.083µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 122.084µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 93.917µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 78.042µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 81.083µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 102.084µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 125.834µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 97.333µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 104.959µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
-Image loading took: 139.25µs
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.CFUserTextEncoding
+rows_available: 36
+content_to_display: Take { iter: Iter(["0x1D:0x38"]), n: 36 }
+file_path: /Users/jakubkolcar/.CFUserTextEncoding
+rows_available: 36
+content_to_display: Take { iter: Iter(["0x1D:0x38"]), n: 36 }
+file_path: /Users/jakubkolcar/.CFUserTextEncoding
+rows_available: 36
+content_to_display: Take { iter: Iter(["0x1D:0x38"]), n: 36 }
+file_path: /Users/jakubkolcar/.z
+rows_available: 36
+content_to_display: Take { iter: Iter(["/Users/jakubkolcar/scripts|367|1726489448", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/templatedb|65|1724928619", "/Users/jakubkolcar/custom-projects/jk0runner|99|1723456378", "/Users/jakubkolcar/custom-projects/rust-jk0lang/target|2|1725353431", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/ai_translate|363|1723106150", "/Users/jakubkolcar/projects-rnt/raynetcrm/app/frontend|753|1727337603", "/Users/jakubkolcar/Total Annihilation|96|1726837745", "/Users/jakubkolcar/projects-rnt/ocr-backend|175|1725968171", "/Users/jakubkolcar/tmp/import|9|1725445400", "/Users/jakubkolcar/tmp/table_calendar/lib|15|1724148147", "/Users/jakubkolcar/projects-rnt/csp|1|1721299180", "/Users/jakubkolcar/projects-rnt/raynetcrm/app/frontend/dist|2|1726578611", "/Users/jakubkolcar/Downloads/MiyooCFW.2.0.0-beta-2-67298a0|4|1725955850", "/Users/jakubkolcar/tmp/llm-term|26|1725018963", "/Users/jakubkolcar/custom-projects/rust-hatching|455|1724931332", "/Users/jakubkolcar/custom-projects/python-markov-mails|758|1724245540", "/Users/jakubkolcar/temporary/ai_translate|5|1722413297", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/instance-mgmt|3|1719389323", "/Users/jakubkolcar/cardputer-projects|5|1719400271", "/Users/jakubkolcar/custom-projects|102|1727184145", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/deauth_prerequisites|4|1719404663", "/Users/jakubkolcar/rnt-imports|13|1725438892", "/Users/jakubkolcar/custom-projects/rust-jk0lang|248|1725353429", "/Users/jakubkolcar/tmp/fm|2|1722949974", "/Users/jakubkolcar/projects-rnt/raynetcrm-cm/app|10|1727335805", "/Users/jakubkolcar/custom-projects/jk0lang|5|1725353417", "/Users/jakubkolcar/projects-rnt/raynetcrm|201|1726751121", "/Users/jakubkolcar/projects-rnt/raynetcrm/scripts|23|1726145805", "/Users|13|1727339064", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target/release|11|1720705305", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/app|1|1720703939", "/Users/jakubkolcar/custom-projects/rust-forth-pest|121|1723545091", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target/release/examples|2|1720705303", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/app/frontend|9|1722256098", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/utils|4|1722413940", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets|1|1723556065", "/Users/jakubkolcar/projects-rnt/raynetcrm_second|8|1722413941", "/Users/jakubkolcar/custom-projects/my-gtk-app|29|1722949724", "/Users/jakubkolcar/custom-projects/rs-powkiddy|42|1726487770", "/Users/jakubkolcar/Downloads/insta-dows/gallery-dl/instagram/martina_flossner|3|1721296913", "/Users/jakubkolcar/PycharmProjects/markovify1|28|1724160195", "/Users/jakubkolcar/Downloads|200|1726824423", "/Users/jakubkolcar/custom-projects/rust-forth-pest/src|4|1723545106", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/build/m5stack.esp32.m5stack_cardputer|6|1719408196", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib|1|1723556063", "/Users/jakubkolcar/projects-rnt/licenses|2|1724667716", "/Users/jakubkolcar/.android/avd/Pixel_3a_API_34.avd|2|1718009144", "/Users/jakubkolcar/custom-projects/powkiddy-js|41|1726580873", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target|3|1720705312", "/Users/jakubkolcar/Desktop|18|1725019186", "/Users/jakubkolcar/custom-projects/rust-jk0lang/target/debug|19|1725353709", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils|31|1726145744", "/Users/jakubkolcar/projects-rnt/raynetcrm-cm|4|1721376290", "/Users/jakubkolcar/projects-rnt/raynetcrm-demo|16|1718107202", "/Users/jakubkolcar/tmp|76|1727184154", "/Users/jakubkolcar/custom-projects/rust-chrome|16|1724418381", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app|841|1727338466", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/utils/ai_translate|36|1722415123", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/ios|90|1727171735", "/Users/jakubkolcar/custom-projects/llvm-experiments/test1|49|1723188786", "/Users/jakubkolcar/tmp/table_calendar|3|1724137299", "/Users/jakubkolcar/projects-rnt|94|1727338481", "/Users/jakubkolcar/custom-projects/learning-c-to-tacit|68|1718282339", "/|12|1727339116", "/Users/jakubkolcar/custom-projects/rust-forth-zero|29|1721129138", "/Users/jakubkolcar/.android/avd|2|1718009140", "/Users/jakubkolcar/tmp/mistral.rs|27|1727185177", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/pubdev_forks/google_place-0.4.7|4|1720768759", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/build|4|1719405300", "/Users/jakubkolcar/Downloads/Crazy_Taxi|5|1726691454", "/Users/jakubkolcar/projects-rnt/import-sdk|14|1725521330", "/Users/jakubkolcar/projects-rnt/raynetcrm-extensions|5|1721377774", "/Users/jakubkolcar/projects-rnt/raynetcrm-web/php/frontend/resources/images/try|7|1721129277", "/Users/jakubkolcar/Library/Arduino15/packages/m5stack/hardware/esp32/2.1.1|3|1719404491", "/Users/jakubkolcar/custom-projects/breathing|9|1723119174", "/Users/jakubkolcar/custom-projects/llvm-experiments|2|1723186962", "/Users/jakubkolcar/PycharmProjects/emailTranslater|82|1724761890", "/Users/jakubkolcar/custom-projects/rust-markov-jejich|298|1724160069", "/Users/jakubkolcar/Library/Arduino15/packages/m5stack/hardware/esp32|2|1719404475", "/Users/jakubkolcar/projects-rnt/minicloud|362|1727338136", "/Users/jakubkolcar/Downloads/insta-dows|20|1725013327", "/Users/jakubkolcar/projects-rnt/raynetcrm/app|41|1726747740", "/Users/jakubkolcar/.gradle|1|1723535602", "/Users/jakubkolcar/Downloads/MiyooCFW.2.0.0-beta-2-67298a0/build image (uClibc)|1|1725965419", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo|39|1719405276", "/Users/jakubkolcar/scripts/importladacz|8|1718609458", "/Users/jakubkolcar/tmp/IPA|2|1725020363", "/Users/jakubkolcar/temporary|12|1722426735", "/Users/jakubkolcar/.android|2|1718009137", "/Users/jakubkolcar/Downloads/insta-dows/gallery-dl|2|1721217471", "/Users/jakubkolcar/projects-rnt/document-preview|1|1724670064", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets/table_calendar_fork/src|2|1723556072", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/pubdev_forks|3|1724326633", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets/table_calendar_fork|3|1723556074"]), n: 36 }
+rows_available: 36
+content_to_display: Take { iter: Iter(["/Users/jakubkolcar/projects-rnt/raynetcrm/utils/templatedb|65|1724928619", "/Users/jakubkolcar/custom-projects/jk0runner|99|1723456378", "/Users/jakubkolcar/custom-projects/rust-jk0lang/target|2|1725353431", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/ai_translate|363|1723106150", "/Users/jakubkolcar/projects-rnt/raynetcrm/app/frontend|753|1727337603", "/Users/jakubkolcar/Total Annihilation|96|1726837745", "/Users/jakubkolcar/projects-rnt/ocr-backend|175|1725968171", "/Users/jakubkolcar/tmp/import|9|1725445400", "/Users/jakubkolcar/tmp/table_calendar/lib|15|1724148147", "/Users/jakubkolcar/projects-rnt/csp|1|1721299180", "/Users/jakubkolcar/projects-rnt/raynetcrm/app/frontend/dist|2|1726578611", "/Users/jakubkolcar/Downloads/MiyooCFW.2.0.0-beta-2-67298a0|4|1725955850", "/Users/jakubkolcar/tmp/llm-term|26|1725018963", "/Users/jakubkolcar/custom-projects/rust-hatching|455|1724931332", "/Users/jakubkolcar/custom-projects/python-markov-mails|758|1724245540", "/Users/jakubkolcar/temporary/ai_translate|5|1722413297", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/instance-mgmt|3|1719389323", "/Users/jakubkolcar/cardputer-projects|5|1719400271", "/Users/jakubkolcar/custom-projects|102|1727184145", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/deauth_prerequisites|4|1719404663", "/Users/jakubkolcar/rnt-imports|13|1725438892", "/Users/jakubkolcar/custom-projects/rust-jk0lang|248|1725353429", "/Users/jakubkolcar/tmp/fm|2|1722949974", "/Users/jakubkolcar/projects-rnt/raynetcrm-cm/app|10|1727335805", "/Users/jakubkolcar/custom-projects/jk0lang|5|1725353417", "/Users/jakubkolcar/projects-rnt/raynetcrm|201|1726751121", "/Users/jakubkolcar/projects-rnt/raynetcrm/scripts|23|1726145805", "/Users|13|1727339064", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target/release|11|1720705305", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/app|1|1720703939", "/Users/jakubkolcar/custom-projects/rust-forth-pest|121|1723545091", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target/release/examples|2|1720705303", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/app/frontend|9|1722256098", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/utils|4|1722413940", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets|1|1723556065", "/Users/jakubkolcar/projects-rnt/raynetcrm_second|8|1722413941", "/Users/jakubkolcar/custom-projects/my-gtk-app|29|1722949724", "/Users/jakubkolcar/custom-projects/rs-powkiddy|42|1726487770", "/Users/jakubkolcar/Downloads/insta-dows/gallery-dl/instagram/martina_flossner|3|1721296913", "/Users/jakubkolcar/PycharmProjects/markovify1|28|1724160195", "/Users/jakubkolcar/Downloads|200|1726824423", "/Users/jakubkolcar/custom-projects/rust-forth-pest/src|4|1723545106", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/build/m5stack.esp32.m5stack_cardputer|6|1719408196", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib|1|1723556063", "/Users/jakubkolcar/projects-rnt/licenses|2|1724667716", "/Users/jakubkolcar/.android/avd/Pixel_3a_API_34.avd|2|1718009144", "/Users/jakubkolcar/custom-projects/powkiddy-js|41|1726580873", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target|3|1720705312", "/Users/jakubkolcar/Desktop|18|1725019186", "/Users/jakubkolcar/custom-projects/rust-jk0lang/target/debug|19|1725353709", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils|31|1726145744", "/Users/jakubkolcar/projects-rnt/raynetcrm-cm|4|1721376290", "/Users/jakubkolcar/projects-rnt/raynetcrm-demo|16|1718107202", "/Users/jakubkolcar/tmp|76|1727184154", "/Users/jakubkolcar/custom-projects/rust-chrome|16|1724418381", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app|841|1727338466", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/utils/ai_translate|36|1722415123", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/ios|90|1727171735", "/Users/jakubkolcar/custom-projects/llvm-experiments/test1|49|1723188786", "/Users/jakubkolcar/tmp/table_calendar|3|1724137299", "/Users/jakubkolcar/projects-rnt|94|1727338481", "/Users/jakubkolcar/custom-projects/learning-c-to-tacit|68|1718282339", "/|12|1727339116", "/Users/jakubkolcar/custom-projects/rust-forth-zero|29|1721129138", "/Users/jakubkolcar/.android/avd|2|1718009140", "/Users/jakubkolcar/tmp/mistral.rs|27|1727185177", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/pubdev_forks/google_place-0.4.7|4|1720768759", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/build|4|1719405300", "/Users/jakubkolcar/Downloads/Crazy_Taxi|5|1726691454", "/Users/jakubkolcar/projects-rnt/import-sdk|14|1725521330", "/Users/jakubkolcar/projects-rnt/raynetcrm-extensions|5|1721377774", "/Users/jakubkolcar/projects-rnt/raynetcrm-web/php/frontend/resources/images/try|7|1721129277", "/Users/jakubkolcar/Library/Arduino15/packages/m5stack/hardware/esp32/2.1.1|3|1719404491", "/Users/jakubkolcar/custom-projects/breathing|9|1723119174", "/Users/jakubkolcar/custom-projects/llvm-experiments|2|1723186962", "/Users/jakubkolcar/PycharmProjects/emailTranslater|82|1724761890", "/Users/jakubkolcar/custom-projects/rust-markov-jejich|298|1724160069", "/Users/jakubkolcar/Library/Arduino15/packages/m5stack/hardware/esp32|2|1719404475", "/Users/jakubkolcar/projects-rnt/minicloud|362|1727338136", "/Users/jakubkolcar/Downloads/insta-dows|20|1725013327", "/Users/jakubkolcar/projects-rnt/raynetcrm/app|41|1726747740", "/Users/jakubkolcar/.gradle|1|1723535602", "/Users/jakubkolcar/Downloads/MiyooCFW.2.0.0-beta-2-67298a0/build image (uClibc)|1|1725965419", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo|39|1719405276", "/Users/jakubkolcar/scripts/importladacz|8|1718609458", "/Users/jakubkolcar/tmp/IPA|2|1725020363", "/Users/jakubkolcar/temporary|12|1722426735", "/Users/jakubkolcar/.android|2|1718009137", "/Users/jakubkolcar/Downloads/insta-dows/gallery-dl|2|1721217471", "/Users/jakubkolcar/projects-rnt/document-preview|1|1724670064", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets/table_calendar_fork/src|2|1723556072", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/pubdev_forks|3|1724326633", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets/table_calendar_fork|3|1723556074"]), n: 36 }
+rows_available: 36
+content_to_display: Take { iter: Iter(["/Users/jakubkolcar/custom-projects/jk0runner|99|1723456378", "/Users/jakubkolcar/custom-projects/rust-jk0lang/target|2|1725353431", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/ai_translate|363|1723106150", "/Users/jakubkolcar/projects-rnt/raynetcrm/app/frontend|753|1727337603", "/Users/jakubkolcar/Total Annihilation|96|1726837745", "/Users/jakubkolcar/projects-rnt/ocr-backend|175|1725968171", "/Users/jakubkolcar/tmp/import|9|1725445400", "/Users/jakubkolcar/tmp/table_calendar/lib|15|1724148147", "/Users/jakubkolcar/projects-rnt/csp|1|1721299180", "/Users/jakubkolcar/projects-rnt/raynetcrm/app/frontend/dist|2|1726578611", "/Users/jakubkolcar/Downloads/MiyooCFW.2.0.0-beta-2-67298a0|4|1725955850", "/Users/jakubkolcar/tmp/llm-term|26|1725018963", "/Users/jakubkolcar/custom-projects/rust-hatching|455|1724931332", "/Users/jakubkolcar/custom-projects/python-markov-mails|758|1724245540", "/Users/jakubkolcar/temporary/ai_translate|5|1722413297", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/instance-mgmt|3|1719389323", "/Users/jakubkolcar/cardputer-projects|5|1719400271", "/Users/jakubkolcar/custom-projects|102|1727184145", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/deauth_prerequisites|4|1719404663", "/Users/jakubkolcar/rnt-imports|13|1725438892", "/Users/jakubkolcar/custom-projects/rust-jk0lang|248|1725353429", "/Users/jakubkolcar/tmp/fm|2|1722949974", "/Users/jakubkolcar/projects-rnt/raynetcrm-cm/app|10|1727335805", "/Users/jakubkolcar/custom-projects/jk0lang|5|1725353417", "/Users/jakubkolcar/projects-rnt/raynetcrm|201|1726751121", "/Users/jakubkolcar/projects-rnt/raynetcrm/scripts|23|1726145805", "/Users|13|1727339064", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target/release|11|1720705305", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/app|1|1720703939", "/Users/jakubkolcar/custom-projects/rust-forth-pest|121|1723545091", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target/release/examples|2|1720705303", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/app/frontend|9|1722256098", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/utils|4|1722413940", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets|1|1723556065", "/Users/jakubkolcar/projects-rnt/raynetcrm_second|8|1722413941", "/Users/jakubkolcar/custom-projects/my-gtk-app|29|1722949724", "/Users/jakubkolcar/custom-projects/rs-powkiddy|42|1726487770", "/Users/jakubkolcar/Downloads/insta-dows/gallery-dl/instagram/martina_flossner|3|1721296913", "/Users/jakubkolcar/PycharmProjects/markovify1|28|1724160195", "/Users/jakubkolcar/Downloads|200|1726824423", "/Users/jakubkolcar/custom-projects/rust-forth-pest/src|4|1723545106", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/build/m5stack.esp32.m5stack_cardputer|6|1719408196", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib|1|1723556063", "/Users/jakubkolcar/projects-rnt/licenses|2|1724667716", "/Users/jakubkolcar/.android/avd/Pixel_3a_API_34.avd|2|1718009144", "/Users/jakubkolcar/custom-projects/powkiddy-js|41|1726580873", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target|3|1720705312", "/Users/jakubkolcar/Desktop|18|1725019186", "/Users/jakubkolcar/custom-projects/rust-jk0lang/target/debug|19|1725353709", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils|31|1726145744", "/Users/jakubkolcar/projects-rnt/raynetcrm-cm|4|1721376290", "/Users/jakubkolcar/projects-rnt/raynetcrm-demo|16|1718107202", "/Users/jakubkolcar/tmp|76|1727184154", "/Users/jakubkolcar/custom-projects/rust-chrome|16|1724418381", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app|841|1727338466", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/utils/ai_translate|36|1722415123", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/ios|90|1727171735", "/Users/jakubkolcar/custom-projects/llvm-experiments/test1|49|1723188786", "/Users/jakubkolcar/tmp/table_calendar|3|1724137299", "/Users/jakubkolcar/projects-rnt|94|1727338481", "/Users/jakubkolcar/custom-projects/learning-c-to-tacit|68|1718282339", "/|12|1727339116", "/Users/jakubkolcar/custom-projects/rust-forth-zero|29|1721129138", "/Users/jakubkolcar/.android/avd|2|1718009140", "/Users/jakubkolcar/tmp/mistral.rs|27|1727185177", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/pubdev_forks/google_place-0.4.7|4|1720768759", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/build|4|1719405300", "/Users/jakubkolcar/Downloads/Crazy_Taxi|5|1726691454", "/Users/jakubkolcar/projects-rnt/import-sdk|14|1725521330", "/Users/jakubkolcar/projects-rnt/raynetcrm-extensions|5|1721377774", "/Users/jakubkolcar/projects-rnt/raynetcrm-web/php/frontend/resources/images/try|7|1721129277", "/Users/jakubkolcar/Library/Arduino15/packages/m5stack/hardware/esp32/2.1.1|3|1719404491", "/Users/jakubkolcar/custom-projects/breathing|9|1723119174", "/Users/jakubkolcar/custom-projects/llvm-experiments|2|1723186962", "/Users/jakubkolcar/PycharmProjects/emailTranslater|82|1724761890", "/Users/jakubkolcar/custom-projects/rust-markov-jejich|298|1724160069", "/Users/jakubkolcar/Library/Arduino15/packages/m5stack/hardware/esp32|2|1719404475", "/Users/jakubkolcar/projects-rnt/minicloud|362|1727338136", "/Users/jakubkolcar/Downloads/insta-dows|20|1725013327", "/Users/jakubkolcar/projects-rnt/raynetcrm/app|41|1726747740", "/Users/jakubkolcar/.gradle|1|1723535602", "/Users/jakubkolcar/Downloads/MiyooCFW.2.0.0-beta-2-67298a0/build image (uClibc)|1|1725965419", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo|39|1719405276", "/Users/jakubkolcar/scripts/importladacz|8|1718609458", "/Users/jakubkolcar/tmp/IPA|2|1725020363", "/Users/jakubkolcar/temporary|12|1722426735", "/Users/jakubkolcar/.android|2|1718009137", "/Users/jakubkolcar/Downloads/insta-dows/gallery-dl|2|1721217471", "/Users/jakubkolcar/projects-rnt/document-preview|1|1724670064", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets/table_calendar_fork/src|2|1723556072", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/pubdev_forks|3|1724326633", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets/table_calendar_fork|3|1723556074"]), n: 36 }
+rows_available: 36
+content_to_display: Take { iter: Iter(["/Users/jakubkolcar/projects-rnt/raynetcrm/utils/templatedb|65|1724928619", "/Users/jakubkolcar/custom-projects/jk0runner|99|1723456378", "/Users/jakubkolcar/custom-projects/rust-jk0lang/target|2|1725353431", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/ai_translate|363|1723106150", "/Users/jakubkolcar/projects-rnt/raynetcrm/app/frontend|753|1727337603", "/Users/jakubkolcar/Total Annihilation|96|1726837745", "/Users/jakubkolcar/projects-rnt/ocr-backend|175|1725968171", "/Users/jakubkolcar/tmp/import|9|1725445400", "/Users/jakubkolcar/tmp/table_calendar/lib|15|1724148147", "/Users/jakubkolcar/projects-rnt/csp|1|1721299180", "/Users/jakubkolcar/projects-rnt/raynetcrm/app/frontend/dist|2|1726578611", "/Users/jakubkolcar/Downloads/MiyooCFW.2.0.0-beta-2-67298a0|4|1725955850", "/Users/jakubkolcar/tmp/llm-term|26|1725018963", "/Users/jakubkolcar/custom-projects/rust-hatching|455|1724931332", "/Users/jakubkolcar/custom-projects/python-markov-mails|758|1724245540", "/Users/jakubkolcar/temporary/ai_translate|5|1722413297", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/instance-mgmt|3|1719389323", "/Users/jakubkolcar/cardputer-projects|5|1719400271", "/Users/jakubkolcar/custom-projects|102|1727184145", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/deauth_prerequisites|4|1719404663", "/Users/jakubkolcar/rnt-imports|13|1725438892", "/Users/jakubkolcar/custom-projects/rust-jk0lang|248|1725353429", "/Users/jakubkolcar/tmp/fm|2|1722949974", "/Users/jakubkolcar/projects-rnt/raynetcrm-cm/app|10|1727335805", "/Users/jakubkolcar/custom-projects/jk0lang|5|1725353417", "/Users/jakubkolcar/projects-rnt/raynetcrm|201|1726751121", "/Users/jakubkolcar/projects-rnt/raynetcrm/scripts|23|1726145805", "/Users|13|1727339064", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target/release|11|1720705305", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/app|1|1720703939", "/Users/jakubkolcar/custom-projects/rust-forth-pest|121|1723545091", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target/release/examples|2|1720705303", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/app/frontend|9|1722256098", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/utils|4|1722413940", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets|1|1723556065", "/Users/jakubkolcar/projects-rnt/raynetcrm_second|8|1722413941", "/Users/jakubkolcar/custom-projects/my-gtk-app|29|1722949724", "/Users/jakubkolcar/custom-projects/rs-powkiddy|42|1726487770", "/Users/jakubkolcar/Downloads/insta-dows/gallery-dl/instagram/martina_flossner|3|1721296913", "/Users/jakubkolcar/PycharmProjects/markovify1|28|1724160195", "/Users/jakubkolcar/Downloads|200|1726824423", "/Users/jakubkolcar/custom-projects/rust-forth-pest/src|4|1723545106", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/build/m5stack.esp32.m5stack_cardputer|6|1719408196", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib|1|1723556063", "/Users/jakubkolcar/projects-rnt/licenses|2|1724667716", "/Users/jakubkolcar/.android/avd/Pixel_3a_API_34.avd|2|1718009144", "/Users/jakubkolcar/custom-projects/powkiddy-js|41|1726580873", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target|3|1720705312", "/Users/jakubkolcar/Desktop|18|1725019186", "/Users/jakubkolcar/custom-projects/rust-jk0lang/target/debug|19|1725353709", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils|31|1726145744", "/Users/jakubkolcar/projects-rnt/raynetcrm-cm|4|1721376290", "/Users/jakubkolcar/projects-rnt/raynetcrm-demo|16|1718107202", "/Users/jakubkolcar/tmp|76|1727184154", "/Users/jakubkolcar/custom-projects/rust-chrome|16|1724418381", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app|841|1727338466", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/utils/ai_translate|36|1722415123", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/ios|90|1727171735", "/Users/jakubkolcar/custom-projects/llvm-experiments/test1|49|1723188786", "/Users/jakubkolcar/tmp/table_calendar|3|1724137299", "/Users/jakubkolcar/projects-rnt|94|1727338481", "/Users/jakubkolcar/custom-projects/learning-c-to-tacit|68|1718282339", "/|12|1727339116", "/Users/jakubkolcar/custom-projects/rust-forth-zero|29|1721129138", "/Users/jakubkolcar/.android/avd|2|1718009140", "/Users/jakubkolcar/tmp/mistral.rs|27|1727185177", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/pubdev_forks/google_place-0.4.7|4|1720768759", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/build|4|1719405300", "/Users/jakubkolcar/Downloads/Crazy_Taxi|5|1726691454", "/Users/jakubkolcar/projects-rnt/import-sdk|14|1725521330", "/Users/jakubkolcar/projects-rnt/raynetcrm-extensions|5|1721377774", "/Users/jakubkolcar/projects-rnt/raynetcrm-web/php/frontend/resources/images/try|7|1721129277", "/Users/jakubkolcar/Library/Arduino15/packages/m5stack/hardware/esp32/2.1.1|3|1719404491", "/Users/jakubkolcar/custom-projects/breathing|9|1723119174", "/Users/jakubkolcar/custom-projects/llvm-experiments|2|1723186962", "/Users/jakubkolcar/PycharmProjects/emailTranslater|82|1724761890", "/Users/jakubkolcar/custom-projects/rust-markov-jejich|298|1724160069", "/Users/jakubkolcar/Library/Arduino15/packages/m5stack/hardware/esp32|2|1719404475", "/Users/jakubkolcar/projects-rnt/minicloud|362|1727338136", "/Users/jakubkolcar/Downloads/insta-dows|20|1725013327", "/Users/jakubkolcar/projects-rnt/raynetcrm/app|41|1726747740", "/Users/jakubkolcar/.gradle|1|1723535602", "/Users/jakubkolcar/Downloads/MiyooCFW.2.0.0-beta-2-67298a0/build image (uClibc)|1|1725965419", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo|39|1719405276", "/Users/jakubkolcar/scripts/importladacz|8|1718609458", "/Users/jakubkolcar/tmp/IPA|2|1725020363", "/Users/jakubkolcar/temporary|12|1722426735", "/Users/jakubkolcar/.android|2|1718009137", "/Users/jakubkolcar/Downloads/insta-dows/gallery-dl|2|1721217471", "/Users/jakubkolcar/projects-rnt/document-preview|1|1724670064", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets/table_calendar_fork/src|2|1723556072", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/pubdev_forks|3|1724326633", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets/table_calendar_fork|3|1723556074"]), n: 36 }
+rows_available: 36
+content_to_display: Take { iter: Iter(["/Users/jakubkolcar/scripts|367|1726489448", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/templatedb|65|1724928619", "/Users/jakubkolcar/custom-projects/jk0runner|99|1723456378", "/Users/jakubkolcar/custom-projects/rust-jk0lang/target|2|1725353431", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/ai_translate|363|1723106150", "/Users/jakubkolcar/projects-rnt/raynetcrm/app/frontend|753|1727337603", "/Users/jakubkolcar/Total Annihilation|96|1726837745", "/Users/jakubkolcar/projects-rnt/ocr-backend|175|1725968171", "/Users/jakubkolcar/tmp/import|9|1725445400", "/Users/jakubkolcar/tmp/table_calendar/lib|15|1724148147", "/Users/jakubkolcar/projects-rnt/csp|1|1721299180", "/Users/jakubkolcar/projects-rnt/raynetcrm/app/frontend/dist|2|1726578611", "/Users/jakubkolcar/Downloads/MiyooCFW.2.0.0-beta-2-67298a0|4|1725955850", "/Users/jakubkolcar/tmp/llm-term|26|1725018963", "/Users/jakubkolcar/custom-projects/rust-hatching|455|1724931332", "/Users/jakubkolcar/custom-projects/python-markov-mails|758|1724245540", "/Users/jakubkolcar/temporary/ai_translate|5|1722413297", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils/instance-mgmt|3|1719389323", "/Users/jakubkolcar/cardputer-projects|5|1719400271", "/Users/jakubkolcar/custom-projects|102|1727184145", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/deauth_prerequisites|4|1719404663", "/Users/jakubkolcar/rnt-imports|13|1725438892", "/Users/jakubkolcar/custom-projects/rust-jk0lang|248|1725353429", "/Users/jakubkolcar/tmp/fm|2|1722949974", "/Users/jakubkolcar/projects-rnt/raynetcrm-cm/app|10|1727335805", "/Users/jakubkolcar/custom-projects/jk0lang|5|1725353417", "/Users/jakubkolcar/projects-rnt/raynetcrm|201|1726751121", "/Users/jakubkolcar/projects-rnt/raynetcrm/scripts|23|1726145805", "/Users|13|1727339064", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target/release|11|1720705305", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/app|1|1720703939", "/Users/jakubkolcar/custom-projects/rust-forth-pest|121|1723545091", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target/release/examples|2|1720705303", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/app/frontend|9|1722256098", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/utils|4|1722413940", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets|1|1723556065", "/Users/jakubkolcar/projects-rnt/raynetcrm_second|8|1722413941", "/Users/jakubkolcar/custom-projects/my-gtk-app|29|1722949724", "/Users/jakubkolcar/custom-projects/rs-powkiddy|42|1726487770", "/Users/jakubkolcar/Downloads/insta-dows/gallery-dl/instagram/martina_flossner|3|1721296913", "/Users/jakubkolcar/PycharmProjects/markovify1|28|1724160195", "/Users/jakubkolcar/Downloads|200|1726824423", "/Users/jakubkolcar/custom-projects/rust-forth-pest/src|4|1723545106", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/build/m5stack.esp32.m5stack_cardputer|6|1719408196", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib|1|1723556063", "/Users/jakubkolcar/projects-rnt/licenses|2|1724667716", "/Users/jakubkolcar/.android/avd/Pixel_3a_API_34.avd|2|1718009144", "/Users/jakubkolcar/custom-projects/powkiddy-js|41|1726580873", "/Users/jakubkolcar/custom-projects/rust-forth-zero/target|3|1720705312", "/Users/jakubkolcar/Desktop|18|1725019186", "/Users/jakubkolcar/custom-projects/rust-jk0lang/target/debug|19|1725353709", "/Users/jakubkolcar/projects-rnt/raynetcrm/utils|31|1726145744", "/Users/jakubkolcar/projects-rnt/raynetcrm-cm|4|1721376290", "/Users/jakubkolcar/projects-rnt/raynetcrm-demo|16|1718107202", "/Users/jakubkolcar/tmp|76|1727184154", "/Users/jakubkolcar/custom-projects/rust-chrome|16|1724418381", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app|841|1727338466", "/Users/jakubkolcar/projects-rnt/raynetcrm_second/utils/ai_translate|36|1722415123", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/ios|90|1727171735", "/Users/jakubkolcar/custom-projects/llvm-experiments/test1|49|1723188786", "/Users/jakubkolcar/tmp/table_calendar|3|1724137299", "/Users/jakubkolcar/projects-rnt|94|1727338481", "/Users/jakubkolcar/custom-projects/learning-c-to-tacit|68|1718282339", "/|12|1727339116", "/Users/jakubkolcar/custom-projects/rust-forth-zero|29|1721129138", "/Users/jakubkolcar/.android/avd|2|1718009140", "/Users/jakubkolcar/tmp/mistral.rs|27|1727185177", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/pubdev_forks/google_place-0.4.7|4|1720768759", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo/build|4|1719405300", "/Users/jakubkolcar/Downloads/Crazy_Taxi|5|1726691454", "/Users/jakubkolcar/projects-rnt/import-sdk|14|1725521330", "/Users/jakubkolcar/projects-rnt/raynetcrm-extensions|5|1721377774", "/Users/jakubkolcar/projects-rnt/raynetcrm-web/php/frontend/resources/images/try|7|1721129277", "/Users/jakubkolcar/Library/Arduino15/packages/m5stack/hardware/esp32/2.1.1|3|1719404491", "/Users/jakubkolcar/custom-projects/breathing|9|1723119174", "/Users/jakubkolcar/custom-projects/llvm-experiments|2|1723186962", "/Users/jakubkolcar/PycharmProjects/emailTranslater|82|1724761890", "/Users/jakubkolcar/custom-projects/rust-markov-jejich|298|1724160069", "/Users/jakubkolcar/Library/Arduino15/packages/m5stack/hardware/esp32|2|1719404475", "/Users/jakubkolcar/projects-rnt/minicloud|362|1727338136", "/Users/jakubkolcar/Downloads/insta-dows|20|1725013327", "/Users/jakubkolcar/projects-rnt/raynetcrm/app|41|1726747740", "/Users/jakubkolcar/.gradle|1|1723535602", "/Users/jakubkolcar/Downloads/MiyooCFW.2.0.0-beta-2-67298a0/build image (uClibc)|1|1725965419", "/Users/jakubkolcar/cardputer-projects/m5stick-nemo|39|1719405276", "/Users/jakubkolcar/scripts/importladacz|8|1718609458", "/Users/jakubkolcar/tmp/IPA|2|1725020363", "/Users/jakubkolcar/temporary|12|1722426735", "/Users/jakubkolcar/.android|2|1718009137", "/Users/jakubkolcar/Downloads/insta-dows/gallery-dl|2|1721217471", "/Users/jakubkolcar/projects-rnt/document-preview|1|1724670064", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets/table_calendar_fork/src|2|1723556072", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/pubdev_forks|3|1724326633", "/Users/jakubkolcar/projects-rnt/raynetcrm_mobile_app/lib/widgets/table_calendar_fork|3|1723556074"]), n: 36 }
+file_path: /Users/jakubkolcar/python/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.hawtjni/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.bashrc
+rows_available: 36
+content_to_display: Take { iter: Iter(["", "[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh", "eval \"$(atuin init bash)\""]), n: 36 }
+file_path: /Users/jakubkolcar/development/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.bashrc
+rows_available: 36
+content_to_display: Take { iter: Iter(["", "[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh", "eval \"$(atuin init bash)\""]), n: 36 }
+file_path: /Users/jakubkolcar/development/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/customs/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.zshrc
+rows_available: 36
+content_to_display: Take { iter: Iter(["# Path to your oh-my-zsh installation.", "export ZSH=\"$HOME/.oh-my-zsh\"", "", "# Add ~/scripts to PATH", "export PATH=\"$HOME/scripts:$PATH\"", "", "export ANDROID_HOME=/Users/$USER/Library/Android/sdk", "export PATH=${PATH}:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools", "export PATH=/opt/homebrew/bin:$PATH", "", "ZSH_THEME=robbyrussell", "", "# Enable plugins", "plugins=(zsh-autosuggestions)", "", "# Source Oh My Zsh", "source $ZSH/oh-my-zsh.sh", "", "flinit() {", "    flutter clean && flutter pub get && flutter precache --ios && cd ios && pod install && cd ..;", "}", "", ". \"$HOME/.atuin/bin/env\"", "eval \"$(atuin init zsh)\"", "", " export NVM_DIR=\"$HOME/.nvm\"", "  [ -s \"/opt/homebrew/opt/nvm/nvm.sh\" ] && \\. \"/opt/homebrew/opt/nvm/nvm.sh\"  # This loads nvm", "  [ -s \"/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm\" ] && \\. \"/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm\"  # This loads nvm bash_completion", "", "if [[ ! -f ~/.zpm/zpm.zsh ]]; then", "  git clone --recursive https://github.com/zpm-zsh/zpm ~/.zpm", "fi", "source ~/.zpm/zpm.zsh", "", "eval \"$(zoxide init zsh)\"", "", "# Created by `pipx` on 2024-09-30 10:12:16", "export PATH=\"$PATH:/Users/jakubkolcar/.local/bin\"", "alias code='open -a /Applications/Visual\\ Studio\\ Code.app'", "", "#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!", "export SDKMAN_DIR=\"$HOME/.sdkman\"", "[[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ]] && source \"$HOME/.sdkman/bin/sdkman-init.sh\"", "export PATH=\"/opt/homebrew/opt/ruby/bin:$PATH\"", "export PATH=\"/Users/jakubkolcar/custom-projects/binaries:$PATH\"", "", "export PATH=$PATH:/usr/local/bin/bash", "", "ORIGINAL_PATH=$PATH", "NEW_PATH=$(echo $ORIGINAL_PATH | tr ':' '\\n' | grep -v ' ' | tr '\\n' ':')", "NEW_PATH=${NEW_PATH%:}", "export PATH=$NEW_PATH", "", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "", "# >>> conda initialize >>>", "# !! Contents within this block are managed by 'conda init' !!", "__conda_setup=\"$('/opt/homebrew/Caskroom/miniconda/base/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)\"", "if [ $? -eq 0 ]; then", "    eval \"$__conda_setup\"", "else", "    if [ -f \"/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh\" ]; then", "        . \"/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh\"", "    else", "        export PATH=\"/opt/homebrew/Caskroom/miniconda/base/bin:$PATH\"", "    fi", "fi", "unset __conda_setup", "# <<< conda initialize <<<", ""]), n: 36 }
+file_path: /Users/jakubkolcar/OrbStack/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.zshrc
+rows_available: 36
+content_to_display: Take { iter: Iter(["# Path to your oh-my-zsh installation.", "export ZSH=\"$HOME/.oh-my-zsh\"", "", "# Add ~/scripts to PATH", "export PATH=\"$HOME/scripts:$PATH\"", "", "export ANDROID_HOME=/Users/$USER/Library/Android/sdk", "export PATH=${PATH}:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools", "export PATH=/opt/homebrew/bin:$PATH", "", "ZSH_THEME=robbyrussell", "", "# Enable plugins", "plugins=(zsh-autosuggestions)", "", "# Source Oh My Zsh", "source $ZSH/oh-my-zsh.sh", "", "flinit() {", "    flutter clean && flutter pub get && flutter precache --ios && cd ios && pod install && cd ..;", "}", "", ". \"$HOME/.atuin/bin/env\"", "eval \"$(atuin init zsh)\"", "", " export NVM_DIR=\"$HOME/.nvm\"", "  [ -s \"/opt/homebrew/opt/nvm/nvm.sh\" ] && \\. \"/opt/homebrew/opt/nvm/nvm.sh\"  # This loads nvm", "  [ -s \"/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm\" ] && \\. \"/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm\"  # This loads nvm bash_completion", "", "if [[ ! -f ~/.zpm/zpm.zsh ]]; then", "  git clone --recursive https://github.com/zpm-zsh/zpm ~/.zpm", "fi", "source ~/.zpm/zpm.zsh", "", "eval \"$(zoxide init zsh)\"", "", "# Created by `pipx` on 2024-09-30 10:12:16", "export PATH=\"$PATH:/Users/jakubkolcar/.local/bin\"", "alias code='open -a /Applications/Visual\\ Studio\\ Code.app'", "", "#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!", "export SDKMAN_DIR=\"$HOME/.sdkman\"", "[[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ]] && source \"$HOME/.sdkman/bin/sdkman-init.sh\"", "export PATH=\"/opt/homebrew/opt/ruby/bin:$PATH\"", "export PATH=\"/Users/jakubkolcar/custom-projects/binaries:$PATH\"", "", "export PATH=$PATH:/usr/local/bin/bash", "", "ORIGINAL_PATH=$PATH", "NEW_PATH=$(echo $ORIGINAL_PATH | tr ':' '\\n' | grep -v ' ' | tr '\\n' ':')", "NEW_PATH=${NEW_PATH%:}", "export PATH=$NEW_PATH", "", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "", "# >>> conda initialize >>>", "# !! Contents within this block are managed by 'conda init' !!", "__conda_setup=\"$('/opt/homebrew/Caskroom/miniconda/base/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)\"", "if [ $? -eq 0 ]; then", "    eval \"$__conda_setup\"", "else", "    if [ -f \"/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh\" ]; then", "        . \"/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh\"", "    else", "        export PATH=\"/opt/homebrew/Caskroom/miniconda/base/bin:$PATH\"", "    fi", "fi", "unset __conda_setup", "# <<< conda initialize <<<", ""]), n: 36 }
+rows_available: 36
+content_to_display: Take { iter: Iter(["export ZSH=\"$HOME/.oh-my-zsh\"", "", "# Add ~/scripts to PATH", "export PATH=\"$HOME/scripts:$PATH\"", "", "export ANDROID_HOME=/Users/$USER/Library/Android/sdk", "export PATH=${PATH}:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools", "export PATH=/opt/homebrew/bin:$PATH", "", "ZSH_THEME=robbyrussell", "", "# Enable plugins", "plugins=(zsh-autosuggestions)", "", "# Source Oh My Zsh", "source $ZSH/oh-my-zsh.sh", "", "flinit() {", "    flutter clean && flutter pub get && flutter precache --ios && cd ios && pod install && cd ..;", "}", "", ". \"$HOME/.atuin/bin/env\"", "eval \"$(atuin init zsh)\"", "", " export NVM_DIR=\"$HOME/.nvm\"", "  [ -s \"/opt/homebrew/opt/nvm/nvm.sh\" ] && \\. \"/opt/homebrew/opt/nvm/nvm.sh\"  # This loads nvm", "  [ -s \"/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm\" ] && \\. \"/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm\"  # This loads nvm bash_completion", "", "if [[ ! -f ~/.zpm/zpm.zsh ]]; then", "  git clone --recursive https://github.com/zpm-zsh/zpm ~/.zpm", "fi", "source ~/.zpm/zpm.zsh", "", "eval \"$(zoxide init zsh)\"", "", "# Created by `pipx` on 2024-09-30 10:12:16", "export PATH=\"$PATH:/Users/jakubkolcar/.local/bin\"", "alias code='open -a /Applications/Visual\\ Studio\\ Code.app'", "", "#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!", "export SDKMAN_DIR=\"$HOME/.sdkman\"", "[[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ]] && source \"$HOME/.sdkman/bin/sdkman-init.sh\"", "export PATH=\"/opt/homebrew/opt/ruby/bin:$PATH\"", "export PATH=\"/Users/jakubkolcar/custom-projects/binaries:$PATH\"", "", "export PATH=$PATH:/usr/local/bin/bash", "", "ORIGINAL_PATH=$PATH", "NEW_PATH=$(echo $ORIGINAL_PATH | tr ':' '\\n' | grep -v ' ' | tr '\\n' ':')", "NEW_PATH=${NEW_PATH%:}", "export PATH=$NEW_PATH", "", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "", "# >>> conda initialize >>>", "# !! Contents within this block are managed by 'conda init' !!", "__conda_setup=\"$('/opt/homebrew/Caskroom/miniconda/base/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)\"", "if [ $? -eq 0 ]; then", "    eval \"$__conda_setup\"", "else", "    if [ -f \"/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh\" ]; then", "        . \"/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh\"", "    else", "        export PATH=\"/opt/homebrew/Caskroom/miniconda/base/bin:$PATH\"", "    fi", "fi", "unset __conda_setup", "# <<< conda initialize <<<", ""]), n: 36 }
+rows_available: 36
+content_to_display: Take { iter: Iter(["", "# Add ~/scripts to PATH", "export PATH=\"$HOME/scripts:$PATH\"", "", "export ANDROID_HOME=/Users/$USER/Library/Android/sdk", "export PATH=${PATH}:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools", "export PATH=/opt/homebrew/bin:$PATH", "", "ZSH_THEME=robbyrussell", "", "# Enable plugins", "plugins=(zsh-autosuggestions)", "", "# Source Oh My Zsh", "source $ZSH/oh-my-zsh.sh", "", "flinit() {", "    flutter clean && flutter pub get && flutter precache --ios && cd ios && pod install && cd ..;", "}", "", ". \"$HOME/.atuin/bin/env\"", "eval \"$(atuin init zsh)\"", "", " export NVM_DIR=\"$HOME/.nvm\"", "  [ -s \"/opt/homebrew/opt/nvm/nvm.sh\" ] && \\. \"/opt/homebrew/opt/nvm/nvm.sh\"  # This loads nvm", "  [ -s \"/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm\" ] && \\. \"/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm\"  # This loads nvm bash_completion", "", "if [[ ! -f ~/.zpm/zpm.zsh ]]; then", "  git clone --recursive https://github.com/zpm-zsh/zpm ~/.zpm", "fi", "source ~/.zpm/zpm.zsh", "", "eval \"$(zoxide init zsh)\"", "", "# Created by `pipx` on 2024-09-30 10:12:16", "export PATH=\"$PATH:/Users/jakubkolcar/.local/bin\"", "alias code='open -a /Applications/Visual\\ Studio\\ Code.app'", "", "#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!", "export SDKMAN_DIR=\"$HOME/.sdkman\"", "[[ -s \"$HOME/.sdkman/bin/sdkman-init.sh\" ]] && source \"$HOME/.sdkman/bin/sdkman-init.sh\"", "export PATH=\"/opt/homebrew/opt/ruby/bin:$PATH\"", "export PATH=\"/Users/jakubkolcar/custom-projects/binaries:$PATH\"", "", "export PATH=$PATH:/usr/local/bin/bash", "", "ORIGINAL_PATH=$PATH", "NEW_PATH=$(echo $ORIGINAL_PATH | tr ':' '\\n' | grep -v ' ' | tr '\\n' ':')", "NEW_PATH=${NEW_PATH%:}", "export PATH=$NEW_PATH", "", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "export PATH=\"/opt/homebrew/opt/postgresql@16/bin:$PATH\"", "", "# >>> conda initialize >>>", "# !! Contents within this block are managed by 'conda init' !!", "__conda_setup=\"$('/opt/homebrew/Caskroom/miniconda/base/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)\"", "if [ $? -eq 0 ]; then", "    eval \"$__conda_setup\"", "else", "    if [ -f \"/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh\" ]; then", "        . \"/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh\"", "    else", "        export PATH=\"/opt/homebrew/Caskroom/miniconda/base/bin:$PATH\"", "    fi", "fi", "unset __conda_setup", "# <<< conda initialize <<<", ""]), n: 36 }
+file_path: /Users/jakubkolcar/OrbStack/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.arduinoIDE/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.freeplane/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.local/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.psql_history
+rows_available: 36
+content_to_display: Take { iter: Iter(["\\du", "DROP TABLE temp_company_ids;\u{1}DROP TABLE temp_business_case_ids;\u{1}DROP TABLE temp_activity_ids;\u{1}DROP TABLE temp_activity_ids2;\u{1}DROP TABLE temp_business_case_item_ids;\u{1}DROP TABLE temp_relationship_ids;\u{1}DROP TABLE temp_invoice_ids;", "CREATE TEMP TABLE temp_company_ids AS\u{1}SELECT id, primary_address_id, contact_address_id\u{1}FROM company\u{1}WHERE tags LIKE '%Smazat%';\u{1}\u{1}CREATE TEMP TABLE temp_business_case_ids AS\u{1}SELECT id\u{1}FROM business_case\u{1}WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}CREATE TEMP TABLE temp_activity_ids AS\u{1}SELECT id\u{1}FROM activity\u{1}WHERE business_case_id IN (SELECT id FROM temp_business_case_ids);\u{1}\u{1}CREATE TEMP TABLE temp_activity_ids2 AS\u{1}SELECT id\u{1}FROM activity\u{1}WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}UPDATE company\u{1}SET primary_address_id = NULL,\u{1}    contact_address_id = NULL\u{1}WHERE id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}UPDATE business_case\u{1}SET last_attachment_id = NULL\u{1}WHERE id IN (SELECT id FROM temp_business_case_ids);\u{1}\u{1}DELETE FROM participant WHERE activity_id IN (SELECT id FROM temp_activity_ids);\u{1}DELETE FROM attachment WHERE activity_id IN (SELECT id FROM temp_activity_ids);\u{1}DELETE FROM activity_reminder WHERE activity_id IN (SELECT id FROM temp_activity_ids);\u{1}\u{1}DELETE FROM participant WHERE activity_id IN (SELECT id FROM temp_activity_ids2);\u{1}DELETE FROM attachment WHERE activity_id IN (SELECT id FROM temp_activity_ids2);\u{1}DELETE FROM activity_reminder WHERE activity_id IN (SELECT id FROM temp_activity_ids2);\u{1}\u{1}DELETE FROM activity_context WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}DELETE FROM activity WHERE id IN (SELECT id FROM temp_activity_ids);\u{1}DELETE FROM activity WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}DELETE FROM attachment WHERE business_case_id IN (SELECT id FROM temp_business_case_ids);\u{1}\u{1}CREATE TEMP TABLE temp_business_case_item_ids AS\u{1}SELECT id\u{1}FROM business_case_item\u{1}WHERE business_case_id IN (SELECT id FROM temp_business_case_ids);\u{1}\u{1}DELETE FROM sales_order_item WHERE business_case_item_id IN (SELECT id FROM temp_business_case_item_ids);\u{1}DELETE FROM business_case_item WHERE business_case_id IN (SELECT id FROM temp_business_case_ids);\u{1}DELETE FROM sales_order WHERE business_case_id IN (SELECT id FROM temp_business_case_ids);\u{1}DELETE FROM business_case_relationship WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}DELETE FROM business_case WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}CREATE TEMP TABLE temp_relationship_ids AS\u{1}SELECT id\u{1}FROM relationship\u{1}WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}UPDATE person\u{1}SET primary_relationship_id = NULL\u{1}WHERE primary_relationship_id IN (SELECT id FROM temp_relationship_ids);\u{1}\u{1}DELETE FROM relationship WHERE company_address_id IN (SELECT primary_address_id FROM temp_company_ids);\u{1}DELETE FROM relationship WHERE company_address_id IN (SELECT contact_address_id FROM temp_company_ids);\u{1}DELETE FROM relationship WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}DELETE FROM company_relationship WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}DELETE FROM company_relationship WHERE company_join_id IN (SELECT id FROM temp_company_ids);\u{1}DELETE FROM company_address WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}DELETE FROM attachment WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}UPDATE mass_email_recipient\u{1}SET company_id = NULL\u{1}WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}CREATE TEMP TABLE temp_project_ids AS\u{1}SELECT id\u{1}FROM project\u{1}WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}UPDATE project\u{1}SET last_attachment_id = NULL\u{1}WHERE id IN (SELECT id FROM temp_project_ids);\u{1}\u{1}DELETE FROM attachment WHERE project_id IN (SELECT id FROM temp_project_ids);\u{1}DELETE FROM project WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}\u{1}CREATE TEMP TABLE temp_invoice_ids AS\u{1}SELECT id\u{1}FROM invoice\u{1}WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}DELETE FROM invoice_item WHERE invoice_id IN (SELECT id FROM temp_invoice_ids);\u{1}DELETE FROM invoice_payment WHERE invoice_id IN (SELECT id FROM temp_invoice_ids);\u{1}\u{1}DELETE FROM invoice WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}DELETE FROM gdpr WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}DELETE FROM participant WHERE company_id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}DELETE FROM company\u{1}WHERE id IN (SELECT id FROM temp_company_ids);\u{1}\u{1}DROP TABLE temp_company_ids;\u{1}DROP TABLE temp_business_case_ids;\u{1}DROP TABLE temp_activity_ids;\u{1}DROP TABLE temp_activity_ids2;\u{1}DROP TABLE temp_business_case_item_ids;\u{1}DROP TABLE temp_relationship_ids;\u{1}DROP TABLE temp_invoice_ids;"]), n: 36 }
+file_path: /Users/jakubkolcar/Creative Cloud Files/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.mongodb/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/Pictures/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/.links/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+file_path: /Users/jakubkolcar/default project.lock
 rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/Pictures/Lightroom/Lightroom Catalog Previews.lrdata/9/9DEF/9DEFE168-21B8-44DB-A6A1-FD6D0ECA7AF6-446c559b0233649a34ac4e2404655bba_3000
-Image loading took: 107.042µs
-file_path: /Users/jakubkolcar/prevw/DSC08007.jpg
-Image loading took: 433.186541ms
-rows_available: 36
-calculate_aspect_ratio_fit 333ns
-resize 11.562625ms
-draw 3.48625ms
-file_path: /Users/jakubkolcar/prevw/DSC08013.jpg
-Image loading took: 446.984208ms
-rows_available: 36
-calculate_aspect_ratio_fit 166ns
-resize 11.103916ms
-draw 3.529292ms
-file_path: /Users/jakubkolcar/prevw/DSC07888.jpg
-Image loading took: 442.067667ms
-rows_available: 36
-calculate_aspect_ratio_fit 333ns
-resize 11.108958ms
-draw 3.502791ms
-file_path: /Users/jakubkolcar/prevw/DSC08205.jpg
-Image loading took: 436.404625ms
-rows_available: 36
-calculate_aspect_ratio_fit 250ns
-resize 11.193833ms
-draw 3.6925ms
-file_path: /Users/jakubkolcar/prevw/DSC08211.jpg
-Image loading took: 453.137209ms
-rows_available: 36
-calculate_aspect_ratio_fit 209ns
-resize 12.470375ms
-draw 7.205ms
-file_path: /Users/jakubkolcar/prevw/DSC07877.jpg
-Image loading took: 527.187375ms
-rows_available: 36
-calculate_aspect_ratio_fit 500ns
-resize 12.218375ms
-draw 5.342208ms
-file_path: /Users/jakubkolcar/prevw/DSC07863.jpg
-Image loading took: 513.12925ms
-rows_available: 36
-calculate_aspect_ratio_fit 250ns
-resize 12.323208ms
-draw 4.962292ms
-file_path: /Users/jakubkolcar/prevw/DSC07903.jpg
-Image loading took: 512.745333ms
-rows_available: 36
-calculate_aspect_ratio_fit 208ns
-resize 12.283833ms
-draw 5.5165ms
-file_path: /Users/jakubkolcar/prevw/DSC07917.jpg
-Image loading took: 426.058208ms
-rows_available: 36
-calculate_aspect_ratio_fit 792ns
-resize 10.779ms
-draw 3.589291ms
-file_path: /Users/jakubkolcar/prevw/DSC08173.jpg
-Image loading took: 440.183708ms
-rows_available: 36
-calculate_aspect_ratio_fit 41ns
-resize 10.82575ms
-draw 3.602458ms
-file_path: /Users/jakubkolcar/prevw/DSC08167.jpg
-Image loading took: 425.886625ms
-rows_available: 36
-calculate_aspect_ratio_fit 250ns
-resize 10.789625ms
-draw 3.757ms
-file_path: /Users/jakubkolcar/prevw/DSC08198.jpg
-Image loading took: 423.069042ms
-rows_available: 36
-calculate_aspect_ratio_fit 209ns
-resize 11.125417ms
-draw 3.611625ms
-file_path: /Users/jakubkolcar/prevw/DSC08199.jpg
-Image loading took: 421.236042ms
-rows_available: 36
-calculate_aspect_ratio_fit 166ns
-resize 10.764791ms
-draw 3.610125ms
-file_path: /Users/jakubkolcar/prevw/DSC08166.jpg
-Image loading took: 427.659959ms
-rows_available: 36
-calculate_aspect_ratio_fit 0ns
-resize 10.800958ms
-draw 3.546ms
-file_path: /Users/jakubkolcar/prevw/DSC08172.jpg
-Image loading took: 424.736541ms
-rows_available: 36
-calculate_aspect_ratio_fit 41ns
-resize 10.7745ms
-draw 3.540041ms
-file_path: /Users/jakubkolcar/prevw/DSC07916.jpg
-Image loading took: 419.582292ms
-rows_available: 36
-calculate_aspect_ratio_fit 250ns
-resize 10.720958ms
-draw 3.55075ms
-file_path: /Users/jakubkolcar/prevw/DSC07902.jpg
-Image loading took: 425.3915ms
-rows_available: 36
-calculate_aspect_ratio_fit 334ns
-resize 11.359625ms
-draw 3.684084ms
-file_path: /Users/jakubkolcar/prevw/DSC07862.jpg
-Image loading took: 442.143875ms
-rows_available: 36
-calculate_aspect_ratio_fit 208ns
-resize 11.502458ms
-draw 3.625083ms
-file_path: /Users/jakubkolcar/prevw/DSC07876.jpg
-Image loading took: 439.373166ms
-rows_available: 36
-calculate_aspect_ratio_fit 208ns
-resize 11.354584ms
-draw 3.634125ms
-file_path: /Users/jakubkolcar/prevw/DSC08210.jpg
-Image loading took: 414.780542ms
-rows_available: 36
-calculate_aspect_ratio_fit 333ns
-resize 10.757459ms
-draw 3.554583ms
-file_path: /Users/jakubkolcar/prevw/DSC07889.jpg
-Image loading took: 421.827292ms
-rows_available: 36
-calculate_aspect_ratio_fit 416ns
-resize 10.768584ms
-draw 3.523917ms
-file_path: /Users/jakubkolcar/prevw/DSC08204.jpg
-Image loading took: 420.743291ms
-rows_available: 36
-calculate_aspect_ratio_fit 375ns
-resize 10.801292ms
-draw 3.628125ms
-file_path: /Users/jakubkolcar/prevw/DSC08012.jpg
-Image loading took: 428.6525ms
-rows_available: 36
-calculate_aspect_ratio_fit 41ns
-resize 10.783375ms
-draw 3.568833ms
-file_path: /Users/jakubkolcar/prevw/DSC08006.jpg
-Image loading took: 416.61025ms
-rows_available: 36
-calculate_aspect_ratio_fit 1.416µs
-resize 10.81275ms
-draw 3.589084ms
-file_path: /Users/jakubkolcar/prevw/DSC08012.jpg
-Image loading took: 427.726375ms
-rows_available: 36
-calculate_aspect_ratio_fit 41ns
-resize 10.767333ms
-draw 3.573041ms
-file_path: /Users/jakubkolcar/prevw/DSC08204.jpg
-Image loading took: 444.029042ms
-rows_available: 36
-calculate_aspect_ratio_fit 1.125µs
-resize 10.736125ms
-draw 3.558125ms
+content_to_display: Take { iter: Iter(["#Ghidra Lock File", "#Tue Sep 17 14:07:57 CEST 2024", "<META>\\ Supports\\ File\\ Channel\\ Locking=Channel Lock", "Hostname=Jakub--MacBook-Pro.local", "OS\\ Architecture=aarch64", "OS\\ Name=Mac OS X", "OS\\ Version=14.5", "Timestamp=9/17/24, 2\\:07\\u202FPM", "Username=jakubkolcar"]), n: 36 }
 file_path: /Users/jakubkolcar/prevw/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/.zprofile
+rows_available: 36
+content_to_display: Take { iter: Iter(["", "", "# Added by Toolbox App", "export PATH=\"$PATH:/Users/jakubkolcar/Library/Application Support/JetBrains/Toolbox/scripts\"", "", "", "eval \"$(/opt/homebrew/bin/brew shellenv)\"", "eval $(/opt/homebrew/bin/brew shellenv)", "eval $(/opt/homebrew/bin/brew shellenv)", "eval $(/opt/homebrew/bin/brew shellenv)", "", "# Setting PATH for Python 3.12", "# The original version is saved in .zprofile.pysave", "PATH=\"/Library/Frameworks/Python.framework/Versions/3.12/bin:${PATH}\"", "export PATH", "", "# Added by OrbStack: command-line tools and integration", "# Comment this line if you don't want it to be added again.", "source ~/.orbstack/shell/init.zsh 2>/dev/null || :", "eval \"$(/opt/homebrew/bin/brew shellenv)\"", "eval \"$(/opt/homebrew/bin/brew shellenv)\"", "", "# Created by `pipx` on 2024-09-30 10:12:16", "export PATH=\"$PATH:/Users/jakubkolcar/.local/bin\"", "", "# Setting PATH for Python 3.11", "# The original version is saved in .zprofile.pysave", "PATH=\"/Library/Frameworks/Python.framework/Versions/3.11/bin:${PATH}\"", "export PATH"]), n: 36 }
+file_path: /Users/jakubkolcar/projects-rnt/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/.zprofile
+rows_available: 36
+content_to_display: Take { iter: Iter(["", "", "# Added by Toolbox App", "export PATH=\"$PATH:/Users/jakubkolcar/Library/Application Support/JetBrains/Toolbox/scripts\"", "", "", "eval \"$(/opt/homebrew/bin/brew shellenv)\"", "eval $(/opt/homebrew/bin/brew shellenv)", "eval $(/opt/homebrew/bin/brew shellenv)", "eval $(/opt/homebrew/bin/brew shellenv)", "", "# Setting PATH for Python 3.12", "# The original version is saved in .zprofile.pysave", "PATH=\"/Library/Frameworks/Python.framework/Versions/3.12/bin:${PATH}\"", "export PATH", "", "# Added by OrbStack: command-line tools and integration", "# Comment this line if you don't want it to be added again.", "source ~/.orbstack/shell/init.zsh 2>/dev/null || :", "eval \"$(/opt/homebrew/bin/brew shellenv)\"", "eval \"$(/opt/homebrew/bin/brew shellenv)\"", "", "# Created by `pipx` on 2024-09-30 10:12:16", "export PATH=\"$PATH:/Users/jakubkolcar/.local/bin\"", "", "# Setting PATH for Python 3.11", "# The original version is saved in .zprofile.pysave", "PATH=\"/Library/Frameworks/Python.framework/Versions/3.11/bin:${PATH}\"", "export PATH"]), n: 36 }
 file_path: /Users/jakubkolcar/prevw/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/default project.lock
+rows_available: 36
+content_to_display: Take { iter: Iter(["#Ghidra Lock File", "#Tue Sep 17 14:07:57 CEST 2024", "<META>\\ Supports\\ File\\ Channel\\ Locking=Channel Lock", "Hostname=Jakub--MacBook-Pro.local", "OS\\ Architecture=aarch64", "OS\\ Name=Mac OS X", "OS\\ Version=14.5", "Timestamp=9/17/24, 2\\:07\\u202FPM", "Username=jakubkolcar"]), n: 36 }
+file_path: /Users/jakubkolcar/.links/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/default project.lock
+rows_available: 36
+content_to_display: Take { iter: Iter(["#Ghidra Lock File", "#Tue Sep 17 14:07:57 CEST 2024", "<META>\\ Supports\\ File\\ Channel\\ Locking=Channel Lock", "Hostname=Jakub--MacBook-Pro.local", "OS\\ Architecture=aarch64", "OS\\ Name=Mac OS X", "OS\\ Version=14.5", "Timestamp=9/17/24, 2\\:07\\u202FPM", "Username=jakubkolcar"]), n: 36 }
 file_path: /Users/jakubkolcar/prevw/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
+file_path: /Users/jakubkolcar/.zprofile
+rows_available: 36
+content_to_display: Take { iter: Iter(["", "", "# Added by Toolbox App", "export PATH=\"$PATH:/Users/jakubkolcar/Library/Application Support/JetBrains/Toolbox/scripts\"", "", "", "eval \"$(/opt/homebrew/bin/brew shellenv)\"", "eval $(/opt/homebrew/bin/brew shellenv)", "eval $(/opt/homebrew/bin/brew shellenv)", "eval $(/opt/homebrew/bin/brew shellenv)", "", "# Setting PATH for Python 3.12", "# The original version is saved in .zprofile.pysave", "PATH=\"/Library/Frameworks/Python.framework/Versions/3.12/bin:${PATH}\"", "export PATH", "", "# Added by OrbStack: command-line tools and integration", "# Comment this line if you don't want it to be added again.", "source ~/.orbstack/shell/init.zsh 2>/dev/null || :", "eval \"$(/opt/homebrew/bin/brew shellenv)\"", "eval \"$(/opt/homebrew/bin/brew shellenv)\"", "", "# Created by `pipx` on 2024-09-30 10:12:16", "export PATH=\"$PATH:/Users/jakubkolcar/.local/bin\"", "", "# Setting PATH for Python 3.11", "# The original version is saved in .zprofile.pysave", "PATH=\"/Library/Frameworks/Python.framework/Versions/3.11/bin:${PATH}\"", "export PATH"]), n: 36 }
+file_path: /Users/jakubkolcar/projects-rnt/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
+file_path: /Users/jakubkolcar/.platformio/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
+file_path: /Users/jakubkolcar/.dartServer/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
+file_path: /Users/jakubkolcar/.nvm/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
+file_path: /Users/jakubkolcar/.pub-cache/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
+file_path: /Users/jakubkolcar/cardputer-projects/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
+file_path: /Users/jakubkolcar/.glzr/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
+file_path: /Users/jakubkolcar/main.gpr
+rows_available: 36
+content_to_display: Take { iter: Iter([]), n: 36 }
+file_path: /Users/jakubkolcar/.zsh_history
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
+file_path: /Users/jakubkolcar/Desktop/
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
+file_path: /Users/jakubkolcar/.zsh_history
 rows_available: 36
 content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
+file_path: /Users/jakubkolcar/main.gpr
 rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
-file_path: /Users/jakubkolcar/prevw/
-rows_available: 36
-content_to_display: Take { iter: Iter([""]), n: 36 }
+content_to_display: Take { iter: Iter([]), n: 36 }
