@@ -1,37 +1,318 @@
-Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: Up, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: Up, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: Down, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: Backspace, modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: F(4), modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
-Before drawing UI
-Redrawing UI
-Handling key event: KeyEvent { code: F(10), modifiers: KeyModifiers(0x0), kind: Press, state: KeyEventState(0x0) }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 649.417µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 77.875µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 199.083µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 379.625µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 389.083µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 122.084µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 93.917µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 78.042µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 81.083µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 102.084µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 125.834µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 97.333µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 104.959µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/a4/wg5emcb6fwwr5hkhs1eyrq3jh6dav6myn17ju1fywacjvdj5fcaxa
+Image loading took: 139.25µs
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom Library.lrlibrary/41b3cb1a6f5a479abbdd0b6e2653c7ba/previews/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/Pictures/Lightroom/Lightroom Catalog Previews.lrdata/9/9DEF/9DEFE168-21B8-44DB-A6A1-FD6D0ECA7AF6-446c559b0233649a34ac4e2404655bba_3000
+Image loading took: 107.042µs
+file_path: /Users/jakubkolcar/prevw/DSC08007.jpg
+Image loading took: 433.186541ms
+rows_available: 36
+calculate_aspect_ratio_fit 333ns
+resize 11.562625ms
+draw 3.48625ms
+file_path: /Users/jakubkolcar/prevw/DSC08013.jpg
+Image loading took: 446.984208ms
+rows_available: 36
+calculate_aspect_ratio_fit 166ns
+resize 11.103916ms
+draw 3.529292ms
+file_path: /Users/jakubkolcar/prevw/DSC07888.jpg
+Image loading took: 442.067667ms
+rows_available: 36
+calculate_aspect_ratio_fit 333ns
+resize 11.108958ms
+draw 3.502791ms
+file_path: /Users/jakubkolcar/prevw/DSC08205.jpg
+Image loading took: 436.404625ms
+rows_available: 36
+calculate_aspect_ratio_fit 250ns
+resize 11.193833ms
+draw 3.6925ms
+file_path: /Users/jakubkolcar/prevw/DSC08211.jpg
+Image loading took: 453.137209ms
+rows_available: 36
+calculate_aspect_ratio_fit 209ns
+resize 12.470375ms
+draw 7.205ms
+file_path: /Users/jakubkolcar/prevw/DSC07877.jpg
+Image loading took: 527.187375ms
+rows_available: 36
+calculate_aspect_ratio_fit 500ns
+resize 12.218375ms
+draw 5.342208ms
+file_path: /Users/jakubkolcar/prevw/DSC07863.jpg
+Image loading took: 513.12925ms
+rows_available: 36
+calculate_aspect_ratio_fit 250ns
+resize 12.323208ms
+draw 4.962292ms
+file_path: /Users/jakubkolcar/prevw/DSC07903.jpg
+Image loading took: 512.745333ms
+rows_available: 36
+calculate_aspect_ratio_fit 208ns
+resize 12.283833ms
+draw 5.5165ms
+file_path: /Users/jakubkolcar/prevw/DSC07917.jpg
+Image loading took: 426.058208ms
+rows_available: 36
+calculate_aspect_ratio_fit 792ns
+resize 10.779ms
+draw 3.589291ms
+file_path: /Users/jakubkolcar/prevw/DSC08173.jpg
+Image loading took: 440.183708ms
+rows_available: 36
+calculate_aspect_ratio_fit 41ns
+resize 10.82575ms
+draw 3.602458ms
+file_path: /Users/jakubkolcar/prevw/DSC08167.jpg
+Image loading took: 425.886625ms
+rows_available: 36
+calculate_aspect_ratio_fit 250ns
+resize 10.789625ms
+draw 3.757ms
+file_path: /Users/jakubkolcar/prevw/DSC08198.jpg
+Image loading took: 423.069042ms
+rows_available: 36
+calculate_aspect_ratio_fit 209ns
+resize 11.125417ms
+draw 3.611625ms
+file_path: /Users/jakubkolcar/prevw/DSC08199.jpg
+Image loading took: 421.236042ms
+rows_available: 36
+calculate_aspect_ratio_fit 166ns
+resize 10.764791ms
+draw 3.610125ms
+file_path: /Users/jakubkolcar/prevw/DSC08166.jpg
+Image loading took: 427.659959ms
+rows_available: 36
+calculate_aspect_ratio_fit 0ns
+resize 10.800958ms
+draw 3.546ms
+file_path: /Users/jakubkolcar/prevw/DSC08172.jpg
+Image loading took: 424.736541ms
+rows_available: 36
+calculate_aspect_ratio_fit 41ns
+resize 10.7745ms
+draw 3.540041ms
+file_path: /Users/jakubkolcar/prevw/DSC07916.jpg
+Image loading took: 419.582292ms
+rows_available: 36
+calculate_aspect_ratio_fit 250ns
+resize 10.720958ms
+draw 3.55075ms
+file_path: /Users/jakubkolcar/prevw/DSC07902.jpg
+Image loading took: 425.3915ms
+rows_available: 36
+calculate_aspect_ratio_fit 334ns
+resize 11.359625ms
+draw 3.684084ms
+file_path: /Users/jakubkolcar/prevw/DSC07862.jpg
+Image loading took: 442.143875ms
+rows_available: 36
+calculate_aspect_ratio_fit 208ns
+resize 11.502458ms
+draw 3.625083ms
+file_path: /Users/jakubkolcar/prevw/DSC07876.jpg
+Image loading took: 439.373166ms
+rows_available: 36
+calculate_aspect_ratio_fit 208ns
+resize 11.354584ms
+draw 3.634125ms
+file_path: /Users/jakubkolcar/prevw/DSC08210.jpg
+Image loading took: 414.780542ms
+rows_available: 36
+calculate_aspect_ratio_fit 333ns
+resize 10.757459ms
+draw 3.554583ms
+file_path: /Users/jakubkolcar/prevw/DSC07889.jpg
+Image loading took: 421.827292ms
+rows_available: 36
+calculate_aspect_ratio_fit 416ns
+resize 10.768584ms
+draw 3.523917ms
+file_path: /Users/jakubkolcar/prevw/DSC08204.jpg
+Image loading took: 420.743291ms
+rows_available: 36
+calculate_aspect_ratio_fit 375ns
+resize 10.801292ms
+draw 3.628125ms
+file_path: /Users/jakubkolcar/prevw/DSC08012.jpg
+Image loading took: 428.6525ms
+rows_available: 36
+calculate_aspect_ratio_fit 41ns
+resize 10.783375ms
+draw 3.568833ms
+file_path: /Users/jakubkolcar/prevw/DSC08006.jpg
+Image loading took: 416.61025ms
+rows_available: 36
+calculate_aspect_ratio_fit 1.416µs
+resize 10.81275ms
+draw 3.589084ms
+file_path: /Users/jakubkolcar/prevw/DSC08012.jpg
+Image loading took: 427.726375ms
+rows_available: 36
+calculate_aspect_ratio_fit 41ns
+resize 10.767333ms
+draw 3.573041ms
+file_path: /Users/jakubkolcar/prevw/DSC08204.jpg
+Image loading took: 444.029042ms
+rows_available: 36
+calculate_aspect_ratio_fit 1.125µs
+resize 10.736125ms
+draw 3.558125ms
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }
+file_path: /Users/jakubkolcar/prevw/
+rows_available: 36
+content_to_display: Take { iter: Iter([""]), n: 36 }

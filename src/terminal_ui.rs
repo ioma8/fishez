@@ -165,6 +165,29 @@ impl TerminalUI {
                 );
             }
         }
+
+        // Calculate scrollbar parameters
+        let total_items = files_view.files.len();
+        let visible_items = rows_available as usize;
+        if total_items > visible_items {
+            let scrollbar_height = (visible_items as f32 / total_items as f32 * visible_items as f32)
+                .round()
+                .max(1.0)
+                as u16;
+
+            let scrollbar_position = (files_view.start as f32 / total_items as f32 * visible_items as f32)
+                .round()
+                .max(0.0)
+                as u16;
+
+            // Draw the scrollbar
+            for i in 0..rows_available {
+                if i >= scrollbar_position && i < scrollbar_position + scrollbar_height {
+                    // Filled portion of the scrollbar
+                    let _ = queue!(&self.stdout,cursor::MoveTo(self.columns - 1, HEADER_ROWS + i),Print("|".dark_blue()));
+                }
+            }
+        }
     }
 
     fn draw_file_content(&mut self, quick_view: &QuickViewMode) {
