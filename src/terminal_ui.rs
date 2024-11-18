@@ -166,6 +166,7 @@ impl TerminalUI {
             }
         }
 
+        // TODO: udelat z toho obecnou metodu pro kresleni scrollbaru ze zobrazenych polozek
         // Calculate scrollbar parameters
         let total_items = files_view.files.len();
         let visible_items = rows_available as usize;
