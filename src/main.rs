@@ -5,12 +5,11 @@ use crossterm::{
     cursor,
     event::{self, Event, KeyCode, KeyEvent},
     execute,
-    terminal::{self, enable_raw_mode, disable_raw_mode},
+    terminal::{self, disable_raw_mode, enable_raw_mode},
 };
 use files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
-use fishez::logger::log;
 use std::panic;
-use std::{io::stdout, time::Duration};
+use std::io::stdout;
 use terminal_ui::TerminalUI;
 
 fn main() {
@@ -35,12 +34,10 @@ fn main() {
                 ui.columns = cols;
                 ui.rows = rows;
             }
-            rest => log(&format!("Unhandled event: {:?}", rest)),
+            _ => {}
         }
-        log("Before drawing UI");
 
         ui.draw_ui(&files_view);
-        log("Redrawing UI");
     }
 }
 
@@ -68,9 +65,11 @@ fn reset_terminal() {
 }
 
 fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
-    log(&format!("Handling key event: {:?}", event));
-
     if event.kind != event::KeyEventKind::Press {
+        return;
+    }
+
+    if handle_quit(event) {
         return;
     }
 
@@ -102,14 +101,21 @@ fn handle_normal_navigation(files_view: &mut FilesView, event: KeyEvent, rows: u
         }
         KeyCode::F(3) => files_view.open_quick_view(),
         KeyCode::F(4) => files_view.open_in_editor(),
-        rest => handle_quit(files_view, rest),
+        _ => {},
     }
 }
 
-fn handle_quit(files_view: &mut FilesView, code: KeyCode) {
-    if let KeyCode::F(10) = code {
-        reset_terminal();
-        std::process::exit(0);
+fn handle_quit(event: KeyEvent) -> bool {
+    if (KeyCode::F(10) == event.code) || (KeyCode::Char('c') == event.code
+    && event.modifiers.contains(event::KeyModifiers::CONTROL)) {
+        std::thread::spawn(|| {
+            reset_terminal();
+            std::process::exit(0);
+        });
+        return true;
+    } else
+    {
+        return false;
     }
 }
 
@@ -152,7 +158,7 @@ fn handle_quick_view_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16
             files_view.open_quick_view();
         }
         KeyCode::Esc | KeyCode::F(3) => files_view.mode = FilesViewMode::Normal,
-        rest => handle_quit(files_view, rest),
+        _ => {}
     }
 }
 
