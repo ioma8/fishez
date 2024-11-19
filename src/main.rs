@@ -13,7 +13,6 @@ use features::{
     open_feature::OpenFeature, ripgrep_feature::RipGrepFeature, vscode_feature::VsCodeFeature,
 };
 use files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
-use fishez::logger::log;
 use std::panic;
 use std::{io::stdout, sync::mpsc};
 use terminal_ui::Message;

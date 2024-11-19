@@ -23,18 +23,18 @@ impl VsCodeFeature {
     fn open(&self, path: &str) {
         if cfg!(target_os = "windows") {
             Command::new("cmd")
-                .args(["/C", "code", &path])
+                .args(["/C", "code", path])
                 .spawn()
                 .unwrap();
         } else if cfg!(target_os = "macos") {
             Command::new("open")
                 .arg("-a")
                 .arg("Visual Studio Code")
-                .arg(&path)
+                .arg(path)
                 .spawn()
                 .unwrap();
         } else {
-            Command::new("code").arg(&path).spawn().unwrap();
+            Command::new("code").arg(path).spawn().unwrap();
         }
     }
 }
