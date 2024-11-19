@@ -17,7 +17,7 @@ pub struct MultiSelectFeature {
 
 // TODO: tato featura neni jeste funkcni
 impl MultiSelectFeature {
-    pub fn new() -> Self {
+    pub fn _new() -> Self {
         Self {
             selected_indexes: Vec::new(),
         }
