@@ -75,4 +75,8 @@ impl FeatureTrait for FindFeature {
         }
         false
     }
+
+    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
+        actions.push("[f6]find");
+    }
 }

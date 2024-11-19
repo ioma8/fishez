@@ -328,9 +328,6 @@ impl TerminalUI {
         match mode {
             FilesViewMode::Normal => vec![
                 "[f3]view",
-                "[f4]edit",
-                "[f6]recursive",
-                "[f7]ripgrep",
             ],
             FilesViewMode::Filter => vec!["[f3]view", "[f4]edit", "[esc]clear"],
             FilesViewMode::QuickView(_) => vec![

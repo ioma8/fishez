@@ -227,27 +227,6 @@ impl FilesView {
         self.update();
     }
 
-    pub fn open_in_editor(&self) {
-        let selected_file = &self.files[self.selected];
-        let file_path = format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file);
-
-        if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args(["/C", "code", &file_path])
-                .spawn()
-                .unwrap();
-        } else if cfg!(target_os = "macos") {
-            Command::new("open")
-                .arg("-a")
-                .arg("Visual Studio Code")
-                .arg(&file_path)
-                .spawn()
-                .unwrap();
-        } else {
-            Command::new("code").arg(&file_path).spawn().unwrap();
-        }
-    }
-
     pub fn copy_selected_to_clipboard(&mut self, absolute_path: bool) {
         let selected_file = &self.files[self.selected];
         let file_path = if absolute_path {

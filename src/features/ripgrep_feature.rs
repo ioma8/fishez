@@ -82,4 +82,8 @@ impl FeatureTrait for RipGrepFeature {
         }
         false
     }
+
+    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
+        actions.push("[f7]ripgrep");
+    }
 }
