@@ -18,7 +18,7 @@ fn main() {
     ui.add_feature(Box::new(DeleteFeature::new()));
     ui.add_feature(Box::new(FindFeature::new()));
     ui.add_feature(Box::new(RipGrepFeature::new()));
-    ui.add_feature(Box::new(MultiSelectFeature::new()));
+    // ui.add_feature(Box::new(MultiSelectFeature::new()));
 
     let mut files_view = FilesView::new();
     files_view.update();
