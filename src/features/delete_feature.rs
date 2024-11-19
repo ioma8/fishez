@@ -1,7 +1,17 @@
-use crossterm::{cursor, event::{self, KeyCode, KeyEvent}, queue, style::{Print, Stylize}, terminal::{self, ClearType}};
+use std::sync::mpsc::Sender;
 
-use crate::{files_view::{FilesView, FOOTER_ROWS}, terminal_ui::{FeatureTrait, TerminalUI}};
+use crossterm::{
+    cursor,
+    event::{self, KeyCode, KeyEvent},
+    queue,
+    style::{Print, Stylize},
+    terminal::{self, ClearType},
+};
 
+use crate::{
+    files_view::{FilesView, FOOTER_ROWS},
+    terminal_ui::{FeatureTrait, Message, TerminalUI},
+};
 
 pub struct DeleteFeature {
     path: Option<String>,
@@ -23,11 +33,15 @@ impl DeleteFeature {
             eprintln!("Error moving file or directory to trash: {}", e);
         }
     }
-
 }
 
 impl FeatureTrait for DeleteFeature {
-    fn captured_key_event(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+    fn captured_key_event(
+        &mut self,
+        event: KeyEvent,
+        files_view: &mut FilesView,
+        sender: &Sender<Message>,
+    ) -> bool {
         if let Some(path) = &self.path {
             match event.code {
                 KeyCode::Char('y') => {
@@ -44,8 +58,9 @@ impl FeatureTrait for DeleteFeature {
                 _ => return false,
             }
             return true;
-        }
-        else if event.code == KeyCode::Char('w') && event.modifiers.contains(event::KeyModifiers::CONTROL) {
+        } else if event.code == KeyCode::Char('w')
+            && event.modifiers.contains(event::KeyModifiers::CONTROL)
+        {
             if let Some(selected_file) = files_view.get_selected_file_abs() {
                 self.path = Some(selected_file.clone());
                 return true;

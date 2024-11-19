@@ -1,25 +1,34 @@
+mod features;
 mod files_view;
 mod logger;
 mod terminal_ui;
-mod features;
 use crossterm::{
-    cursor, event::{self, Event, KeyCode, KeyEvent}, execute, terminal::{self, disable_raw_mode, enable_raw_mode}
+    cursor,
+    event::{self, Event, KeyCode, KeyEvent},
+    execute,
+    terminal::{self, disable_raw_mode, enable_raw_mode},
+};
+use features::{
+    delete_feature::DeleteFeature, favorites_feature::FavouritesFeature, find_feature::FindFeature,
+    open_feature::OpenFeature, ripgrep_feature::RipGrepFeature, vscode_feature::VsCodeFeature,
 };
 use files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
-use std::io::stdout;
+use fishez::logger::log;
 use std::panic;
+use std::{io::stdout, sync::mpsc};
+use terminal_ui::Message;
 use terminal_ui::TerminalUI;
-use features::{delete_feature::DeleteFeature, favorites_feature::FavouritesFeature, find_feature::FindFeature, open_feature::OpenFeature, ripgrep_feature::RipGrepFeature, vscode_feature::VsCodeFeature};
 
 fn main() {
     setup_terminal();
-    let mut ui = TerminalUI::new();
+    let (sender, receiver) = mpsc::channel::<Message>();
+    let mut ui = TerminalUI::new(sender.clone());
     ui.add_feature(Box::new(VsCodeFeature::new()));
     ui.add_feature(Box::new(FindFeature::new()));
     ui.add_feature(Box::new(RipGrepFeature::new()));
     ui.add_feature(Box::new(FavouritesFeature::new()));
-    ui.add_feature(Box::new(DeleteFeature::new()));    
-    ui.add_feature(Box::new(OpenFeature::new()));    
+    ui.add_feature(Box::new(DeleteFeature::new()));
+    ui.add_feature(Box::new(OpenFeature::new()));
     // ui.add_feature(Box::new(MultiSelectFeature::new()));
 
     let mut files_view = FilesView::new();
@@ -30,18 +39,32 @@ fn main() {
     // TODO: favorites - oblibene polozky
     // TODO: nejak pridat zoxide?
 
+    ui.draw_ui(&mut files_view);
+
     loop {
-        files_view.clear_notification();
-
-        ui.draw_ui(&files_view);
-
-        match event::read().unwrap() {
-            Event::Key(event) => handle_key_event(&mut files_view, event, &mut ui),
-            Event::Resize(cols, rows) => {
-                ui.columns = cols;
-                ui.rows = rows;
+        if event::poll(std::time::Duration::from_millis(100)).unwrap() {
+            match event::read().unwrap() {
+                Event::Key(event) => {
+                    handle_key_event(&mut files_view, event, &mut ui);
+                    ui.draw_ui(&mut files_view);
+                }
+                Event::Resize(cols, rows) => {
+                    ui.columns = cols;
+                    ui.rows = rows;
+                    ui.draw_ui(&mut files_view);
+                }
+                _ => {}
             }
-            _ => {}
+        }
+
+        if let Ok(message) = receiver.try_recv() {
+            match message {
+                Message::DrawFiles(files) => {
+                    files_view.clear_notification_force();
+                    files_view.files = files;
+                    ui.draw_ui(&mut files_view);
+                }
+            }
         }
     }
 }
@@ -81,12 +104,11 @@ fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, ui: &mut Termin
     if ui.handle_features_shortcuts(event, files_view) {
         return;
     }
-    
 
     match &files_view.mode {
         FilesViewMode::Normal => handle_normal_mode(files_view, event, ui.rows),
         FilesViewMode::Filter => handle_filter_mode(files_view, event, ui.rows),
-        FilesViewMode::QuickView(_) => handle_quick_view_mode(files_view, event, ui.rows)
+        FilesViewMode::QuickView(_) => handle_quick_view_mode(files_view, event, ui.rows),
     }
 }
 

@@ -8,9 +8,9 @@ use crossterm::{
 
 use crate::{
     files_view::{FilesView, FOOTER_ROWS},
-    terminal_ui::{FeatureTrait, TerminalUI},
+    terminal_ui::{self, FeatureTrait, Message, TerminalUI},
 };
-use std::process::Command;
+use std::{process::Command, sync::mpsc::Sender, thread};
 
 pub struct FindFeature {
     filter: Option<String>,
@@ -27,12 +27,12 @@ impl FindFeature {
         Self { filter: None }
     }
 
-    pub fn find(&self, current_dir: &str) -> Vec<String> {
+    pub fn find(&self, current_dir: String) -> Vec<String> {
         if let Some(filter) = &self.filter {
             if cfg!(target_os = "windows") {
-                return self.find_windows(filter, current_dir);
+                return self.find_windows(filter, &current_dir);
             } else {
-                return self.find_unix(filter, current_dir);
+                return self.find_unix(filter, &current_dir);
             }
         }
         Vec::new()
@@ -71,7 +71,12 @@ impl FindFeature {
 }
 
 impl FeatureTrait for FindFeature {
-    fn captured_key_event(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+    fn captured_key_event(
+        &mut self,
+        event: KeyEvent,
+        files_view: &mut FilesView,
+        sender: &Sender<Message>,
+    ) -> bool {
         if let Some(filter) = &mut self.filter {
             match event.code {
                 KeyCode::Char(c) => {
@@ -81,7 +86,15 @@ impl FeatureTrait for FindFeature {
                     filter.pop();
                 }
                 KeyCode::Enter => {
-                    files_view.files = self.find(&files_view.pwd);
+                    let sender = sender.clone();
+                    let pwd = files_view.pwd.clone();
+                    let filter = self.filter.clone();
+                    files_view.set_notification("Searching...".to_string());
+                    thread::spawn(move || {
+                        let find_feature = FindFeature { filter };
+                        let files = find_feature.find(pwd);
+                        sender.send(Message::DrawFiles(files)).unwrap();
+                    });
                 }
                 KeyCode::Esc => {
                     self.filter = None;

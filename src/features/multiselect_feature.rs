@@ -1,3 +1,5 @@
+use std::sync::mpsc::Sender;
+
 use crossterm::{
     cursor,
     event::{KeyCode, KeyEvent},
@@ -8,7 +10,7 @@ use crossterm::{
 
 use crate::{
     files_view::{FilesView, FOOTER_ROWS},
-    terminal_ui::{FeatureTrait, TerminalUI},
+    terminal_ui::{FeatureTrait, Message, TerminalUI},
 };
 
 pub struct MultiSelectFeature {
@@ -25,11 +27,15 @@ impl MultiSelectFeature {
 }
 
 impl FeatureTrait for MultiSelectFeature {
-    fn captured_key_event(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+    fn captured_key_event(
+        &mut self,
+        event: KeyEvent,
+        files_view: &mut FilesView,
+        sender: &Sender<Message>,
+    ) -> bool {
         if let KeyCode::Char(' ') = event.code {
             let hovered_index = files_view.selected;
-            if self.selected_indexes.contains(&hovered_index)
-            {
+            if self.selected_indexes.contains(&hovered_index) {
                 // TODO: remove item from selected_indexes not working properly rn
                 self.selected_indexes.remove(hovered_index);
             } else {

@@ -1,8 +1,11 @@
-use std::{path::MAIN_SEPARATOR, process::Command};
+use std::{path::MAIN_SEPARATOR, process::Command, sync::mpsc::Sender};
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::{files_view::FilesView, terminal_ui::FeatureTrait};
+use crate::{
+    files_view::FilesView,
+    terminal_ui::{FeatureTrait, Message},
+};
 
 pub struct OpenFeature {}
 
@@ -38,7 +41,12 @@ impl OpenFeature {
 }
 
 impl FeatureTrait for OpenFeature {
-    fn captured_key_event(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+    fn captured_key_event(
+        &mut self,
+        event: KeyEvent,
+        files_view: &mut FilesView,
+        sender: &Sender<Message>,
+    ) -> bool {
         let selected_file = &files_view.files[files_view.selected];
         if selected_file == ".." {
             return false;

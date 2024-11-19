@@ -1,8 +1,11 @@
-use std::{path::MAIN_SEPARATOR, process::Command};
+use std::{path::MAIN_SEPARATOR, process::Command, sync::mpsc::Sender};
 
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::{files_view::FilesView, terminal_ui::FeatureTrait};
+use crate::{
+    files_view::FilesView,
+    terminal_ui::{FeatureTrait, Message},
+};
 
 pub struct VsCodeFeature {}
 
@@ -37,14 +40,19 @@ impl VsCodeFeature {
 }
 
 impl FeatureTrait for VsCodeFeature {
-    fn captured_key_event(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+    fn captured_key_event(
+        &mut self,
+        event: KeyEvent,
+        files_view: &mut FilesView,
+        sender: &Sender<Message>,
+    ) -> bool {
         let selected_file = &files_view.files[files_view.selected];
         if selected_file == ".." {
             return false;
         }
 
         let file_path = format!("{}{}{}", files_view.pwd, MAIN_SEPARATOR, selected_file);
-        
+
         if event.code == KeyCode::F(4) {
             self.open(&file_path);
             return true;

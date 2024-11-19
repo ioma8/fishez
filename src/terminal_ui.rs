@@ -5,12 +5,18 @@ use crossterm::{cursor, queue, terminal};
 use image::{self, ImageBuffer};
 use std::io::Write;
 use std::path::MAIN_SEPARATOR;
+use std::sync::mpsc::Sender;
 use std::vec;
 
 use crate::files_view::{FilesView, FilesViewMode, QuickViewMode, FOOTER_ROWS, HEADER_ROWS};
 
 pub trait FeatureTrait {
-    fn captured_key_event(&mut self, _event: KeyEvent, _files_view: &mut FilesView) -> bool {
+    fn captured_key_event(
+        &mut self,
+        _event: KeyEvent,
+        _files_view: &mut FilesView,
+        _sender: &Sender<Message>,
+    ) -> bool {
         false
     }
     fn drawn_header(&self, _files_view: &FilesView, _terminal_ui: &TerminalUI) -> bool {
@@ -33,22 +39,23 @@ pub struct TerminalUI {
     pub rows: u16,
     features: Vec<Box<dyn FeatureTrait>>,
     pub stdout: std::io::Stdout,
+    pub sender: Sender<Message>,
 }
 
-impl Default for TerminalUI {
-    fn default() -> Self {
-        Self::new()
-    }
+#[derive(Debug)]
+pub enum Message {
+    DrawFiles(Vec<String>),
 }
 
 impl TerminalUI {
-    pub fn new() -> Self {
+    pub fn new(sender: Sender<Message>) -> Self {
         let (columns, rows) = terminal::size().expect("Error getting terminal size");
         TerminalUI {
             columns,
             rows,
             stdout: std::io::stdout(),
             features: vec![],
+            sender,
         }
     }
 
@@ -62,7 +69,7 @@ impl TerminalUI {
         files_view: &mut FilesView,
     ) -> bool {
         for feature in self.features.iter_mut() {
-            if feature.captured_key_event(event, files_view) {
+            if feature.captured_key_event(event, files_view, &self.sender) {
                 return true;
             }
         }
@@ -97,7 +104,8 @@ impl TerminalUI {
         false
     }
 
-    pub fn draw_ui(&mut self, files_view: &FilesView) {
+    pub fn draw_ui(&mut self, files_view: &mut FilesView) {
+        files_view.clear_notification();
         let _ = queue!(&self.stdout, cursor::DisableBlinking, cursor::Hide);
 
         if !self.draw_feature_header(files_view) {

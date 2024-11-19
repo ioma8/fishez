@@ -1,3 +1,5 @@
+use std::sync::mpsc::Sender;
+
 use crossterm::{
     cursor,
     event::{self, KeyCode, KeyEvent},
@@ -8,7 +10,7 @@ use crossterm::{
 
 use crate::{
     files_view::{FilesView, FOOTER_ROWS, HEADER_ROWS},
-    terminal_ui::{FeatureTrait, TerminalUI},
+    terminal_ui::{FeatureTrait, Message, TerminalUI},
 };
 
 pub struct FavouritesFeature {
@@ -39,12 +41,18 @@ impl FavouritesFeature {
 }
 
 impl FeatureTrait for FavouritesFeature {
-    fn captured_key_event(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+    fn captured_key_event(
+        &mut self,
+        event: KeyEvent,
+        files_view: &mut FilesView,
+        sender: &Sender<Message>,
+    ) -> bool {
         if !self.active {
             if event.code == KeyCode::Char('d')
                 && event.modifiers.contains(event::KeyModifiers::CONTROL)
             {
-                if event.modifiers.contains(event::KeyModifiers::SHIFT) { // TODO: not workimg on macos
+                if event.modifiers.contains(event::KeyModifiers::SHIFT) {
+                    // TODO: not workimg on macos
                     if let Some(selected_file) = files_view.get_selected_file_abs() {
                         self.items.push(selected_file);
                         self.items.dedup();
@@ -60,7 +68,12 @@ impl FeatureTrait for FavouritesFeature {
 
         match event.code {
             KeyCode::Up => self.selected_index = self.selected_index.saturating_sub(1),
-            KeyCode::Down => self.selected_index = self.selected_index.saturating_add(1).min(self.items.len() - 1),
+            KeyCode::Down => {
+                self.selected_index = self
+                    .selected_index
+                    .saturating_add(1)
+                    .min(self.items.len() - 1)
+            }
             KeyCode::Enter => {
                 if let Some(item) = self.items.get(self.selected_index) {
                     files_view.pwd = item.clone();
@@ -69,7 +82,7 @@ impl FeatureTrait for FavouritesFeature {
                 }
             }
             KeyCode::Esc => self.active = false,
-            _ => {},
+            _ => {}
         }
 
         true

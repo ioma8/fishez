@@ -1,7 +1,16 @@
-use crossterm::{cursor, event::{KeyCode, KeyEvent}, queue, style::{Print, Stylize}, terminal::{self, ClearType}};
+use crossterm::{
+    cursor,
+    event::{KeyCode, KeyEvent},
+    queue,
+    style::{Print, Stylize},
+    terminal::{self, ClearType},
+};
 
-use crate::{files_view::{FilesView, FOOTER_ROWS}, terminal_ui::{FeatureTrait, TerminalUI}};
-use std::process::Command;
+use crate::{
+    files_view::{FilesView, FOOTER_ROWS},
+    terminal_ui::{FeatureTrait, Message, TerminalUI},
+};
+use std::{process::Command, sync::mpsc::Sender};
 
 pub struct RipGrepFeature {
     filter: Option<String>,
@@ -27,15 +36,17 @@ impl RipGrepFeature {
 
             if output.status.success() {
                 let result = String::from_utf8_lossy(&output.stdout);
-                return result.lines().map(|s| s.to_string()).map(
-                    |s| {
+                return result
+                    .lines()
+                    .map(|s| s.to_string())
+                    .map(|s| {
                         let mut parts = s.split(':');
                         let path = parts.next().unwrap();
                         //let line = parts.next().unwrap();
                         //let content = parts.next().unwrap();
                         path.to_string()
-                    }
-                ).collect();
+                    })
+                    .collect();
             }
         }
         Vec::new()
@@ -43,7 +54,12 @@ impl RipGrepFeature {
 }
 
 impl FeatureTrait for RipGrepFeature {
-    fn captured_key_event(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+    fn captured_key_event(
+        &mut self,
+        event: KeyEvent,
+        files_view: &mut FilesView,
+        sender: &Sender<Message>,
+    ) -> bool {
         if let Some(filter) = &mut self.filter {
             match event.code {
                 KeyCode::Char(c) => {
@@ -62,8 +78,7 @@ impl FeatureTrait for RipGrepFeature {
                 _ => return false,
             }
             return true;
-        }
-        else if event.code == KeyCode::F(7){
+        } else if event.code == KeyCode::F(7) {
             self.filter = Some(String::new());
             return true;
         }

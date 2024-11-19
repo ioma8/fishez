@@ -120,6 +120,10 @@ impl FilesView {
         self.notification_created = Instant::now();
     }
 
+    pub fn clear_notification_force(&mut self) {
+        self.notification = None;
+    }
+
     pub fn clear_notification(&mut self) {
         if self.notification.is_none() {
             return;
