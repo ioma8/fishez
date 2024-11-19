@@ -62,4 +62,8 @@ impl FeatureTrait for DeleteFeature {
         }
         false
     }
+
+    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
+        actions.push("[ctrl+w]delete");
+    }
 }

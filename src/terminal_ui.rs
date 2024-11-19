@@ -121,6 +121,8 @@ impl TerminalUI {
         if !self.draw_feature_footer(files_view) {
             self.draw_default_footer(files_view);
         }
+
+        self.draw_footer_actions(files_view);
         let _ = &self.stdout.flush();
     }
 
@@ -330,9 +332,8 @@ impl TerminalUI {
                 "[f4]edit",
                 "[f6]recursive",
                 "[f7]ripgrep",
-                "[f10]quit",
             ],
-            FilesViewMode::Filter => vec!["[f3]view", "[f4]edit", "[esc]clear", "[f10]quit"],
+            FilesViewMode::Filter => vec!["[f3]view", "[f4]edit", "[esc]clear"],
             FilesViewMode::QuickView(_) => vec![
                 "[up]scroll up",
                 "[down]scroll down",
@@ -340,8 +341,8 @@ impl TerminalUI {
                 "[right]next file",
                 "[f3]close view",
             ],
-            FilesViewMode::RecursiveSearch => vec!["[esc]close search", "[f10]quit"],
-            FilesViewMode::RipGrep => vec!["[esc]close ripgrep", "[f10]quit"],
+            FilesViewMode::RecursiveSearch => vec!["[esc]close search"],
+            FilesViewMode::RipGrep => vec!["[esc]close ripgrep"],
         }
     }
 
@@ -374,16 +375,28 @@ impl TerminalUI {
             let total_files = files_view.files.len() - total_dirs - 1;
             format!("{} dirs, {} files", total_dirs, total_files).with(Color::Green)
         };
-        let actions = self.get_footer_actions_by_mode(&files_view.mode);
-        let actions_str = actions.join(" ");
-        let padding = (self.columns as usize - actions_str.len()) / (actions.len() - 1);
-        let actions_row = actions.join(&" ".repeat(padding)).with(Color::Green);
 
         let _ = queue!(
             &self.stdout,
             cursor::MoveTo(0, self.rows - FOOTER_ROWS + 1),
             Print(indicator_row),
             terminal::Clear(ClearType::UntilNewLine),
+        );
+    }
+
+    fn draw_footer_actions(&self, files_view: &FilesView) {
+        let mut actions = self.get_footer_actions_by_mode(&files_view.mode);
+        self.features.iter().for_each(|feature| {
+            feature.modify_footer_actions(&mut actions);
+        });
+        actions.push("[q]quit");
+
+        let actions_str = actions.join(" ");
+        let padding = (self.columns as usize - actions_str.len()) / (actions.len() - 1);
+        let actions_row = actions.join(&" ".repeat(padding)).with(Color::Green);
+
+        let _ = queue!(
+            &self.stdout,
             cursor::MoveTo(0, self.rows - FOOTER_ROWS + 2),
             Print(actions_row),
             terminal::Clear(ClearType::UntilNewLine),

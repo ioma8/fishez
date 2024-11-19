@@ -9,7 +9,7 @@ use files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
 use std::io::stdout;
 use std::panic;
 use terminal_ui::TerminalUI;
-use features::{delete_feature::DeleteFeature, favorites_feature::FavouritesFeature, find_feature::FindFeature, multiselect_feature::MultiSelectFeature, ripgrep_feature::RipGrepFeature};
+use features::{delete_feature::DeleteFeature, favorites_feature::FavouritesFeature, find_feature::FindFeature, ripgrep_feature::RipGrepFeature};
 
 fn main() {
     setup_terminal();

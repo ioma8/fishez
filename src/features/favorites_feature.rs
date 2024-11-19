@@ -121,4 +121,8 @@ impl FeatureTrait for FavouritesFeature {
         );
         true
     }
+
+    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
+        actions.push("[ctrl+d]favourites");
+    }
 }
