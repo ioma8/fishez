@@ -206,8 +206,6 @@ impl FilesView {
             self.go_up_one_level();
         } else if selected_file.ends_with(MAIN_SEPARATOR) {
             self.change_directory(&selected_file);
-        } else {
-            self.open_file(&selected_file);
         }
     }
 
@@ -227,20 +225,6 @@ impl FilesView {
             selected_file.trim_end_matches(MAIN_SEPARATOR)
         );
         self.update();
-    }
-
-    pub fn open_file(&self, selected_file: &str) {
-        let file_path = format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file);
-        if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args(["/C", "start", "", &file_path])
-                .spawn()
-                .unwrap();
-        } else if cfg!(target_os = "macos") {
-            Command::new("open").arg(&file_path).spawn().unwrap();
-        } else {
-            Command::new("xdg-open").arg(&file_path).spawn().unwrap();
-        }
     }
 
     pub fn open_in_editor(&self) {
