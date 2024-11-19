@@ -24,8 +24,7 @@ pub trait FeatureTrait {
     fn drawn_footer(&self, _files_view: &FilesView, _terminal_ui: &TerminalUI) -> bool {
         false
     }
-    fn modify_footer_actions(&self, _actions: &mut Vec<&str>) {
-    }
+    fn modify_footer_actions(&self, _actions: &mut Vec<&str>) {}
     fn map_item(&self, item: StyledContent<String>, _index: usize) -> StyledContent<String> {
         item
     }
@@ -102,26 +101,34 @@ impl TerminalUI {
 
     pub fn draw_ui(&mut self, files_view: &FilesView) {
         let _ = queue!(&self.stdout, cursor::DisableBlinking, cursor::Hide);
-        
+
         if !self.draw_feature_header(files_view) {
             self.draw_default_header(files_view);
         }
         self.draw_system_header(files_view);
 
-
         if !self.draw_feature_content(files_view) {
+            log(&format!("mode: {:?}", files_view.mode));
             match &files_view.mode {
                 FilesViewMode::Normal | FilesViewMode::Filter => self.draw_files_list(files_view),
-                FilesViewMode::QuickView(quick_view) => self.draw_file_content(quick_view)                
+                FilesViewMode::QuickView(quick_view) => self.draw_file_content(quick_view),
             }
         }
+
+        log("draw_footer");
 
         if !self.draw_feature_footer(files_view) {
             self.draw_default_footer(files_view);
         }
 
+        log("draw_footer_actions");
+
         self.draw_footer_actions(files_view);
+
+        log("flush");
         let _ = &self.stdout.flush();
+
+        log("draw_ui end");
     }
 
     fn draw_default_header(&self, files_view: &FilesView) {
@@ -206,21 +213,25 @@ impl TerminalUI {
         let total_items = files_view.files.len();
         let visible_items = rows_available as usize;
         if total_items > visible_items {
-            let scrollbar_height = (visible_items as f32 / total_items as f32 * visible_items as f32)
+            let scrollbar_height = (visible_items as f32 / total_items as f32
+                * visible_items as f32)
                 .round()
-                .max(1.0)
-                as u16;
+                .max(1.0) as u16;
 
-            let scrollbar_position = (files_view.start as f32 / total_items as f32 * visible_items as f32)
+            let scrollbar_position = (files_view.start as f32 / total_items as f32
+                * visible_items as f32)
                 .round()
-                .max(0.0)
-                as u16;
+                .max(0.0) as u16;
 
             // Draw the scrollbar
             for i in 0..rows_available {
                 if i >= scrollbar_position && i < scrollbar_position + scrollbar_height {
                     // Filled portion of the scrollbar
-                    let _ = queue!(&self.stdout,cursor::MoveTo(self.columns - 1, HEADER_ROWS + i),Print("|".dark_blue()));
+                    let _ = queue!(
+                        &self.stdout,
+                        cursor::MoveTo(self.columns - 1, HEADER_ROWS + i),
+                        Print("|".dark_blue())
+                    );
                 }
             }
         }
@@ -255,6 +266,7 @@ impl TerminalUI {
             );
         }
         let rows_to_clear: i16 = rows_available as i16 - content.len() as i16;
+        log(&format!("rows_to_clear: {}", rows_to_clear));
         if rows_to_clear > 0 {
             for _ in 0..rows_to_clear {
                 let _ = queue!(
@@ -264,6 +276,7 @@ impl TerminalUI {
                 );
             }
         }
+        log("draw_text_content end");
     }
 
     fn draw_image_content(&mut self, data: ImageBuffer<image::Rgb<u8>, Vec<u8>>) {
@@ -325,9 +338,7 @@ impl TerminalUI {
 
     fn get_footer_actions_by_mode(&self, mode: &FilesViewMode) -> Vec<&str> {
         match mode {
-            FilesViewMode::Normal => vec![
-                "[f3]view",
-            ],
+            FilesViewMode::Normal => vec!["[f3]view"],
             FilesViewMode::Filter => vec!["[f3]view", "[f4]edit", "[esc]clear"],
             FilesViewMode::QuickView(_) => vec![
                 "[up]scroll up",
@@ -341,8 +352,7 @@ impl TerminalUI {
 
     fn draw_default_footer(&self, files_view: &FilesView) {
         self.draw_full_line(self.rows - FOOTER_ROWS);
-        let indicator_row = if files_view.mode == FilesViewMode::Filter
-        {
+        let indicator_row = if files_view.mode == FilesViewMode::Filter {
             let filter_name = match files_view.mode {
                 FilesViewMode::Filter => "Filter",
                 _ => "",
@@ -375,9 +385,13 @@ impl TerminalUI {
 
     fn draw_footer_actions(&self, files_view: &FilesView) {
         let mut actions = self.get_footer_actions_by_mode(&files_view.mode);
-        self.features.iter().for_each(|feature| {
-            feature.modify_footer_actions(&mut actions);
-        });
+
+        // TODO: rewrite quickview to be a feature
+        if !matches!(&files_view.mode, FilesViewMode::QuickView(_)) {
+            self.features.iter().for_each(|feature| {
+                feature.modify_footer_actions(&mut actions);
+            });
+        }
         actions.push("[q]quit");
 
         let actions_str = actions.join("");
