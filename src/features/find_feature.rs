@@ -1,8 +1,16 @@
-use crossterm::{cursor, event::{KeyCode, KeyEvent}, queue, style::{Print, Stylize}, terminal::{self, ClearType}};
+use crossterm::{
+    cursor,
+    event::{KeyCode, KeyEvent},
+    queue,
+    style::{Print, Stylize},
+    terminal::{self, ClearType},
+};
 
-use crate::{files_view::{FilesView, FOOTER_ROWS}, terminal_ui::{FeatureTrait, TerminalUI}};
+use crate::{
+    files_view::{FilesView, FOOTER_ROWS},
+    terminal_ui::{FeatureTrait, TerminalUI},
+};
 use std::process::Command;
-
 
 pub struct FindFeature {
     filter: Option<String>,
@@ -19,16 +27,43 @@ impl FindFeature {
         Self { filter: None }
     }
 
-    pub fn find(&self) -> Vec<String> {
+    pub fn find(&self, current_dir: &str) -> Vec<String> {
         if let Some(filter) = &self.filter {
-            let output = Command::new("fd")
-                .arg(filter)
-                .output()
-                .expect("Failed to execute fd command");
+            if cfg!(target_os = "windows") {
+                return self.find_windows(filter, current_dir);
+            } else {
+                return self.find_unix(filter, current_dir);
+            }
+        }
+        Vec::new()
+    }
 
+    fn find_unix(&self, filter: &str, dir: &str) -> Vec<String> {
+        let output = Command::new("fd").arg(filter).current_dir(dir).output();
+        if let Ok(output) = output {
             if output.status.success() {
                 let result = String::from_utf8_lossy(&output.stdout);
                 return result.lines().map(|s| s.to_string()).collect();
+            }
+        }
+        Vec::new()
+    }
+
+    fn find_windows(&self, filter: &str, dir: &str) -> Vec<String> {
+        let output = Command::new("cmd")
+            .args(["/C", "dir", "/s", "/b", &format!("*{}*", filter)])
+            .current_dir(dir)
+            .output();
+
+        if let Ok(output) = output {
+            if output.status.success() {
+                let mut results = Vec::new();
+                let result_str = String::from_utf8_lossy(&output.stdout);
+                for line in result_str.lines() {
+                    let path_relative = line.trim_start_matches(dir);
+                    results.push(path_relative.to_string());
+                }
+                return results;
             }
         }
         Vec::new()
@@ -46,7 +81,7 @@ impl FeatureTrait for FindFeature {
                     filter.pop();
                 }
                 KeyCode::Enter => {
-                    files_view.files = self.find();
+                    files_view.files = self.find(&files_view.pwd);
                 }
                 KeyCode::Esc => {
                     self.filter = None;
@@ -55,8 +90,7 @@ impl FeatureTrait for FindFeature {
                 _ => return false,
             }
             return true;
-        }
-        else if event.code == KeyCode::F(6){
+        } else if event.code == KeyCode::F(6) {
             self.filter = Some(String::new());
             return true;
         }
@@ -79,22 +113,4 @@ impl FeatureTrait for FindFeature {
     fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
         actions.push("[f6]find");
     }
-}
-
-fn recursive_search(dir: &str, query: &str, results: &mut Vec<String>) {
-    let output = Command::new("cmd")
-        .args(["/C", "dir", "/s", "/b", &format!("*{}*", query)])
-        .current_dir(dir)
-        .output()
-        .expect("Failed to execute dir command");
-
-    if output.status.success() {
-        let result_str = String::from_utf8_lossy(&output.stdout);
-        for line in result_str.lines() {
-            let path_relative = line.trim_start_matches(dir);
-            results.push(path_relative.to_string());
-        }
-    }
-
-    // TODO: implementace pro linux a macos: nejdřív zkusí najít command fd a když není tak find
 }
