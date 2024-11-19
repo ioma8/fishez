@@ -80,3 +80,21 @@ impl FeatureTrait for FindFeature {
         actions.push("[f6]find");
     }
 }
+
+fn recursive_search(dir: &str, query: &str, results: &mut Vec<String>) {
+    let output = Command::new("cmd")
+        .args(["/C", "dir", "/s", "/b", &format!("*{}*", query)])
+        .current_dir(dir)
+        .output()
+        .expect("Failed to execute dir command");
+
+    if output.status.success() {
+        let result_str = String::from_utf8_lossy(&output.stdout);
+        for line in result_str.lines() {
+            let path_relative = line.trim_start_matches(dir);
+            results.push(path_relative.to_string());
+        }
+    }
+
+    // TODO: implementace pro linux a macos: nejdřív zkusí najít command fd a když není tak find
+}

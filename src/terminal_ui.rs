@@ -112,8 +112,7 @@ impl TerminalUI {
         if !self.draw_feature_content(files_view) {
             match &files_view.mode {
                 FilesViewMode::Normal | FilesViewMode::Filter => self.draw_files_list(files_view),
-                FilesViewMode::QuickView(quick_view) => self.draw_file_content(quick_view),
-                _ => {}
+                FilesViewMode::QuickView(quick_view) => self.draw_file_content(quick_view)                
             }
         }
 
@@ -337,21 +336,15 @@ impl TerminalUI {
                 "[right]next file",
                 "[f3]close view",
             ],
-            FilesViewMode::RecursiveSearch => vec!["[esc]close search"],
-            FilesViewMode::RipGrep => vec!["[esc]close ripgrep"],
         }
     }
 
     fn draw_default_footer(&self, files_view: &FilesView) {
         self.draw_full_line(self.rows - FOOTER_ROWS);
         let indicator_row = if files_view.mode == FilesViewMode::Filter
-            || files_view.mode == FilesViewMode::RecursiveSearch
-            || files_view.mode == FilesViewMode::RipGrep
         {
             let filter_name = match files_view.mode {
                 FilesViewMode::Filter => "Filter",
-                FilesViewMode::RecursiveSearch => "Search",
-                FilesViewMode::RipGrep => "RipGrep",
                 _ => "",
             };
             format!("{}: {}", filter_name, files_view.filter_string).with(Color::Green)

@@ -2,7 +2,6 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::path::MAIN_SEPARATOR;
-use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -34,8 +33,6 @@ pub enum FilesViewMode {
     Normal,
     Filter,
     QuickView(QuickViewMode),
-    RecursiveSearch,
-    RipGrep,
 }
 
 #[derive(PartialEq, Debug)]
@@ -379,56 +376,4 @@ impl FilesView {
             self.update_and_focus(&old_dir);
         }
     }
-
-    pub fn perform_recursive_search(&mut self) {
-        let mut results = Vec::new();
-        recursive_search(&self.pwd, &self.filter_string, &mut results);
-        self.files = results;
-    }
-
-    pub fn perform_ripgrep_search(&mut self) {
-        let mut results = Vec::new();
-        ripgrep_search(&self.pwd, &self.filter_string, &mut results);
-        self.files = results;
-    }
-}
-
-fn recursive_search(dir: &str, query: &str, results: &mut Vec<String>) {
-    let output = Command::new("cmd")
-        .args(["/C", "dir", "/s", "/b", &format!("*{}*", query)])
-        .current_dir(dir)
-        .output()
-        .expect("Failed to execute dir command");
-
-    if output.status.success() {
-        let result_str = String::from_utf8_lossy(&output.stdout);
-        for line in result_str.lines() {
-            let path_relative = line.trim_start_matches(dir);
-            results.push(path_relative.to_string());
-        }
-    }
-
-    // TODO: implementace pro linux a macos: nejdřív zkusí najít command fd a když není tak find
-}
-
-fn ripgrep_search(dir: &str, query: &str, results: &mut Vec<String>) {
-    let output = Command::new("cmd")
-        .args(["/C", "findstr", "/s", "/i", "/p", query, "*"])
-        .current_dir(dir)
-        .output()
-        .expect("Failed to execute findstr");
-
-    if output.status.success() {
-        let result_str = String::from_utf8_lossy(&output.stdout);
-        let paths = result_str
-            .lines()
-            .filter_map(|line| line.split(':').next())
-            .collect::<std::collections::HashSet<_>>()
-            .into_iter()
-            .map(String::from);
-        results.extend(paths);
-    }
-
-    // TODO: implementace pro linux a macos: nejdřív zkusí najít command rg
-    // (pomcí --version při startu programu), pokud není tak použije grep
 }

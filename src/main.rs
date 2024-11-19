@@ -86,9 +86,7 @@ fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, ui: &mut Termin
     match &files_view.mode {
         FilesViewMode::Normal => handle_normal_mode(files_view, event, ui.rows),
         FilesViewMode::Filter => handle_filter_mode(files_view, event, ui.rows),
-        FilesViewMode::QuickView(_) => handle_quick_view_mode(files_view, event, ui.rows),
-        FilesViewMode::RecursiveSearch => handle_recursive_search_mode(files_view, event, ui.rows),
-        FilesViewMode::RipGrep => handle_ripgrep_mode(files_view, event, ui.rows),
+        FilesViewMode::QuickView(_) => handle_quick_view_mode(files_view, event, ui.rows)
     }
 }
 
@@ -136,8 +134,6 @@ fn handle_normal_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
             files_view.filter_string.push(char);
         }
         KeyCode::Backspace => files_view.go_up_one_level(),
-        KeyCode::F(6) => files_view.mode = FilesViewMode::RecursiveSearch,
-        KeyCode::F(7) => files_view.mode = FilesViewMode::RipGrep,
         // TODO: mkdir shortcut
         // TODO: touch shortcut
         _ => handle_normal_navigation(files_view, event, rows),
@@ -173,35 +169,5 @@ fn handle_quick_view_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16
         }
         KeyCode::Esc | KeyCode::F(3) => files_view.mode = FilesViewMode::Normal,
         _ => {}
-    }
-}
-
-fn handle_recursive_search_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
-    match event.code {
-        KeyCode::Esc => files_view.reset_filter_mode(),
-        KeyCode::Char(c) => {
-            files_view.filter_string.push(c);
-            files_view.perform_recursive_search();
-        }
-        KeyCode::Backspace => {
-            files_view.filter_string.pop();
-            files_view.perform_recursive_search();
-        }
-        _ => handle_normal_navigation(files_view, event, rows),
-    }
-}
-
-fn handle_ripgrep_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16) {
-    match event.code {
-        KeyCode::Esc => files_view.reset_filter_mode(),
-        KeyCode::Char(c) => {
-            files_view.filter_string.push(c);
-            files_view.perform_ripgrep_search();
-        }
-        KeyCode::Backspace => {
-            files_view.filter_string.pop();
-            files_view.perform_ripgrep_search();
-        }
-        _ => handle_normal_navigation(files_view, event, rows),
     }
 }
