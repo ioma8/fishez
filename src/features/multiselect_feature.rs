@@ -11,12 +11,11 @@ use crate::{
     terminal_ui::{FeatureTrait, TerminalUI},
 };
 
-// TODO: tato featura neni jeste funkcni
-
 pub struct MultiSelectFeature {
     selected_indexes: Vec<usize>,
 }
 
+// TODO: tato featura neni jeste funkcni
 impl MultiSelectFeature {
     pub fn new() -> Self {
         Self {

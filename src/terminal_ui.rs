@@ -3,7 +3,6 @@ use crossterm::style::{Color, Print, StyledContent, Stylize};
 use crossterm::terminal::ClearType;
 use crossterm::{cursor, queue, terminal};
 use image::{self, ImageBuffer};
-use std::fmt::Display;
 use std::io::Write;
 use std::path::MAIN_SEPARATOR;
 use std::time::Instant;
@@ -13,21 +12,21 @@ use crate::files_view::{FilesView, FilesViewMode, QuickViewMode, FOOTER_ROWS, HE
 use crate::logger::log;
 
 pub trait FeatureTrait {
-    fn captured_key_event(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
+    fn captured_key_event(&mut self, _event: KeyEvent, _files_view: &mut FilesView) -> bool {
         false
     }
-    fn drawn_header(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+    fn drawn_header(&self, _files_view: &FilesView, _terminal_ui: &TerminalUI) -> bool {
         false
     }
-    fn drawn_content(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+    fn drawn_content(&self, _files_view: &FilesView, _terminal_ui: &TerminalUI) -> bool {
         false
     }
-    fn drawn_footer(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+    fn drawn_footer(&self, _files_view: &FilesView, _terminal_ui: &TerminalUI) -> bool {
         false
     }
-    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
+    fn modify_footer_actions(&self, _actions: &mut Vec<&str>) {
     }
-    fn map_item(&self, item: StyledContent<String>, index: usize) -> StyledContent<String> {
+    fn map_item(&self, item: StyledContent<String>, _index: usize) -> StyledContent<String> {
         item
     }
 }
