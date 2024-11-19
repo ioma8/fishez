@@ -123,9 +123,9 @@ fn handle_quit(event: KeyEvent) -> bool {
             reset_terminal();
             std::process::exit(0);
         });
-        return true;
+        true
     } else {
-        return false;
+        false
     }
 }
 

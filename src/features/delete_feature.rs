@@ -7,6 +7,12 @@ pub struct DeleteFeature {
     path: Option<String>,
 }
 
+impl Default for DeleteFeature {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DeleteFeature {
     pub fn new() -> Self {
         Self { path: None }
@@ -39,12 +45,10 @@ impl FeatureTrait for DeleteFeature {
             }
             return true;
         }
-        else {
-            if event.code == KeyCode::Char('w') && event.modifiers.contains(event::KeyModifiers::CONTROL) {
-                if let Some(selected_file) = files_view.get_selected_file_abs() {
-                    self.path = Some(selected_file.clone());
-                    return true;
-                }
+        else if event.code == KeyCode::Char('w') && event.modifiers.contains(event::KeyModifiers::CONTROL) {
+            if let Some(selected_file) = files_view.get_selected_file_abs() {
+                self.path = Some(selected_file.clone());
+                return true;
             }
         }
         false

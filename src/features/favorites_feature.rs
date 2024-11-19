@@ -17,6 +17,12 @@ pub struct FavouritesFeature {
     active: bool,
 }
 
+impl Default for FavouritesFeature {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FavouritesFeature {
     pub fn new() -> Self {
         let items = std::fs::read_to_string("favorites.txt")
@@ -66,7 +72,7 @@ impl FeatureTrait for FavouritesFeature {
             _ => {},
         }
 
-        return true;
+        true
     }
 
     fn drawn_content(&self, _: &FilesView, terminal_ui: &TerminalUI) -> bool {
@@ -106,7 +112,7 @@ impl FeatureTrait for FavouritesFeature {
             }
         }
 
-        return true;
+        true
     }
 
     fn drawn_header(&self, _: &FilesView, terminal_ui: &TerminalUI) -> bool {

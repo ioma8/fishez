@@ -7,6 +7,12 @@ pub struct RipGrepFeature {
     filter: Option<String>,
 }
 
+impl Default for RipGrepFeature {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RipGrepFeature {
     pub fn new() -> Self {
         Self { filter: None }
@@ -57,11 +63,9 @@ impl FeatureTrait for RipGrepFeature {
             }
             return true;
         }
-        else {
-            if event.code == KeyCode::F(7){
-                self.filter = Some(String::new());
-                return true;
-            }
+        else if event.code == KeyCode::F(7){
+            self.filter = Some(String::new());
+            return true;
         }
         false
     }

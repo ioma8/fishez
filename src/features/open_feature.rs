@@ -6,6 +6,12 @@ use crate::{files_view::FilesView, terminal_ui::FeatureTrait};
 
 pub struct OpenFeature {}
 
+impl Default for OpenFeature {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OpenFeature {
     pub fn new() -> Self {
         Self {}
@@ -14,13 +20,13 @@ impl OpenFeature {
     fn open(&self, path: &str) {
         if cfg!(target_os = "windows") {
             Command::new("cmd")
-                .args(["/C", "start", "", &path])
+                .args(["/C", "start", "", path])
                 .spawn()
                 .unwrap();
         } else if cfg!(target_os = "macos") {
-            Command::new("open").arg(&path).spawn().unwrap();
+            Command::new("open").arg(path).spawn().unwrap();
         } else {
-            Command::new("xdg-open").arg(&path).spawn().unwrap();
+            Command::new("xdg-open").arg(path).spawn().unwrap();
         }
     }
 

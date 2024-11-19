@@ -70,7 +70,7 @@ impl TerminalUI {
             }
         }
 
-        return false;
+        false
     }
 
     fn draw_feature_header(&self, files_view: &FilesView) -> bool {
@@ -79,7 +79,7 @@ impl TerminalUI {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     fn draw_feature_footer(&self, files_view: &FilesView) -> bool {
@@ -88,7 +88,7 @@ impl TerminalUI {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     fn draw_feature_content(&self, files_view: &FilesView) -> bool {
@@ -97,7 +97,7 @@ impl TerminalUI {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     pub fn draw_ui(&mut self, files_view: &FilesView) {
@@ -238,12 +238,12 @@ impl TerminalUI {
                 self.draw_image_content(data.clone());
             }
             _ => {
-                self.draw_text_content(&vec!["".to_string()], 0, rows_available);
+                self.draw_text_content(&["".to_string()], 0, rows_available);
             }
         }
     }
 
-    fn draw_text_content(&self, content: &Vec<String>, start: usize, rows_available: u16) {
+    fn draw_text_content(&self, content: &[String], start: usize, rows_available: u16) {
         let content_to_display = content[start..].iter().take(rows_available as usize);
         log(&format!("content_to_display: {:?}", content_to_display));
         let _ = queue!(&self.stdout, cursor::MoveTo(0, HEADER_ROWS));

@@ -8,6 +8,12 @@ pub struct FindFeature {
     filter: Option<String>,
 }
 
+impl Default for FindFeature {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FindFeature {
     pub fn new() -> Self {
         Self { filter: None }
@@ -50,11 +56,9 @@ impl FeatureTrait for FindFeature {
             }
             return true;
         }
-        else {
-            if event.code == KeyCode::F(6){
-                self.filter = Some(String::new());
-                return true;
-            }
+        else if event.code == KeyCode::F(6){
+            self.filter = Some(String::new());
+            return true;
         }
         false
     }

@@ -26,19 +26,16 @@ impl MultiSelectFeature {
 
 impl FeatureTrait for MultiSelectFeature {
     fn captured_key_event(&mut self, event: KeyEvent, files_view: &mut FilesView) -> bool {
-        match event.code {
-            KeyCode::Char(' ') => {
-                let hovered_index = files_view.selected;
-                if self.selected_indexes.contains(&hovered_index)
-                {
-                    // TODO: remove item from selected_indexes not working properly rn
-                    self.selected_indexes.remove(hovered_index);
-                } else {
-                    self.selected_indexes.push(hovered_index);
-                }
-                return true;
+        if let KeyCode::Char(' ') = event.code {
+            let hovered_index = files_view.selected;
+            if self.selected_indexes.contains(&hovered_index)
+            {
+                // TODO: remove item from selected_indexes not working properly rn
+                self.selected_indexes.remove(hovered_index);
+            } else {
+                self.selected_indexes.push(hovered_index);
             }
-            _ => {},
+            return true;
         }
         false
     }
