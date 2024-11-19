@@ -390,7 +390,7 @@ impl TerminalUI {
         });
         actions.push("[q]quit");
 
-        let actions_str = actions.join(" ");
+        let actions_str = actions.join("");
         let padding = (self.columns as usize - actions_str.len()) / (actions.len() - 1);
         let actions_row = actions.join(&" ".repeat(padding)).with(Color::Green);
 
