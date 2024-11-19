@@ -5,11 +5,9 @@ use crossterm::{cursor, queue, terminal};
 use image::{self, ImageBuffer};
 use std::io::Write;
 use std::path::MAIN_SEPARATOR;
-use std::time::Instant;
 use std::vec;
 
 use crate::files_view::{FilesView, FilesViewMode, QuickViewMode, FOOTER_ROWS, HEADER_ROWS};
-use crate::logger::log;
 
 pub trait FeatureTrait {
     fn captured_key_event(&mut self, _event: KeyEvent, _files_view: &mut FilesView) -> bool {
@@ -108,27 +106,19 @@ impl TerminalUI {
         self.draw_system_header(files_view);
 
         if !self.draw_feature_content(files_view) {
-            log(&format!("mode: {:?}", files_view.mode));
             match &files_view.mode {
                 FilesViewMode::Normal | FilesViewMode::Filter => self.draw_files_list(files_view),
                 FilesViewMode::QuickView(quick_view) => self.draw_file_content(quick_view),
             }
         }
 
-        log("draw_footer");
-
         if !self.draw_feature_footer(files_view) {
             self.draw_default_footer(files_view);
         }
 
-        log("draw_footer_actions");
-
         self.draw_footer_actions(files_view);
 
-        log("flush");
         let _ = &self.stdout.flush();
-
-        log("draw_ui end");
     }
 
     fn draw_default_header(&self, files_view: &FilesView) {
@@ -239,7 +229,6 @@ impl TerminalUI {
 
     fn draw_file_content(&mut self, quick_view: &QuickViewMode) {
         let rows_available = self.rows - HEADER_ROWS - FOOTER_ROWS;
-        log(&format!("rows_available: {}", rows_available));
         match quick_view {
             QuickViewMode::Text(content, start, _) => {
                 self.draw_text_content(content, *start, rows_available);
@@ -255,7 +244,6 @@ impl TerminalUI {
 
     fn draw_text_content(&self, content: &[String], start: usize, rows_available: u16) {
         let content_to_display = content[start..].iter().take(rows_available as usize);
-        log(&format!("content_to_display: {:?}", content_to_display));
         let _ = queue!(&self.stdout, cursor::MoveTo(0, HEADER_ROWS));
         for line in content_to_display {
             let _ = queue!(
@@ -266,7 +254,6 @@ impl TerminalUI {
             );
         }
         let rows_to_clear: i16 = rows_available as i16 - content.len() as i16;
-        log(&format!("rows_to_clear: {}", rows_to_clear));
         if rows_to_clear > 0 {
             for _ in 0..rows_to_clear {
                 let _ = queue!(
@@ -276,29 +263,21 @@ impl TerminalUI {
                 );
             }
         }
-        log("draw_text_content end");
     }
 
     fn draw_image_content(&mut self, data: ImageBuffer<image::Rgb<u8>, Vec<u8>>) {
-        let now = Instant::now();
         let (orig_width, orig_height) = data.dimensions();
         let (new_width, new_height) = self.calculate_aspect_ratio_fit(orig_width * 2, orig_height);
-        let duration = now.elapsed();
-        log(&format!("calculate_aspect_ratio_fit {:?}", duration));
 
-        let now = Instant::now();
         let resized = image::imageops::resize(
             &data,
             new_width,
             new_height,
             image::imageops::FilterType::Nearest,
         );
-        let duration = now.elapsed();
-        log(&format!("resize {:?}", duration));
 
         let rem_horizontal_padding = (self.columns - new_width as u16) / 2;
 
-        let now = Instant::now();
         let mut i = 0;
         for pixel in resized.pixels() {
             if i == 0 {
@@ -320,8 +299,6 @@ impl TerminalUI {
                 i = 0;
             }
         }
-        let duration = now.elapsed();
-        log(&format!("draw {:?}", duration));
     }
 
     fn calculate_aspect_ratio_fit(&self, orig_width: u32, orig_height: u32) -> (u32, u32) {

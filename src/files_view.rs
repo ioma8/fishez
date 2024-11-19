@@ -242,10 +242,8 @@ impl FilesView {
     }
 
     pub fn open_quick_view(&mut self) {
-        log("Opening quick view");
         let selected_file = self.files[self.selected].clone();
         let file_path = format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file);
-        log(&format!("file_path: {}", file_path));
 
         self.show_file_quick_view(file_path, &selected_file);
     }
@@ -279,8 +277,6 @@ impl FilesView {
             return;
         }
 
-        log(&format!("Opening quick view for: {}", selected_file));
-
         if file_path.ends_with(MAIN_SEPARATOR) {
             self.show_file_quick_view_directory(file_path.clone());
             return;
@@ -295,14 +291,11 @@ impl FilesView {
     }
 
     fn show_file_quick_view_text(&mut self, file_path: String, selected_file: &String) {
-        log(&format!("Showing text file: {}", selected_file));
         if let Ok(content) = fs::read_to_string(&file_path) {
-            log(&format!("Content: {}", content));
             // TODO: předávat asi přímo Reader namísto celého filu ve stringu
             // TODO: ve filu implementovat End / Home pro přesun na začátek a konec souboru kk
             let lines: Vec<String> = content.lines().map(String::from).take(1000).collect();
             let lines_len = lines.len();
-            log(&format!("Lines: {:?}", lines));
             self.mode = FilesViewMode::QuickView(QuickViewMode::Text(lines, 0, lines_len));
         } else {
             log(&format!("Could not read file: {}", selected_file));
