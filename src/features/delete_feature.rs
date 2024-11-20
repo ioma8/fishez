@@ -40,7 +40,7 @@ impl FeatureTrait for DeleteFeature {
         &mut self,
         event: KeyEvent,
         files_view: &mut FilesView,
-        sender: &Sender<Message>,
+        _: &Sender<Message>,
     ) -> bool {
         if let Some(path) = &self.path {
             match event.code {

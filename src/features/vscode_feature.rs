@@ -44,7 +44,7 @@ impl FeatureTrait for VsCodeFeature {
         &mut self,
         event: KeyEvent,
         files_view: &mut FilesView,
-        sender: &Sender<Message>,
+        _: &Sender<Message>,
     ) -> bool {
         let selected_file = &files_view.files[files_view.selected];
         if selected_file == ".." {

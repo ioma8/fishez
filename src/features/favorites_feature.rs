@@ -45,7 +45,7 @@ impl FeatureTrait for FavouritesFeature {
         &mut self,
         event: KeyEvent,
         files_view: &mut FilesView,
-        sender: &Sender<Message>,
+        _: &Sender<Message>,
     ) -> bool {
         if !self.active {
             if event.code == KeyCode::Char('d')

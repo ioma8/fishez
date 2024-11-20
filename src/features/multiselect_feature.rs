@@ -31,7 +31,7 @@ impl FeatureTrait for MultiSelectFeature {
         &mut self,
         event: KeyEvent,
         files_view: &mut FilesView,
-        sender: &Sender<Message>,
+        _: &Sender<Message>,
     ) -> bool {
         if let KeyCode::Char(' ') = event.code {
             let hovered_index = files_view.selected;

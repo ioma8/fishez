@@ -58,7 +58,7 @@ impl FeatureTrait for RipGrepFeature {
         &mut self,
         event: KeyEvent,
         files_view: &mut FilesView,
-        sender: &Sender<Message>,
+        _: &Sender<Message>,
     ) -> bool {
         if let Some(filter) = &mut self.filter {
             match event.code {
@@ -103,7 +103,7 @@ impl FeatureTrait for RipGrepFeature {
     }
 }
 
-fn ripgrep_search(dir: &str, query: &str, results: &mut Vec<String>) {
+fn _ripgrep_search(dir: &str, query: &str, results: &mut Vec<String>) {
     let output = Command::new("cmd")
         .args(["/C", "findstr", "/s", "/i", "/p", query, "*"])
         .current_dir(dir)
