@@ -377,7 +377,7 @@ impl TerminalUI {
                 feature.modify_footer_actions(&mut actions);
             });
         }
-        actions.push("[q]quit");
+        actions.push("[f10]quit");
 
         let actions_str = actions.join("");
         let padding = (self.columns as usize - actions_str.len()) / (actions.len() - 1);
