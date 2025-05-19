@@ -19,17 +19,15 @@ impl OpenFeature {
     pub fn new() -> Self {
         Self {}
     }
-
     fn open(&self, path: &str) {
+        // We intentionally don't wait for the process to complete
+        // as we want the application to launch independently
         if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args(["/C", "start", "", path])
-                .spawn()
-                .unwrap();
+            let _ = Command::new("cmd").args(["/C", "start", "", path]).spawn();
         } else if cfg!(target_os = "macos") {
-            Command::new("open").arg(path).spawn().unwrap();
+            let _ = Command::new("open").arg(path).spawn();
         } else {
-            Command::new("xdg-open").arg(path).spawn().unwrap();
+            let _ = Command::new("xdg-open").arg(path).spawn();
         }
     }
 

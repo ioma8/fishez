@@ -19,22 +19,21 @@ impl VsCodeFeature {
     pub fn new() -> Self {
         Self {}
     }
-
     fn open(&self, path: &str) {
+        // We intentionally don't wait for VSCode process to complete
+        // as we want it to launch and continue independently
         if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args(["/C", "code", path])
-                .spawn()
-                .unwrap();
+            let _ = Command::new("cmd")
+                .args(["/C", "start", "code", path])
+                .spawn();
         } else if cfg!(target_os = "macos") {
-            Command::new("open")
+            let _ = Command::new("open")
                 .arg("-a")
                 .arg("Visual Studio Code")
                 .arg(path)
-                .spawn()
-                .unwrap();
+                .spawn();
         } else {
-            Command::new("code").arg(path).spawn().unwrap();
+            let _ = Command::new("code").arg(path).spawn();
         }
     }
 }
