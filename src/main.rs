@@ -17,8 +17,7 @@ use std::{io::stdout, sync::mpsc};
 use terminal_ui::Message;
 use terminal_ui::TerminalUI;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     setup_terminal();
     let (sender, receiver) = mpsc::channel::<Message>();
     let mut ui = TerminalUI::new(sender.clone());
@@ -34,7 +33,7 @@ async fn main() {
     files_view.update();
 
     enable_raw_mode().expect("Failed to enable raw mode");
-    
+
     // TODO: nejak pridat zoxide?
 
     ui.draw_ui(&mut files_view);
