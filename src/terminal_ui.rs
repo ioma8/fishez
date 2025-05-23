@@ -183,7 +183,7 @@ impl TerminalUI {
             let mut name_after_features = name_final;
 
             for feature in &self.features {
-                name_after_features = feature.map_item(name_after_features, i);
+                name_after_features = feature.map_item(name_after_features, i + files_view.start);
             }
 
             let _ = queue!(

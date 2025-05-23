@@ -9,8 +9,7 @@ use crossterm::{
     terminal::{self, disable_raw_mode, enable_raw_mode},
 };
 use features::{
-    delete_feature::DeleteFeature, favorites_feature::FavouritesFeature, find_feature::FindFeature,
-    open_feature::OpenFeature, ripgrep_feature::RipGrepFeature, vscode_feature::VsCodeFeature,
+    delete_feature::DeleteFeature, favorites_feature::FavouritesFeature, find_feature::FindFeature, multiselect_feature::MultiSelectFeature, open_feature::OpenFeature, ripgrep_feature::RipGrepFeature, vscode_feature::VsCodeFeature
 };
 use files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
 use std::panic;
@@ -18,7 +17,8 @@ use std::{io::stdout, sync::mpsc};
 use terminal_ui::Message;
 use terminal_ui::TerminalUI;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     setup_terminal();
     let (sender, receiver) = mpsc::channel::<Message>();
     let mut ui = TerminalUI::new(sender.clone());
@@ -28,7 +28,7 @@ fn main() {
     ui.add_feature(Box::new(FavouritesFeature::new()));
     ui.add_feature(Box::new(DeleteFeature::new()));
     ui.add_feature(Box::new(OpenFeature::new()));
-    // ui.add_feature(Box::new(MultiSelectFeature::new()));
+    ui.add_feature(Box::new(MultiSelectFeature::new()));
 
     let mut files_view = FilesView::new();
     files_view.update();
