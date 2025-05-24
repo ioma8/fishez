@@ -18,6 +18,12 @@ pub struct MultiSelectFeature {
 }
 
 // TODO: tato featura neni jeste funkcni
+impl Default for MultiSelectFeature {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MultiSelectFeature {
     pub fn new() -> Self {
         Self {

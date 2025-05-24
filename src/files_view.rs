@@ -321,14 +321,14 @@ impl FilesView {
     }
 
     fn syntax_highlight_text(&self, lines: Vec<String>) -> Vec<String> {
-        let comment_markers = vec!["//", "#", "--"];
+        let comment_markers = ["//", "#", "--"];
         let keyword_markers = vec![
             "fn", "let", "if", "else", "for", "while", "match", "struct", "enum", "impl",
             "function", "trait", "mod", "pub", "private", "self", "super", "const", "var",
             "static", "type", "async", "await", "return", "break", "continue", "match", "loop",
             "in", "as", "where", "crate", "extern", "dyn", "ref", "mut",
         ];
-        let keywords_fullline = vec!["derive", "use", "import"];
+        let keywords_fullline = ["derive", "use", "import"];
 
         let mut comment_started = false;
         let mut fullline_keyword_started = false;
