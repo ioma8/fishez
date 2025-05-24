@@ -7,6 +7,7 @@ use std::time::Instant;
 
 use clipboard::ClipboardContext;
 use clipboard::ClipboardProvider;
+use crossterm::style::Stylize;
 use image::load_from_memory;
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
@@ -37,7 +38,11 @@ pub enum FilesViewMode {
 
 #[derive(PartialEq, Debug)]
 pub enum QuickViewMode {
-    Text(Vec<String>, usize, usize),
+    Text {
+        lines: Vec<String>,
+        start: usize,
+        length: usize,
+    },
     Image(ImageBuffer<image::Rgb<u8>, Vec<u8>>),
     Directory,
     NotSupported,
@@ -150,14 +155,19 @@ impl FilesView {
     }
 
     pub fn scroll_content(&mut self, direction: isize) {
-        if let FilesViewMode::QuickView(QuickViewMode::Text(content, start, len)) = &self.mode {
+        if let FilesViewMode::QuickView(QuickViewMode::Text {
+            lines,
+            start,
+            length,
+        }) = &self.mode
+        {
             let new_start = *start as isize + direction;
-            if new_start >= 0 && (new_start as usize) < *len {
-                self.mode = FilesViewMode::QuickView(QuickViewMode::Text(
-                    content.clone(),
-                    new_start as usize,
-                    *len,
-                ));
+            if new_start >= 0 && (new_start as usize) < *length {
+                self.mode = FilesViewMode::QuickView(QuickViewMode::Text {
+                    lines: lines.clone(),
+                    start: new_start as usize,
+                    length: *length,
+                });
             }
         }
     }
@@ -299,11 +309,57 @@ impl FilesView {
             // TODO: předávat asi přímo Reader namísto celého filu ve stringu
             // TODO: ve filu implementovat End / Home pro přesun na začátek a konec souboru kk
             let lines: Vec<String> = content.lines().map(String::from).take(1000).collect();
-            let lines_len = lines.len();
-            self.mode = FilesViewMode::QuickView(QuickViewMode::Text(lines, 0, lines_len));
+            let length = lines.len();
+            self.mode = FilesViewMode::QuickView(QuickViewMode::Text {
+                lines: self.syntax_highlight_text(lines),
+                start: 0,
+                length,
+            });
         } else {
             log(&format!("Could not read file: {}", selected_file));
         }
+    }
+
+    fn syntax_highlight_text(&self, lines: Vec<String>) -> Vec<String> {
+        let comment_markers = vec!["//", "#", "--"];
+        let keyword_markers = vec![
+            "fn", "let", "if", "else", "for", "while", "match", "struct", "enum", "impl",
+            "function", "trait", "mod", "pub", "private", "self", "super", "const", "var",
+            "static", "type", "async", "await", "return", "break", "continue", "match", "loop",
+            "in", "as", "where", "crate", "extern", "dyn", "ref", "mut",
+        ];
+        let keywords_fullline = vec!["derive", "use", "import"];
+
+        let mut comment_started = false;
+        let mut fullline_keyword_started = false;
+
+        lines
+            .iter()
+            .map(|line| {
+                comment_started = false;
+                fullline_keyword_started = false;
+                line.split(" ")
+                    .map(|word| {
+                        if comment_started
+                            || comment_markers
+                                .iter()
+                                .any(|marker| word.starts_with(marker))
+                        {
+                            comment_started = true;
+                            format!("{} ", word.with(crossterm::style::Color::DarkGreen))
+                        } else if keyword_markers.contains(&word) {
+                            format!("{} ", word.with(crossterm::style::Color::Yellow))
+                        } else if fullline_keyword_started || keywords_fullline.contains(&word) {
+                            fullline_keyword_started = true;
+                            format!("{} ", word.with(crossterm::style::Color::Cyan))
+                        } else {
+                            word.to_string()
+                        }
+                    })
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            })
+            .collect::<Vec<String>>()
     }
 
     fn show_file_quick_view_directory(&mut self, file_path: String) {

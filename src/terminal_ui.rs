@@ -238,19 +238,19 @@ impl TerminalUI {
     fn draw_file_content(&mut self, quick_view: &QuickViewMode) {
         let rows_available = self.rows - HEADER_ROWS - FOOTER_ROWS;
         match quick_view {
-            QuickViewMode::Text(content, start, _) => {
+            QuickViewMode::Text { lines: content, start, length: _ } => {
                 self.draw_text_content(content, *start, rows_available);
             }
             QuickViewMode::Image(data) => {
                 self.draw_image_content(data.clone());
             }
             _ => {
-                self.draw_text_content(&["".to_string()], 0, rows_available);
+                self.draw_text_content(&vec!["".into()], 0, rows_available);
             }
         }
     }
 
-    fn draw_text_content(&self, content: &[String], start: usize, rows_available: u16) {
+    fn draw_text_content(&self, content: &Vec<String>, start: usize, rows_available: u16) {
         let content_to_display = content[start..].iter().take(rows_available as usize);
         let _ = queue!(&self.stdout, cursor::MoveTo(0, HEADER_ROWS));
         for line in content_to_display {
