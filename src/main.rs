@@ -2,23 +2,18 @@ mod features;
 mod files_view;
 mod logger;
 mod terminal_ui;
-use crossterm::{
-    cursor,
-    event::{self, Event, KeyCode, KeyEvent},
-    execute,
-    terminal::{self, disable_raw_mode, enable_raw_mode},
-};
+use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use features::{
-    delete_feature::DeleteFeature, favorites_feature::FavouritesFeature, find_feature::FindFeature, multiselect_feature::MultiSelectFeature, open_feature::OpenFeature, ripgrep_feature::RipGrepFeature, vscode_feature::VsCodeFeature
+    delete_feature::DeleteFeature, favorites_feature::FavouritesFeature, find_feature::FindFeature,
+    multiselect_feature::MultiSelectFeature, open_feature::OpenFeature,
+    ripgrep_feature::RipGrepFeature, vscode_feature::VsCodeFeature,
 };
 use files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
-use std::panic;
-use std::{io::stdout, sync::mpsc};
+use std::{process::exit, sync::mpsc};
 use terminal_ui::Message;
 use terminal_ui::TerminalUI;
 
 fn main() {
-    setup_terminal();
     let (sender, receiver) = mpsc::channel::<Message>();
     let mut ui = TerminalUI::new(sender.clone());
     ui.add_feature(Box::new(VsCodeFeature::new()));
@@ -31,8 +26,6 @@ fn main() {
 
     let mut files_view = FilesView::new();
     files_view.update();
-
-    enable_raw_mode().expect("Failed to enable raw mode");
 
     // TODO: nejak pridat zoxide?
 
@@ -66,36 +59,14 @@ fn main() {
     }
 }
 
-fn setup_terminal() {
-    ctrlc::set_handler(|| {
-        reset_terminal();
-        std::process::exit(0);
-    })
-    .expect("Error setting Ctrl-C handler");
-
-    panic::set_hook(Box::new(|_| {
-        reset_terminal();
-    }));
-}
-
-fn reset_terminal() {
-    let _ = execute!(
-        stdout(),
-        cursor::MoveTo(0, 0),
-        cursor::Show,
-        cursor::EnableBlinking,
-        terminal::Clear(terminal::ClearType::All)
-    );
-    disable_raw_mode().expect("Failed to disable raw mode");
-}
-
 fn handle_key_event(files_view: &mut FilesView, event: KeyEvent, ui: &mut TerminalUI) {
     if event.kind != event::KeyEventKind::Press {
         return;
     }
 
     if handle_quit(event) {
-        return;
+        ui.reset_terminal();
+        exit(0);
     }
 
     if ui.handle_features_shortcuts(event, files_view) {
@@ -136,10 +107,6 @@ fn handle_quit(event: KeyEvent) -> bool {
         || (KeyCode::Char('c') == event.code
             && event.modifiers.contains(event::KeyModifiers::CONTROL))
     {
-        std::thread::spawn(|| {
-            reset_terminal();
-            std::process::exit(0);
-        });
         true
     } else {
         false

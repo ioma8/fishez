@@ -1,6 +1,6 @@
 use crossterm::event::KeyEvent;
 use crossterm::style::{Color, Print, StyledContent, Stylize};
-use crossterm::terminal::ClearType;
+use crossterm::terminal::{enable_raw_mode, ClearType};
 use crossterm::{cursor, queue, terminal};
 use image::{self, ImageBuffer};
 use std::io::Write;
@@ -50,6 +50,8 @@ pub enum Message {
 impl TerminalUI {
     pub fn new(sender: Sender<Message>) -> Self {
         let (columns, rows) = terminal::size().expect("Error getting terminal size");
+        enable_raw_mode().expect("Failed to enable raw mode");
+
         TerminalUI {
             columns,
             rows,
@@ -238,7 +240,11 @@ impl TerminalUI {
     fn draw_file_content(&mut self, quick_view: &QuickViewMode) {
         let rows_available = self.rows - HEADER_ROWS - FOOTER_ROWS;
         match quick_view {
-            QuickViewMode::Text { lines: content, start, length: _ } => {
+            QuickViewMode::Text {
+                lines: content,
+                start,
+                length: _,
+            } => {
                 self.draw_text_content(content, *start, rows_available);
             }
             QuickViewMode::Image(data) => {
@@ -397,5 +403,23 @@ impl TerminalUI {
             .collect::<String>()
             .with(Color::Blue);
         let _ = queue!(&self.stdout, cursor::MoveTo(0, row), Print(text),);
+    }
+
+    pub fn reset_terminal(&mut self) {
+        println!("Dropping TerminalUI, restoring terminal state...");
+        let _ = queue!(
+            &self.stdout,
+            cursor::MoveTo(0, 0),
+            cursor::Show,
+            cursor::EnableBlinking,
+            terminal::Clear(ClearType::All)
+        );
+        let _ = &self.stdout.flush();
+    }
+}
+
+impl Drop for TerminalUI {
+    fn drop(&mut self) {
+        self.reset_terminal();
     }
 }
