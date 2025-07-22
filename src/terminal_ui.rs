@@ -249,7 +249,10 @@ impl TerminalUI {
             }
             QuickViewMode::Image(data, bytes) => {
                 let encoded = iterm2img::from_bytes(bytes.to_vec())
-                    .width(20)
+                    .width(self.columns as u64)
+                    .height(rows_available as u64)
+                    .width_auto()
+                    .preserve_aspect_ratio(true)
                     .inline(true)
                     .build();
                 let _ = queue!(
