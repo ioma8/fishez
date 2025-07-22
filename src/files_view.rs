@@ -1,5 +1,7 @@
 use std::env;
 use std::fs;
+use std::fs::File;
+use std::io::Read;
 use std::path::PathBuf;
 use std::path::MAIN_SEPARATOR;
 use std::time::Duration;
@@ -44,7 +46,7 @@ pub enum QuickViewMode {
         start: usize,
         length: usize,
     },
-    Image(ImageBuffer<image::Rgb<u8>, Vec<u8>>),
+    Image(ImageBuffer<image::Rgb<u8>, Vec<u8>>, Vec<u8>),
     Directory,
     NotSupported,
 }
@@ -418,10 +420,13 @@ impl FilesView {
                 _ => None,
             }
         };
+        let mut f = File::open(&file_path).expect("Could not open image file");
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf).unwrap();
         log(&format!("Image loading took: {:?}", now.elapsed()));
 
         if let Some(image_pixels) = image_pixels {
-            self.mode = FilesViewMode::QuickView(QuickViewMode::Image(image_pixels));
+            self.mode = FilesViewMode::QuickView(QuickViewMode::Image(image_pixels, buf));
         }
     }
 

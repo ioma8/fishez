@@ -1,6 +1,6 @@
 use crossterm::event::KeyEvent;
 use crossterm::style::{Color, Print, StyledContent, Stylize};
-use crossterm::terminal::{enable_raw_mode, ClearType};
+use crossterm::terminal::{ClearType, enable_raw_mode};
 use crossterm::{cursor, queue, terminal};
 use image::{self, ImageBuffer};
 use std::io::Write;
@@ -8,7 +8,7 @@ use std::path::MAIN_SEPARATOR;
 use std::sync::mpsc::Sender;
 use std::vec;
 
-use crate::files_view::{FilesView, FilesViewMode, QuickViewMode, FOOTER_ROWS, HEADER_ROWS};
+use crate::files_view::{FOOTER_ROWS, FilesView, FilesViewMode, HEADER_ROWS, QuickViewMode};
 
 pub trait FeatureTrait {
     fn captured_key_event(
@@ -247,8 +247,19 @@ impl TerminalUI {
             } => {
                 self.draw_text_content(content, *start, rows_available);
             }
-            QuickViewMode::Image(data) => {
-                self.draw_image_content(data.clone());
+            QuickViewMode::Image(data, bytes) => {
+                let encoded = iterm2img::from_bytes(bytes.to_vec())
+                    .width(20)
+                    .inline(true)
+                    .build();
+                let _ = queue!(
+                    &self.stdout,
+                    cursor::MoveTo(0, HEADER_ROWS),
+                    Print(encoded),
+                    terminal::Clear(ClearType::UntilNewLine)
+                );
+                // TODO: add switch to this
+                //self.draw_image_content(data.clone());
             }
             _ => {
                 self.draw_text_content(&vec!["".into()], 0, rows_available);
