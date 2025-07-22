@@ -14,6 +14,7 @@ use little_exif::metadata::Metadata;
 
 use image::DynamicImage;
 use image::ImageBuffer;
+use textwrap;
 
 use crate::logger::log;
 
@@ -307,8 +308,11 @@ impl FilesView {
     fn show_file_quick_view_text(&mut self, file_path: String, selected_file: &String) {
         if let Ok(content) = fs::read_to_string(&file_path) {
             // TODO: předávat asi přímo Reader namísto celého filu ve stringu
+            let lines: Vec<String> = textwrap::wrap(&content, 50)
+                .into_iter()
+                .map(|line| line.to_string())
+                .collect();
             // TODO: ve filu implementovat End / Home pro přesun na začátek a konec souboru kk
-            let lines: Vec<String> = content.lines().map(String::from).take(1000).collect();
             let length = lines.len();
             self.mode = FilesViewMode::QuickView(QuickViewMode::Text {
                 lines: self.syntax_highlight_text(lines),
