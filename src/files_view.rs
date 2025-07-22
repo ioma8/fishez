@@ -408,10 +408,11 @@ impl FilesView {
         let thumb = self.extract_embedded_thumbnail(&file_path);
         let image_pixels = if let Some(thumb) = thumb {
             Some(thumb.to_rgb8())
-        } else if let Ok(img) = image::open(&file_path) {
-            Some(img.to_rgb8())
         } else {
-            None
+            match image::open(&file_path) {
+                Ok(img) => Some(img.to_rgb8()),
+                _ => None,
+            }
         };
         log(&format!("Image loading took: {:?}", now.elapsed()));
 
