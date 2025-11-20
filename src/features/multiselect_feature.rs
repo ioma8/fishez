@@ -9,12 +9,11 @@ use crossterm::{
 };
 
 use crate::{
-    files_view::{FilesView, FOOTER_ROWS},
+    files_view::{FilesView, FilesViewMode, FOOTER_ROWS},
     terminal_ui::{FeatureTrait, Message, TerminalUI},
 };
 
 pub struct MultiSelectFeature {
-    selected_indexes: Vec<usize>,
 }
 
 // TODO: tato featura neni jeste funkcni
@@ -26,9 +25,7 @@ impl Default for MultiSelectFeature {
 
 impl MultiSelectFeature {
     pub fn new() -> Self {
-        Self {
-            selected_indexes: Vec::new(),
-        }
+        Self {}
     }
 }
 
@@ -39,33 +36,56 @@ impl FeatureTrait for MultiSelectFeature {
         files_view: &mut FilesView,
         _: &Sender<Message>,
     ) -> bool {
+        // Ignore quick view; selection only makes sense in list modes.
+        if matches!(files_view.mode, FilesViewMode::QuickView(_)) {
+            return false;
+        }
+
         if let KeyCode::Char(' ') = event.code {
-            let hovered_index = files_view.selected;
-            if self.selected_indexes.contains(&hovered_index) {
-                self.selected_indexes.retain(|&x| x != hovered_index);
-            } else {
-                self.selected_indexes.push(hovered_index);
-            }
+            files_view.toggle_multi_selection(files_view.selected);
             return true;
         }
+
+        // Allow Esc to clear selection without leaving the view.
+        if event.code == KeyCode::Esc && files_view.multi_selected_count() > 0 {
+            files_view.clear_multi_selection();
+            return true;
+        }
+
         false
     }
 
-    fn drawn_footer(&self, _: &FilesView, terminal_ui: &TerminalUI) -> bool {
+    fn drawn_footer(&self, files_view: &FilesView, terminal_ui: &TerminalUI) -> bool {
+        // We can't mutate the selection here without interior mutability.
+        // Just show the footer when there's something selected.
+        let count = files_view.multi_selected_count();
+        if count == 0 {
+            return false;
+        }
+
         let _ = queue!(
             &terminal_ui.stdout,
             cursor::MoveTo(0, terminal_ui.rows - FOOTER_ROWS + 1),
-            Print(format!("Selected: {:?}", self.selected_indexes.len()).yellow()),
+            Print(format!("Selected: {}", count).yellow()),
             terminal::Clear(ClearType::UntilNewLine),
         );
         true
     }
 
-    fn map_item(&self, item: StyledContent<String>, index: usize) -> StyledContent<String> {
-        if self.selected_indexes.contains(&index) {
+    fn map_item(
+        &self,
+        item: StyledContent<String>,
+        index: usize,
+        files_view: &FilesView,
+    ) -> StyledContent<String> {
+        if files_view.is_multi_selected(index) {
             item.on(crossterm::style::Color::Blue)
         } else {
             item
         }
+    }
+
+    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
+        actions.push("[space]select");
     }
 }

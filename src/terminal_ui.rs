@@ -29,7 +29,12 @@ pub trait FeatureTrait {
         false
     }
     fn modify_footer_actions(&self, _actions: &mut Vec<&str>) {}
-    fn map_item(&self, item: StyledContent<String>, _index: usize) -> StyledContent<String> {
+    fn map_item(
+        &self,
+        item: StyledContent<String>,
+        _index: usize,
+        _files_view: &FilesView,
+    ) -> StyledContent<String> {
         item
     }
 }
@@ -185,7 +190,8 @@ impl TerminalUI {
             let mut name_after_features = name_final;
 
             for feature in &self.features {
-                name_after_features = feature.map_item(name_after_features, i + files_view.start);
+                name_after_features =
+                    feature.map_item(name_after_features, i + files_view.start, files_view);
             }
 
             let _ = queue!(
@@ -263,6 +269,9 @@ impl TerminalUI {
                 );
                 // TODO: add switch to this
                 //self.draw_image_content(data.clone());
+            }
+            QuickViewMode::Directory { lines } => {
+                self.draw_text_content(lines, 0, rows_available);
             }
             _ => {
                 self.draw_text_content(&vec!["".into()], 0, rows_available);

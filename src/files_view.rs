@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -30,6 +31,7 @@ pub struct FilesView {
     pub filter_string: String,
     pub notification: Option<String>,
     pub notification_created: Instant,
+    multi_selected: HashSet<usize>,
 }
 
 #[derive(PartialEq, Debug)]
@@ -47,7 +49,9 @@ pub enum QuickViewMode {
         length: usize,
     },
     Image(ImageBuffer<image::Rgb<u8>, Vec<u8>>, Vec<u8>),
-    Directory,
+    Directory {
+        lines: Vec<String>,
+    },
     NotSupported,
 }
 
@@ -82,6 +86,7 @@ impl FilesView {
             mode: FilesViewMode::Normal,
             notification: None,
             notification_created: Instant::now(),
+            multi_selected: HashSet::new(),
         }
     }
 
@@ -94,6 +99,7 @@ impl FilesView {
     }
 
     pub fn update(&mut self) {
+        self.multi_selected.clear();
         self.files = vec![];
         if self.mode == FilesViewMode::Normal {
             self.files.push("..".to_string());
@@ -212,6 +218,44 @@ impl FilesView {
         } else {
             None
         }
+    }
+
+    pub fn toggle_multi_selection(&mut self, index: usize) {
+        if let Some(name) = self.files.get(index) {
+            if name == ".." {
+                return;
+            }
+        }
+
+        if self.multi_selected.contains(&index) {
+            self.multi_selected.remove(&index);
+        } else {
+            self.multi_selected.insert(index);
+        }
+    }
+
+    pub fn clear_multi_selection(&mut self) {
+        self.multi_selected.clear();
+    }
+
+    pub fn is_multi_selected(&self, index: usize) -> bool {
+        self.multi_selected.contains(&index)
+    }
+
+    pub fn multi_selected_count(&self) -> usize {
+        self.multi_selected.len()
+    }
+
+    pub fn multi_selected_paths(&self) -> Vec<String> {
+        let mut indexes: Vec<usize> = self.multi_selected.iter().copied().collect();
+        indexes.sort_unstable();
+
+        indexes
+            .into_iter()
+            .filter_map(|idx| self.files.get(idx))
+            .filter(|name| *name != "..")
+            .map(|name| format!("{}{}{}", self.pwd, MAIN_SEPARATOR, name))
+            .collect()
     }
 
     pub fn open_selected_file(&mut self) {
@@ -369,22 +413,65 @@ impl FilesView {
     }
 
     fn show_file_quick_view_directory(&mut self, file_path: String) {
+        let mut files = vec![];
+        let mut dirs = vec![];
+        let mut total_size: u64 = 0;
+        let mut total_entries = 0usize;
+
         let entries = fs::read_dir(&file_path);
         if let Ok(entries) = entries {
-            let mut files = vec![];
-            let mut dirs = vec![];
-            for entry in entries {
-                let entry = entry.unwrap();
-                let file_name = entry.file_name().into_string().unwrap();
-                if entry.file_type().unwrap().is_dir() {
+            for entry in entries.flatten() {
+                total_entries += 1;
+                let file_name = entry.file_name().into_string().unwrap_or_default();
+                let meta = entry.metadata().ok();
+                if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
                     dirs.push(file_name);
                 } else {
+                    if let Some(len) = meta.as_ref().map(|m| m.len()) {
+                        total_size += len;
+                    }
                     files.push(file_name);
                 }
             }
-            // TODO: zobrazit základní informace o souborech a složkách
-            self.mode = FilesViewMode::QuickView(QuickViewMode::Directory);
         }
+
+        dirs.sort();
+        files.sort();
+
+        let mut lines = vec![];
+        lines.push(format!("Directory: {}", file_path));
+        lines.push(format!(
+            "Entries: {} (dirs: {}, files: {})",
+            total_entries,
+            dirs.len(),
+            files.len()
+        ));
+        lines.push(format!("Size (files only): {}", Self::human_readable_size(total_size)));
+        lines.push(String::new());
+
+        let preview_limit = 20usize;
+        if !dirs.is_empty() {
+            lines.push("Directories:".into());
+            for dir in dirs.iter().take(preview_limit) {
+                lines.push(format!("{}/", dir));
+            }
+            if dirs.len() > preview_limit {
+                lines.push(format!("... and {} more", dirs.len() - preview_limit));
+            }
+            lines.push(String::new());
+        }
+
+        if !files.is_empty() {
+            lines.push("Files:".into());
+            for file in files.iter().take(preview_limit) {
+                lines.push(file.to_string());
+            }
+            if files.len() > preview_limit {
+                lines.push(format!("... and {} more", files.len() - preview_limit));
+            }
+        }
+
+        self.mode = FilesViewMode::QuickView(QuickViewMode::Directory { lines });
     }
 
     fn show_file_quick_view_not_supported(&mut self, _: String) {
@@ -427,6 +514,21 @@ impl FilesView {
 
         if let Some(image_pixels) = image_pixels {
             self.mode = FilesViewMode::QuickView(QuickViewMode::Image(image_pixels, buf));
+        }
+    }
+
+    fn human_readable_size(bytes: u64) -> String {
+        const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+        let mut size = bytes as f64;
+        let mut unit = 0;
+        while size >= 1024.0 && unit < UNITS.len() - 1 {
+            size /= 1024.0;
+            unit += 1;
+        }
+        if unit == 0 {
+            format!("{} {}", bytes, UNITS[unit])
+        } else {
+            format!("{:.2} {}", size, UNITS[unit])
         }
     }
 
