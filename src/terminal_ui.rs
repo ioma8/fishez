@@ -654,7 +654,11 @@ impl TerminalUI {
                 .iter()
                 .filter(|name| name.ends_with(MAIN_SEPARATOR))
                 .count();
-            let total_files = files_view.files.len() - total_dirs - 1;
+            let total_files = files_view
+                .files
+                .len()
+                .saturating_sub(total_dirs)
+                .saturating_sub(1);
             format!("{} dirs, {} files", total_dirs, total_files).with(Color::Green)
         };
 
