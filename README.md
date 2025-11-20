@@ -24,6 +24,7 @@ fishez is a terminal file manager written in Rust with extensible features and a
 - F10/Ctrl+C: quit
 - Tab: switch active pane (two-pane mode)
 - Space: toggle multi-select highlight (delete uses the current selection)
+- F1: show condensed help (full list)
 
 ## Dependencies
 - Rust (2024 edition)

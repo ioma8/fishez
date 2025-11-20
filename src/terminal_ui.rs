@@ -45,6 +45,7 @@ pub struct TerminalUI {
     features: Vec<Box<dyn FeatureTrait>>,
     pub stdout: std::io::Stdout,
     pub sender: Sender<Message>,
+    pub show_help: bool,
 }
 
 #[derive(Debug)]
@@ -69,6 +70,7 @@ impl TerminalUI {
             stdout: std::io::stdout(),
             features: vec![],
             sender,
+            show_help: false,
         }
     }
 
@@ -139,6 +141,10 @@ impl TerminalUI {
 
         self.draw_footer_actions(files_view);
 
+        if self.show_help {
+            self.draw_help_overlay();
+        }
+
         let _ = &self.stdout.flush();
     }
 
@@ -179,6 +185,9 @@ impl TerminalUI {
         };
         self.draw_default_footer(active_for_footer);
         self.draw_footer_actions(active_for_footer);
+        if self.show_help {
+            self.draw_help_overlay();
+        }
         let _ = &self.stdout.flush();
     }
 
@@ -364,6 +373,51 @@ impl TerminalUI {
         }
     }
 
+    fn actions_width(&self, actions: &[&str], sep_len: usize) -> usize {
+        if actions.is_empty() {
+            return 0;
+        }
+        actions.iter().map(|a| a.len()).sum::<usize>() + sep_len * (actions.len() - 1)
+    }
+
+    fn draw_help_overlay(&mut self) {
+        let lines = vec![
+            "Keyboard shortcuts",
+            "-------------------",
+            "[F1] Toggle help",
+            "[Arrows] Navigate",
+            "[Enter] Open dir/file",
+            "[Backspace] Up one level",
+            "[F3] Quick view (text/images/directories)",
+            "[Space] Toggle selection (for batch delete)",
+            "[Ctrl+W] Delete selected/current",
+            "[Tab] Switch pane (two-pane mode)",
+            "[F4] Open in VS Code",
+            "[F6] Find (fd)",
+            "[F7] RipGrep search",
+            "[Ctrl+D] Favorites",
+            "[Esc] Cancel filter/close view",
+            "[F10]/[Ctrl+C] Quit",
+        ];
+
+        let start_row = 2;
+        let _ = queue!(
+            &self.stdout,
+            cursor::MoveTo(0, start_row),
+            terminal::Clear(ClearType::FromCursorDown)
+        );
+        for (i, line) in lines.iter().enumerate() {
+            if (start_row + i as u16) >= self.rows.saturating_sub(1) {
+                break;
+            }
+            let _ = queue!(
+                &self.stdout,
+                cursor::MoveTo(2, start_row + i as u16),
+                Print(line)
+            );
+        }
+    }
+
     fn draw_files_list_two_panes(
         &mut self,
         left: &FilesView,
@@ -520,13 +574,29 @@ impl TerminalUI {
 
     fn get_footer_actions_by_mode(&self, mode: &FilesViewMode) -> Vec<&str> {
         match mode {
-            FilesViewMode::Normal => vec!["[f3]view"],
-            FilesViewMode::Filter => vec!["[f3]view", "[f4]edit", "[esc]clear"],
+            FilesViewMode::Normal => vec![
+                "[f1]help",
+                "[enter]open",
+                "[backspace]up",
+                "[f3]quick view",
+                "[space]select",
+                "[tab]switch pane",
+                "[f10]quit",
+            ],
+            FilesViewMode::Filter => vec![
+                "[f1]help",
+                "[enter]open",
+                "[esc]clear",
+                "[f3]quick view",
+                "[f6]find",
+                "[f7]ripgrep",
+                "[f10]quit",
+            ],
             FilesViewMode::QuickView(_) => vec![
-                "[up]scroll up",
-                "[down]scroll down",
-                "[left]previous file",
-                "[right]next file",
+                "[f1]help",
+                "[up/down]scroll",
+                "[pgup/pgdn]page",
+                "[left/right]prev/next",
                 "[f3]close view",
             ],
         }
@@ -567,24 +637,12 @@ impl TerminalUI {
 
     fn draw_footer_actions(&self, files_view: &FilesView) {
         let mut actions = self.get_footer_actions_by_mode(&files_view.mode);
-
-        // TODO: rewrite quickview to be a feature
-        if !matches!(&files_view.mode, FilesViewMode::QuickView(_)) {
-            self.features.iter().for_each(|feature| {
-                feature.modify_footer_actions(&mut actions);
-            });
+        let separator = "  ·  ";
+        while self.actions_width(&actions, separator.len()) > self.columns as usize && actions.len() > 2
+        {
+            actions.pop();
         }
-        actions.push("[f10]quit");
-
-        let actions_str = actions.join("");
-        // Avoid underflow or division by zero on narrow terminals.
-        let available = self.columns as usize;
-        let padding = if actions.len() > 1 && available > actions_str.len() {
-            (available - actions_str.len()) / (actions.len() - 1)
-        } else {
-            1
-        };
-        let actions_row = actions.join(&" ".repeat(padding.max(1))).with(Color::Green);
+        let actions_row = actions.join(separator).with(Color::Green);
 
         let _ = queue!(
             &self.stdout,
