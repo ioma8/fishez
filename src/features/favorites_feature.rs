@@ -141,7 +141,11 @@ impl FeatureTrait for FavouritesFeature {
         true
     }
 
-    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
-        actions.push("[ctrl+d]favourites");
+    fn footer_help(&self) -> Vec<String> {
+        vec!["[ctrl+d]favourites".into()]
+    }
+
+    fn overlay_help(&self) -> Vec<(String, String)> {
+        vec![("Ctrl+D".into(), "Favorites list / add current dir".into())]
     }
 }

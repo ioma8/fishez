@@ -28,7 +28,6 @@ pub trait FeatureTrait {
     fn drawn_footer(&self, _files_view: &FilesView, _terminal_ui: &TerminalUI) -> bool {
         false
     }
-    fn modify_footer_actions(&self, _actions: &mut Vec<&str>) {}
     fn map_item(
         &self,
         item: StyledContent<String>,
@@ -36,6 +35,12 @@ pub trait FeatureTrait {
         _files_view: &FilesView,
     ) -> StyledContent<String> {
         item
+    }
+    fn footer_help(&self) -> Vec<String> {
+        vec![]
+    }
+    fn overlay_help(&self) -> Vec<(String, String)> {
+        vec![]
     }
 }
 
@@ -373,7 +378,7 @@ impl TerminalUI {
         }
     }
 
-    fn actions_width(&self, actions: &[&str], sep_len: usize) -> usize {
+    fn actions_width(&self, actions: &[String], sep_len: usize) -> usize {
         if actions.is_empty() {
             return 0;
         }
@@ -381,22 +386,21 @@ impl TerminalUI {
     }
 
     fn draw_help_overlay(&mut self) {
-        let entries = vec![
-            ("F1", "Toggle help overlay"),
-            ("Arrows", "Navigate"),
-            ("Enter", "Open dir/file"),
-            ("Backspace", "Go up one level"),
-            ("F3", "Quick view (text/images/dirs)"),
-            ("Space", "Toggle selection (batch delete)"),
-            ("Ctrl+W", "Delete selected/current"),
-            ("Tab", "Switch pane (two-pane)"),
-            ("F4", "Open in VS Code"),
-            ("F6", "Find (fd)"),
-            ("F7", "RipGrep search"),
-            ("Ctrl+D", "Favorites"),
-            ("Esc", "Cancel filter/close view"),
-            ("F10/Ctrl+C", "Quit"),
+        let mut entries: Vec<(String, String)> = vec![
+            ("F1".into(), "Toggle help overlay".into()),
+            ("Arrows".into(), "Navigate".into()),
+            ("Enter".into(), "Open dir/file".into()),
+            ("Backspace".into(), "Go up one level".into()),
+            ("F3".into(), "Quick view (text/images/dirs)".into()),
+            ("Space".into(), "Toggle selection (batch delete)".into()),
+            ("Ctrl+W".into(), "Delete selected/current".into()),
+            ("Tab".into(), "Switch pane (two-pane)".into()),
+            ("Esc".into(), "Cancel filter/close view".into()),
+            ("F10/Ctrl+C".into(), "Quit".into()),
         ];
+        for feature in &self.features {
+            entries.extend(feature.overlay_help());
+        }
 
         let title = "Keyboard shortcuts";
         let col_gap = 4;
@@ -601,32 +605,30 @@ impl TerminalUI {
         }
     }
 
-    fn get_footer_actions_by_mode(&self, mode: &FilesViewMode) -> Vec<&str> {
+    fn get_footer_actions_by_mode(&self, mode: &FilesViewMode) -> Vec<String> {
         match mode {
             FilesViewMode::Normal => vec![
-                "[f1]help",
-                "[enter]open",
-                "[backspace]up",
-                "[f3]quick view",
-                "[space]select",
-                "[tab]switch pane",
-                "[f10]quit",
+                "[f1]help".into(),
+                "[enter]open".into(),
+                "[backspace]up".into(),
+                "[f3]quick view".into(),
+                "[space]select".into(),
+                "[tab]switch pane".into(),
+                "[f10]quit".into(),
             ],
             FilesViewMode::Filter => vec![
-                "[f1]help",
-                "[enter]open",
-                "[esc]clear",
-                "[f3]quick view",
-                "[f6]find",
-                "[f7]ripgrep",
-                "[f10]quit",
+                "[f1]help".into(),
+                "[enter]open".into(),
+                "[esc]clear".into(),
+                "[f3]quick view".into(),
+                "[f10]quit".into(),
             ],
             FilesViewMode::QuickView(_) => vec![
-                "[f1]help",
-                "[up/down]scroll",
-                "[pgup/pgdn]page",
-                "[left/right]prev/next",
-                "[f3]close view",
+                "[f1]help".into(),
+                "[up/down]scroll".into(),
+                "[pgup/pgdn]page".into(),
+                "[left/right]prev/next".into(),
+                "[f3]close view".into(),
             ],
         }
     }
@@ -666,8 +668,17 @@ impl TerminalUI {
 
     fn draw_footer_actions(&self, files_view: &FilesView) {
         let mut actions = self.get_footer_actions_by_mode(&files_view.mode);
+
+        // Let features append their own hints (skip QuickView to avoid stale hints).
+        if !matches!(files_view.mode, FilesViewMode::QuickView(_)) {
+            for feature in &self.features {
+                actions.extend(feature.footer_help());
+            }
+        }
+
         let separator = "  ·  ";
-        while self.actions_width(&actions, separator.len()) > self.columns as usize && actions.len() > 2
+        while self.actions_width(&actions, separator.len()) > self.columns as usize
+            && actions.len() > 2
         {
             actions.pop();
         }

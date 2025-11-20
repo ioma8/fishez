@@ -123,7 +123,11 @@ impl FeatureTrait for FindFeature {
         false
     }
 
-    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
-        actions.push("[f6]find");
+    fn footer_help(&self) -> Vec<String> {
+        vec!["[f6]find".into()]
+    }
+
+    fn overlay_help(&self) -> Vec<(String, String)> {
+        vec![("F6".into(), "Find (fd)".into())]
     }
 }

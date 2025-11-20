@@ -98,8 +98,12 @@ impl FeatureTrait for RipGrepFeature {
         false
     }
 
-    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
-        actions.push("[f7]ripgrep");
+    fn footer_help(&self) -> Vec<String> {
+        vec!["[f7]ripgrep".into()]
+    }
+
+    fn overlay_help(&self) -> Vec<(String, String)> {
+        vec![("F7".into(), "RipGrep search".into())]
     }
 }
 

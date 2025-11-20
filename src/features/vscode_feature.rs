@@ -60,7 +60,11 @@ impl FeatureTrait for VsCodeFeature {
         false
     }
 
-    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
-        actions.push("[f4]edit");
+    fn footer_help(&self) -> Vec<String> {
+        vec!["[f4]edit".into()]
+    }
+
+    fn overlay_help(&self) -> Vec<(String, String)> {
+        vec![("F4".into(), "Open in VS Code".into())]
     }
 }
