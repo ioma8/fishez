@@ -381,40 +381,67 @@ impl TerminalUI {
     }
 
     fn draw_help_overlay(&mut self) {
-        let lines = vec![
-            "Keyboard shortcuts",
-            "-------------------",
-            "[F1] Toggle help",
-            "[Arrows] Navigate",
-            "[Enter] Open dir/file",
-            "[Backspace] Up one level",
-            "[F3] Quick view (text/images/directories)",
-            "[Space] Toggle selection (for batch delete)",
-            "[Ctrl+W] Delete selected/current",
-            "[Tab] Switch pane (two-pane mode)",
-            "[F4] Open in VS Code",
-            "[F6] Find (fd)",
-            "[F7] RipGrep search",
-            "[Ctrl+D] Favorites",
-            "[Esc] Cancel filter/close view",
-            "[F10]/[Ctrl+C] Quit",
+        let entries = vec![
+            ("F1", "Toggle help overlay"),
+            ("Arrows", "Navigate"),
+            ("Enter", "Open dir/file"),
+            ("Backspace", "Go up one level"),
+            ("F3", "Quick view (text/images/dirs)"),
+            ("Space", "Toggle selection (batch delete)"),
+            ("Ctrl+W", "Delete selected/current"),
+            ("Tab", "Switch pane (two-pane)"),
+            ("F4", "Open in VS Code"),
+            ("F6", "Find (fd)"),
+            ("F7", "RipGrep search"),
+            ("Ctrl+D", "Favorites"),
+            ("Esc", "Cancel filter/close view"),
+            ("F10/Ctrl+C", "Quit"),
         ];
 
-        let start_row = 2;
+        let title = "Keyboard shortcuts";
+        let col_gap = 4;
+        let max_key = entries.iter().map(|(k, _)| k.len()).max().unwrap_or(0);
+        let max_desc = entries.iter().map(|(_, d)| d.len()).max().unwrap_or(0);
+        let total_width = (max_key + col_gap + max_desc + 4).min(self.columns as usize);
+        let start_col = ((self.columns as usize).saturating_sub(total_width)) / 2;
+
+        let start_row = 3;
         let _ = queue!(
             &self.stdout,
             cursor::MoveTo(0, start_row),
             terminal::Clear(ClearType::FromCursorDown)
         );
-        for (i, line) in lines.iter().enumerate() {
-            if (start_row + i as u16) >= self.rows.saturating_sub(1) {
+
+        // Title
+        let _ = queue!(
+            &self.stdout,
+            cursor::MoveTo(start_col as u16, start_row),
+            Print(title.with(Color::Cyan).attribute(crossterm::style::Attribute::Bold))
+        );
+
+        // Separator
+        let sep = "─".repeat(total_width.min(self.columns as usize));
+        let _ = queue!(
+            &self.stdout,
+            cursor::MoveTo(start_col as u16, start_row + 1),
+            Print(sep.with(Color::Blue))
+        );
+
+        // Entries
+        let mut row = start_row + 2;
+        for (key, desc) in entries {
+            if row as u16 >= self.rows.saturating_sub(1) {
                 break;
             }
+            let padded_key = format!("{:width$}", key, width = max_key);
             let _ = queue!(
                 &self.stdout,
-                cursor::MoveTo(2, start_row + i as u16),
-                Print(line)
+                cursor::MoveTo(start_col as u16, row as u16),
+                Print(padded_key.with(Color::Yellow)),
+                cursor::MoveTo((start_col + max_key + col_gap) as u16, row as u16),
+                Print(desc.with(Color::Green))
             );
+            row += 1;
         }
     }
 
