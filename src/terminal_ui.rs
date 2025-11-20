@@ -29,7 +29,12 @@ pub trait FeatureTrait {
         false
     }
     fn modify_footer_actions(&self, _actions: &mut Vec<&str>) {}
-    fn map_item(&self, item: StyledContent<String>, _index: usize) -> StyledContent<String> {
+    fn map_item(
+        &self,
+        item: StyledContent<String>,
+        _index: usize,
+        _files_view: &FilesView,
+    ) -> StyledContent<String> {
         item
     }
 }
@@ -45,6 +50,12 @@ pub struct TerminalUI {
 #[derive(Debug)]
 pub enum Message {
     DrawFiles(Vec<String>),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ActivePane {
+    Left,
+    Right,
 }
 
 impl TerminalUI {
@@ -131,6 +142,46 @@ impl TerminalUI {
         let _ = &self.stdout.flush();
     }
 
+    pub fn draw_ui_two_panes(
+        &mut self,
+        left: &mut FilesView,
+        right: &mut FilesView,
+        active: ActivePane,
+    ) {
+        left.clear_notification();
+        right.clear_notification();
+        let _ = queue!(&self.stdout, cursor::DisableBlinking, cursor::Hide);
+
+        // QuickView takes full screen for the active pane to keep changes minimal.
+        let active_is_quickview = match active {
+            ActivePane::Left => matches!(left.mode, FilesViewMode::QuickView(_)),
+            ActivePane::Right => matches!(right.mode, FilesViewMode::QuickView(_)),
+        };
+        if active_is_quickview {
+            let target = match active {
+                ActivePane::Left => left,
+                ActivePane::Right => right,
+            };
+            self.draw_ui(target);
+            return;
+        }
+
+        self.draw_dual_header(left, right, active);
+        let active_for_header: &FilesView = match active {
+            ActivePane::Left => left,
+            ActivePane::Right => right,
+        };
+        self.draw_system_header(active_for_header);
+        self.draw_files_list_two_panes(left, right, active);
+        let active_for_footer: &FilesView = match active {
+            ActivePane::Left => left,
+            ActivePane::Right => right,
+        };
+        self.draw_default_footer(active_for_footer);
+        self.draw_footer_actions(active_for_footer);
+        let _ = &self.stdout.flush();
+    }
+
     fn draw_default_header(&self, files_view: &FilesView) {
         let _ = queue!(&self.stdout, cursor::MoveTo(0, 0));
 
@@ -144,6 +195,30 @@ impl TerminalUI {
             cursor::MoveTo(0, 0),
             Print(left),
             terminal::Clear(ClearType::UntilNewLine),
+        );
+    }
+
+    fn draw_dual_header(&self, left: &FilesView, right: &FilesView, active: ActivePane) {
+        let _ = queue!(&self.stdout, cursor::MoveTo(0, 0), terminal::Clear(ClearType::UntilNewLine));
+        let pane_width = self.columns.saturating_sub(1) / 2;
+
+        let (left_label, right_label) = match active {
+            ActivePane::Left => ("*L", " R"),
+            ActivePane::Right => (" L", "*R"),
+        };
+
+        let left_text = format!("{}: {}", left_label, left.pwd);
+        let right_text = format!("{}: {}", right_label, right.pwd);
+
+        let truncated_left = self.truncate_plain(&left_text, pane_width as usize);
+        let truncated_right = self.truncate_plain(&right_text, pane_width as usize);
+
+        let _ = queue!(
+            &self.stdout,
+            cursor::MoveTo(0, 0),
+            Print(truncated_left.with(Color::Cyan)),
+            cursor::MoveTo(pane_width + 1, 0),
+            Print(truncated_right.with(Color::Cyan)),
         );
     }
 
@@ -185,7 +260,8 @@ impl TerminalUI {
             let mut name_after_features = name_final;
 
             for feature in &self.features {
-                name_after_features = feature.map_item(name_after_features, i + files_view.start);
+                name_after_features =
+                    feature.map_item(name_after_features, i + files_view.start, files_view);
             }
 
             let _ = queue!(
@@ -237,6 +313,104 @@ impl TerminalUI {
         }
     }
 
+    fn styled_name_for_index(
+        &self,
+        files_view: &FilesView,
+        index: usize,
+    ) -> StyledContent<String> {
+        let file = &files_view.files[index];
+        let name = if file.ends_with(MAIN_SEPARATOR) {
+            file.to_string().yellow()
+        } else {
+            file.to_string().dark_yellow()
+        };
+
+        let name_final = if index == files_view.selected {
+            name.negative()
+        } else {
+            name
+        };
+
+        let mut name_after_features = name_final;
+
+        for feature in &self.features {
+            name_after_features = feature.map_item(name_after_features, index, files_view);
+        }
+
+        name_after_features
+    }
+
+    fn truncate_styled(&self, item: StyledContent<String>, width: u16) -> StyledContent<String> {
+        let text = item.content().clone();
+        if text.len() as u16 > width && width > 1 {
+            let mut truncated = text
+                .chars()
+                .take((width - 1) as usize)
+                .collect::<String>();
+            truncated.push('…');
+            item.style().apply(truncated)
+        } else {
+            item
+        }
+    }
+
+    fn truncate_plain(&self, text: &str, width: usize) -> String {
+        if text.len() > width && width > 1 {
+            let mut truncated = text.chars().take(width - 1).collect::<String>();
+            truncated.push('…');
+            truncated
+        } else {
+            text.to_string()
+        }
+    }
+
+    fn draw_files_list_two_panes(
+        &mut self,
+        left: &FilesView,
+        right: &FilesView,
+        active: ActivePane,
+    ) {
+        let rows_available = self.rows - HEADER_ROWS - FOOTER_ROWS;
+        let pane_width = self.columns.saturating_sub(1) / 2;
+        let separator_col = pane_width;
+        let right_col = separator_col + 1;
+
+        for row in 0..rows_available {
+            let screen_row = HEADER_ROWS + row;
+            let _ = queue!(
+                &self.stdout,
+                cursor::MoveTo(0, screen_row),
+                terminal::Clear(ClearType::UntilNewLine)
+            );
+
+            let left_index = left.start + row as usize;
+            if left_index < left.files.len() {
+                let left_name = self.styled_name_for_index(left, left_index);
+                let left_trunc = self.truncate_styled(left_name, pane_width);
+                let _ = queue!(&self.stdout, cursor::MoveTo(0, screen_row), Print(left_trunc));
+            }
+
+            // separator
+            let sep_color = if matches!(active, ActivePane::Left) {
+                Color::Blue
+            } else {
+                Color::Grey
+            };
+            let _ = queue!(
+                &self.stdout,
+                cursor::MoveTo(separator_col, screen_row),
+                Print("│".with(sep_color))
+            );
+
+            let right_index = right.start + row as usize;
+            if right_index < right.files.len() {
+                let right_name = self.styled_name_for_index(right, right_index);
+                let right_trunc = self.truncate_styled(right_name, pane_width.saturating_sub(1));
+                let _ = queue!(&self.stdout, cursor::MoveTo(right_col, screen_row), Print(right_trunc));
+            }
+        }
+    }
+
     fn draw_file_content(&mut self, quick_view: &QuickViewMode) {
         let rows_available = self.rows - HEADER_ROWS - FOOTER_ROWS;
         match quick_view {
@@ -263,6 +437,9 @@ impl TerminalUI {
                 );
                 // TODO: add switch to this
                 //self.draw_image_content(data.clone());
+            }
+            QuickViewMode::Directory { lines } => {
+                self.draw_text_content(lines, 0, rows_available);
             }
             _ => {
                 self.draw_text_content(&vec!["".into()], 0, rows_available);
@@ -400,8 +577,14 @@ impl TerminalUI {
         actions.push("[f10]quit");
 
         let actions_str = actions.join("");
-        let padding = (self.columns as usize - actions_str.len()) / (actions.len() - 1);
-        let actions_row = actions.join(&" ".repeat(padding)).with(Color::Green);
+        // Avoid underflow or division by zero on narrow terminals.
+        let available = self.columns as usize;
+        let padding = if actions.len() > 1 && available > actions_str.len() {
+            (available - actions_str.len()) / (actions.len() - 1)
+        } else {
+            1
+        };
+        let actions_row = actions.join(&" ".repeat(padding.max(1))).with(Color::Green);
 
         let _ = queue!(
             &self.stdout,
