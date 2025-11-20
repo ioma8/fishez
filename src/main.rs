@@ -238,3 +238,33 @@ fn handle_quick_view_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16
         _ => {}
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_handle_quit_f10() {
+        let event = KeyEvent::new(KeyCode::F(10), KeyModifiers::empty());
+        assert!(handle_quit(event));
+    }
+
+    #[test]
+    fn test_handle_quit_ctrl_c() {
+        let event = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL);
+        assert!(handle_quit(event));
+    }
+
+    #[test]
+    fn test_handle_quit_normal_key() {
+        let event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty());
+        assert!(!handle_quit(event));
+    }
+
+    #[test]
+    fn test_handle_quit_c_without_ctrl() {
+        let event = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::empty());
+        assert!(!handle_quit(event));
+    }
+}

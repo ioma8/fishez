@@ -550,3 +550,166 @@ impl FilesView {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_files_view_new() {
+        let view = FilesView::new();
+        assert_eq!(view.selected, 0);
+        assert_eq!(view.start, 0);
+        assert_eq!(view.filter_string, "");
+        assert!(matches!(view.mode, FilesViewMode::Normal));
+        assert!(view.notification.is_none());
+    }
+
+    #[test]
+    fn test_toggle_multi_selection_parent_dir() {
+        let mut view = FilesView::new();
+        view.files = vec!["..".to_string(), "file1.txt".to_string()];
+        
+        // Trying to multi-select ".." should be ignored
+        view.toggle_multi_selection(0);
+        assert_eq!(view.multi_selected_count(), 0);
+    }
+
+    #[test]
+    fn test_toggle_multi_selection_normal_file() {
+        let mut view = FilesView::new();
+        view.files = vec!["..".to_string(), "file1.txt".to_string(), "file2.txt".to_string()];
+        
+        // Select file1
+        view.toggle_multi_selection(1);
+        assert_eq!(view.multi_selected_count(), 1);
+        assert!(view.is_multi_selected(1));
+        
+        // Select file2
+        view.toggle_multi_selection(2);
+        assert_eq!(view.multi_selected_count(), 2);
+        assert!(view.is_multi_selected(2));
+        
+        // Deselect file1
+        view.toggle_multi_selection(1);
+        assert_eq!(view.multi_selected_count(), 1);
+        assert!(!view.is_multi_selected(1));
+        assert!(view.is_multi_selected(2));
+    }
+
+    #[test]
+    fn test_scroll_content() {
+        let mut view = FilesView::new();
+        // Create more lines than can fit in the visible area
+        let lines: Vec<String> = (0..20).map(|i| format!("line{}", i)).collect();
+        let length = lines.len();
+        view.mode = FilesViewMode::QuickView(QuickViewMode::Text {
+            lines: lines.clone(),
+            start: 0,
+            length,
+        });
+        
+        // Scroll down (rows=10, so visible_rows = 10 - HEADER_ROWS - FOOTER_ROWS = 10 - 2 - 3 = 5)
+        view.scroll_content(1, 10);
+        if let FilesViewMode::QuickView(QuickViewMode::Text { start, .. }) = view.mode {
+            assert_eq!(start, 1);
+        } else {
+            panic!("Expected QuickView mode");
+        }
+        
+        // Scroll up
+        view.scroll_content(-1, 10);
+        if let FilesViewMode::QuickView(QuickViewMode::Text { start, .. }) = view.mode {
+            assert_eq!(start, 0);
+        } else {
+            panic!("Expected QuickView mode");
+        }
+        
+        // Test clamping at the bottom
+        view.scroll_content(100, 10); // Try to scroll way past the end
+        if let FilesViewMode::QuickView(QuickViewMode::Text { start, .. }) = view.mode {
+            // max_start = length - visible_rows = 20 - 5 = 15
+            assert_eq!(start, 15);
+        } else {
+            panic!("Expected QuickView mode");
+        }
+    }
+
+    #[test]
+    fn test_navigate() {
+        let mut view = FilesView::new();
+        view.files = vec!["file1".to_string(), "file2".to_string(), "file3".to_string()];
+        
+        // Navigate down
+        view.navigate(1, 10);
+        assert_eq!(view.selected, 1);
+        
+        // Navigate down again
+        view.navigate(1, 10);
+        assert_eq!(view.selected, 2);
+        
+        // Try to navigate beyond end (should stay at 2)
+        view.navigate(1, 10);
+        assert_eq!(view.selected, 2);
+        
+        // Navigate up
+        view.navigate(-1, 10);
+        assert_eq!(view.selected, 1);
+    }
+
+    #[test]
+    fn test_navigate_home_end() {
+        let mut view = FilesView::new();
+        view.files = vec!["file1".to_string(), "file2".to_string(), "file3".to_string()];
+        view.selected = 2;
+        view.start = 1;
+        
+        // Navigate home
+        view.navigate_home();
+        assert_eq!(view.selected, 0);
+        assert_eq!(view.start, 0);
+        
+        // Navigate end
+        view.navigate_end(10);
+        assert_eq!(view.selected, 2);
+    }
+
+    #[test]
+    fn test_clear_multi_selection() {
+        let mut view = FilesView::new();
+        view.files = vec!["file1".to_string(), "file2".to_string(), "file3".to_string()];
+        
+        view.toggle_multi_selection(0);
+        view.toggle_multi_selection(1);
+        assert_eq!(view.multi_selected_count(), 2);
+        
+        view.clear_multi_selection();
+        assert_eq!(view.multi_selected_count(), 0);
+    }
+
+    #[test]
+    fn test_human_readable_size() {
+        assert_eq!(FilesView::human_readable_size(0), "0 B");
+        assert_eq!(FilesView::human_readable_size(512), "512 B");
+        assert_eq!(FilesView::human_readable_size(1024), "1.00 KB");
+        assert_eq!(FilesView::human_readable_size(1536), "1.50 KB");
+        assert_eq!(FilesView::human_readable_size(1048576), "1.00 MB");
+        assert_eq!(FilesView::human_readable_size(1073741824), "1.00 GB");
+    }
+
+    #[test]
+    fn test_notification_system() {
+        let mut view = FilesView::new();
+        
+        // Initially no notification
+        assert!(view.notification.is_none());
+        
+        // Set notification
+        view.set_notification("Test notification".to_string());
+        assert_eq!(view.notification, Some("Test notification".to_string()));
+        
+        // Force clear
+        view.clear_notification_force();
+        assert!(view.notification.is_none());
+    }
+}

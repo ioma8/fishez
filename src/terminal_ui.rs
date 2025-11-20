@@ -622,3 +622,91 @@ impl Drop for TerminalUI {
         self.reset_terminal();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_active_pane_enum() {
+        let left = ActivePane::Left;
+        let right = ActivePane::Right;
+        
+        // Test that enums are distinct
+        assert!(matches!(left, ActivePane::Left));
+        assert!(matches!(right, ActivePane::Right));
+        assert!(!matches!(left, ActivePane::Right));
+        assert!(!matches!(right, ActivePane::Left));
+    }
+
+    #[test]
+    fn test_active_pane_switching() {
+        let mut active = ActivePane::Left;
+        
+        // Simulate Tab key switching
+        active = match active {
+            ActivePane::Left => ActivePane::Right,
+            ActivePane::Right => ActivePane::Left,
+        };
+        assert!(matches!(active, ActivePane::Right));
+        
+        // Switch back
+        active = match active {
+            ActivePane::Left => ActivePane::Right,
+            ActivePane::Right => ActivePane::Left,
+        };
+        assert!(matches!(active, ActivePane::Left));
+    }
+
+    #[test]
+    fn test_truncate_plain() {
+        let (sender, _receiver) = std::sync::mpsc::channel::<Message>();
+        let ui = TerminalUI::new(sender);
+        
+        // Test text shorter than width
+        let result = ui.truncate_plain("hello", 10);
+        assert_eq!(result, "hello");
+        
+        // Test text equal to width
+        let result = ui.truncate_plain("hello", 5);
+        assert_eq!(result, "hello");
+        
+        // Test text longer than width
+        let result = ui.truncate_plain("hello world", 8);
+        assert_eq!(result, "hello w…");
+        
+        // Test with width 1 (edge case)
+        let result = ui.truncate_plain("hello", 1);
+        assert_eq!(result, "hello");
+        
+        // Test with width 2
+        let result = ui.truncate_plain("hello", 2);
+        assert_eq!(result, "h…");
+    }
+
+    #[test]
+    fn test_truncate_styled() {
+        let (sender, _receiver) = std::sync::mpsc::channel::<Message>();
+        let ui = TerminalUI::new(sender);
+        
+        // Test styled content shorter than width
+        let styled = "hello".to_string().with(Color::Cyan);
+        let result = ui.truncate_styled(styled, 10);
+        assert_eq!(result.content(), "hello");
+        
+        // Test styled content longer than width
+        let styled = "hello world".to_string().with(Color::Cyan);
+        let result = ui.truncate_styled(styled, 8);
+        assert_eq!(result.content(), "hello w…");
+        assert_eq!(result.style().foreground_color, Some(Color::Cyan));
+    }
+
+    #[test]
+    fn test_message_enum() {
+        let files = vec!["file1.txt".to_string(), "file2.txt".to_string()];
+        let message = Message::DrawFiles(files.clone());
+        
+        let Message::DrawFiles(received_files) = message;
+        assert_eq!(received_files, files);
+    }
+}
