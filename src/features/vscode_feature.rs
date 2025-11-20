@@ -45,6 +45,10 @@ impl FeatureTrait for VsCodeFeature {
         files_view: &mut FilesView,
         _: &Sender<Message>,
     ) -> bool {
+        if files_view.files.is_empty() || files_view.selected >= files_view.files.len() {
+            return false;
+        }
+
         let selected_file = &files_view.files[files_view.selected];
         if selected_file == ".." {
             return false;
