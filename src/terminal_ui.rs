@@ -53,6 +53,10 @@ pub struct TerminalUI {
     pub show_help: bool,
 }
 
+const HELP_OVERLAY_START_ROW: u16 = 3;
+const HELP_OVERLAY_COL_GAP: usize = 4;
+const FOOTER_SEPARATOR: &str = "  ·  ";
+
 #[derive(Debug)]
 pub enum Message {
     DrawFiles(Vec<String>),
@@ -420,15 +424,16 @@ impl TerminalUI {
         }
 
         let title = "Keyboard shortcuts";
-        let col_gap = 4;
+        let col_gap = HELP_OVERLAY_COL_GAP;
         // Extra padding for the overlay box (left/right margin)
         const OVERLAY_PADDING: usize = 4;
         let max_key = entries.iter().map(|(k, _)| k.len()).max().unwrap_or(0);
         let max_desc = entries.iter().map(|(_, d)| d.len()).max().unwrap_or(0);
-        let total_width = (max_key + col_gap + max_desc + OVERLAY_PADDING).min(self.columns as usize);
+        let total_width =
+            (max_key + col_gap + max_desc + OVERLAY_PADDING).min(self.columns as usize);
         let start_col = ((self.columns as usize).saturating_sub(total_width)) / 2;
 
-        let start_row = 3;
+        let start_row = HELP_OVERLAY_START_ROW;
         let _ = queue!(
             &self.stdout,
             cursor::MoveTo(0, start_row),
@@ -697,7 +702,7 @@ impl TerminalUI {
             }
         }
 
-        let separator = "  ·  ";
+        let separator = FOOTER_SEPARATOR;
         while self.actions_width(&actions, separator.len()) > self.columns as usize
             && actions.len() > 2
         {
