@@ -117,9 +117,21 @@ fn handle_key_event_two_panes(
         return;
     }
 
+    if ui.show_help {
+        if matches!(event.code, KeyCode::F(1) | KeyCode::Esc) {
+            ui.show_help = false;
+        }
+        return;
+    }
+
     if handle_quit(event) {
         ui.reset_terminal();
         exit(0);
+    }
+
+    if matches!(event.code, KeyCode::F(1)) {
+        ui.show_help = !ui.show_help;
+        return;
     }
 
     if event.code == KeyCode::Tab {
@@ -151,9 +163,21 @@ fn handle_key_event_single(files_view: &mut FilesView, event: KeyEvent, ui: &mut
         return;
     }
 
+    if ui.show_help {
+        if matches!(event.code, KeyCode::F(1) | KeyCode::Esc) {
+            ui.show_help = false;
+        }
+        return;
+    }
+
     if handle_quit(event) {
         ui.reset_terminal();
         exit(0);
+    }
+
+    if matches!(event.code, KeyCode::F(1)) {
+        ui.show_help = !ui.show_help;
+        return;
     }
 
     if ui.handle_features_shortcuts(event, files_view) {
