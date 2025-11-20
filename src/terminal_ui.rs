@@ -55,7 +55,6 @@ pub struct TerminalUI {
 
 const HELP_OVERLAY_START_ROW: u16 = 3;
 const HELP_OVERLAY_COL_GAP: usize = 4;
-const FOOTER_SEPARATOR: &str = "  ·  ";
 
 #[derive(Debug)]
 pub enum Message {
@@ -702,13 +701,43 @@ impl TerminalUI {
             }
         }
 
-        let separator = FOOTER_SEPARATOR;
-        while self.actions_width(&actions, separator.len()) > self.columns as usize
-            && actions.len() > 2
-        {
+        while self.actions_width(&actions, 0) > self.columns as usize && actions.len() > 1 {
             actions.pop();
         }
-        let actions_row = actions.join(separator).with(Color::Green);
+
+        if actions.is_empty() {
+            return;
+        }
+
+        let available = self.columns as usize;
+        let content_width: usize = actions.iter().map(|a| a.len()).sum();
+
+        let mut rendered = String::new();
+        if actions.len() == 1 {
+            let pad = available.saturating_sub(content_width) / 2;
+            rendered.push_str(&" ".repeat(pad));
+            rendered.push_str(&actions[0]);
+        } else {
+            let gaps = actions.len() - 1;
+            let extra_space = available.saturating_sub(content_width);
+            let base_spacing = extra_space / gaps;
+            let remainder = extra_space % gaps;
+
+            for (idx, action) in actions.iter().enumerate() {
+                rendered.push_str(action);
+                if idx + 1 < actions.len() {
+                    let bonus = if idx < remainder { 1 } else { 0 };
+                    let spacing = base_spacing + bonus;
+                    rendered.push_str(&" ".repeat(spacing.max(1)));
+                }
+            }
+        }
+
+        let actions_row = rendered
+            .chars()
+            .take(self.columns as usize)
+            .collect::<String>()
+            .with(Color::Green);
 
         let _ = queue!(
             &self.stdout,
