@@ -64,6 +64,8 @@ enum FileType {
 pub static HEADER_ROWS: u16 = 2;
 pub static FOOTER_ROWS: u16 = 3;
 pub static NOTIFICATION_TIMEOUT: usize = 3000;
+const MIN_WRAP_WIDTH: u16 = 20;
+const DIRECTORY_PREVIEW_LIMIT: usize = 20;
 
 impl Default for FilesView {
     fn default() -> Self {
@@ -221,6 +223,14 @@ impl FilesView {
         }
     }
 
+    pub fn replace_files(&mut self, files: Vec<String>) {
+        self.files = files;
+        self.selected = 0;
+        self.start = 0;
+        self.mode = FilesViewMode::Normal;
+        self.filter_string.clear();
+    }
+
     pub fn toggle_multi_selection(&mut self, index: usize) {
         if let Some(name) = self.files.get(index) {
             if name == ".." {
@@ -306,6 +316,9 @@ impl FilesView {
     }
 
     pub fn open_quick_view(&mut self, wrap_width: u16) {
+        if self.files.is_empty() {
+            return;
+        }
         let selected_file = self.files[self.selected].clone();
         let file_path = format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file);
 
@@ -357,7 +370,7 @@ impl FilesView {
     fn show_file_quick_view_text(&mut self, file_path: String, selected_file: &String, wrap_width: u16) {
         if let Ok(content) = fs::read_to_string(&file_path) {
             // TODO: předávat asi přímo Reader namísto celého filu ve stringu
-            let width = wrap_width.saturating_sub(4).max(20) as usize;
+            let width = wrap_width.saturating_sub(4).max(MIN_WRAP_WIDTH) as usize;
             let lines: Vec<String> = textwrap::wrap(&content, width)
                 .into_iter()
                 .map(|line| line.to_string())
@@ -453,25 +466,30 @@ impl FilesView {
         lines.push(format!("Size (files only): {}", Self::human_readable_size(total_size)));
         lines.push(String::new());
 
-        let preview_limit = 20usize;
         if !dirs.is_empty() {
             lines.push("Directories:".into());
-            for dir in dirs.iter().take(preview_limit) {
+            for dir in dirs.iter().take(DIRECTORY_PREVIEW_LIMIT) {
                 lines.push(format!("{}/", dir));
             }
-            if dirs.len() > preview_limit {
-                lines.push(format!("... and {} more", dirs.len() - preview_limit));
+            if dirs.len() > DIRECTORY_PREVIEW_LIMIT {
+                lines.push(format!(
+                    "... and {} more",
+                    dirs.len() - DIRECTORY_PREVIEW_LIMIT
+                ));
             }
             lines.push(String::new());
         }
 
         if !files.is_empty() {
             lines.push("Files:".into());
-            for file in files.iter().take(preview_limit) {
+            for file in files.iter().take(DIRECTORY_PREVIEW_LIMIT) {
                 lines.push(file.to_string());
             }
-            if files.len() > preview_limit {
-                lines.push(format!("... and {} more", files.len() - preview_limit));
+            if files.len() > DIRECTORY_PREVIEW_LIMIT {
+                lines.push(format!(
+                    "... and {} more",
+                    files.len() - DIRECTORY_PREVIEW_LIMIT
+                ));
             }
         }
 

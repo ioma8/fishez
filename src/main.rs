@@ -16,6 +16,17 @@ use terminal_ui::ActivePane;
 use std::env;
 
 fn main() {
+    std::panic::set_hook(Box::new(|panic_info| {
+        use std::io::Write;
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("err.txt")
+        {
+            let _ = writeln!(file, "panic: {:?}", panic_info);
+        }
+    }));
+
     let two_pane = env::args().any(|arg| arg == "--two-pane" || arg == "-2");
     let (sender, receiver) = mpsc::channel::<Message>();
     let mut ui = TerminalUI::new(sender.clone());
@@ -89,7 +100,7 @@ fn main() {
                             ActivePane::Right => &mut right_files_view,
                         };
                         active_view.clear_notification_force();
-                        active_view.files = files;
+                        active_view.replace_files(files);
                         ui.draw_ui_two_panes(
                             &mut left_files_view,
                             &mut right_files_view,
@@ -97,7 +108,7 @@ fn main() {
                         );
                     } else {
                         left_files_view.clear_notification_force();
-                        left_files_view.files = files;
+                        left_files_view.replace_files(files);
                         ui.draw_ui(&mut left_files_view);
                     }
                 }
@@ -117,9 +128,21 @@ fn handle_key_event_two_panes(
         return;
     }
 
+    if ui.show_help {
+        if matches!(event.code, KeyCode::F(1) | KeyCode::Esc) {
+            ui.show_help = false;
+        }
+        return;
+    }
+
     if handle_quit(event) {
         ui.reset_terminal();
         exit(0);
+    }
+
+    if matches!(event.code, KeyCode::F(1)) {
+        ui.show_help = !ui.show_help;
+        return;
     }
 
     if event.code == KeyCode::Tab {
@@ -151,9 +174,21 @@ fn handle_key_event_single(files_view: &mut FilesView, event: KeyEvent, ui: &mut
         return;
     }
 
+    if ui.show_help {
+        if matches!(event.code, KeyCode::F(1) | KeyCode::Esc) {
+            ui.show_help = false;
+        }
+        return;
+    }
+
     if handle_quit(event) {
         ui.reset_terminal();
         exit(0);
+    }
+
+    if matches!(event.code, KeyCode::F(1)) {
+        ui.show_help = !ui.show_help;
+        return;
     }
 
     if ui.handle_features_shortcuts(event, files_view) {

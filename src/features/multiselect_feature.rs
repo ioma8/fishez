@@ -85,7 +85,11 @@ impl FeatureTrait for MultiSelectFeature {
         }
     }
 
-    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
-        actions.push("[space]select");
+    fn footer_help(&self) -> Vec<String> {
+        vec!["[space]select".into()]
+    }
+
+    fn overlay_help(&self) -> Vec<(String, String)> {
+        vec![("Space".into(), "Toggle selection for batch actions".into())]
     }
 }

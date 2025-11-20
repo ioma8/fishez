@@ -45,6 +45,10 @@ impl FeatureTrait for VsCodeFeature {
         files_view: &mut FilesView,
         _: &Sender<Message>,
     ) -> bool {
+        if files_view.files.is_empty() || files_view.selected >= files_view.files.len() {
+            return false;
+        }
+
         let selected_file = &files_view.files[files_view.selected];
         if selected_file == ".." {
             return false;
@@ -60,7 +64,11 @@ impl FeatureTrait for VsCodeFeature {
         false
     }
 
-    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
-        actions.push("[f4]edit");
+    fn footer_help(&self) -> Vec<String> {
+        vec!["[f4]edit".into()]
+    }
+
+    fn overlay_help(&self) -> Vec<(String, String)> {
+        vec![("F4".into(), "Open in VS Code".into())]
     }
 }

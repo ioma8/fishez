@@ -106,7 +106,11 @@ impl FeatureTrait for DeleteFeature {
         false
     }
 
-    fn modify_footer_actions(&self, actions: &mut Vec<&str>) {
-        actions.push("[ctrl+w]delete");
+    fn footer_help(&self) -> Vec<String> {
+        vec!["[ctrl+w]delete".into()]
+    }
+
+    fn overlay_help(&self) -> Vec<(String, String)> {
+        vec![("Ctrl+W".into(), "Delete selected/current to trash".into())]
     }
 }

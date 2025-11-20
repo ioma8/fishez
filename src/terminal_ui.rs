@@ -28,7 +28,6 @@ pub trait FeatureTrait {
     fn drawn_footer(&self, _files_view: &FilesView, _terminal_ui: &TerminalUI) -> bool {
         false
     }
-    fn modify_footer_actions(&self, _actions: &mut Vec<&str>) {}
     fn map_item(
         &self,
         item: StyledContent<String>,
@@ -36,6 +35,12 @@ pub trait FeatureTrait {
         _files_view: &FilesView,
     ) -> StyledContent<String> {
         item
+    }
+    fn footer_help(&self) -> Vec<String> {
+        vec![]
+    }
+    fn overlay_help(&self) -> Vec<(String, String)> {
+        vec![]
     }
 }
 
@@ -45,7 +50,11 @@ pub struct TerminalUI {
     features: Vec<Box<dyn FeatureTrait>>,
     pub stdout: std::io::Stdout,
     pub sender: Sender<Message>,
+    pub show_help: bool,
 }
+
+const HELP_OVERLAY_START_ROW: u16 = 3;
+const HELP_OVERLAY_COL_GAP: usize = 4;
 
 #[derive(Debug)]
 pub enum Message {
@@ -69,6 +78,7 @@ impl TerminalUI {
             stdout: std::io::stdout(),
             features: vec![],
             sender,
+            show_help: false,
         }
     }
 
@@ -118,6 +128,7 @@ impl TerminalUI {
     }
 
     pub fn draw_ui(&mut self, files_view: &mut FilesView) {
+        Self::clamp_view(files_view);
         files_view.clear_notification();
         let _ = queue!(&self.stdout, cursor::DisableBlinking, cursor::Hide);
 
@@ -139,6 +150,10 @@ impl TerminalUI {
 
         self.draw_footer_actions(files_view);
 
+        if self.show_help {
+            self.draw_help_overlay();
+        }
+
         let _ = &self.stdout.flush();
     }
 
@@ -148,6 +163,8 @@ impl TerminalUI {
         right: &mut FilesView,
         active: ActivePane,
     ) {
+        Self::clamp_view(left);
+        Self::clamp_view(right);
         left.clear_notification();
         right.clear_notification();
         let _ = queue!(&self.stdout, cursor::DisableBlinking, cursor::Hide);
@@ -179,6 +196,9 @@ impl TerminalUI {
         };
         self.draw_default_footer(active_for_footer);
         self.draw_footer_actions(active_for_footer);
+        if self.show_help {
+            self.draw_help_overlay();
+        }
         let _ = &self.stdout.flush();
     }
 
@@ -186,7 +206,11 @@ impl TerminalUI {
         let _ = queue!(&self.stdout, cursor::MoveTo(0, 0));
 
         let left = if let FilesViewMode::QuickView(_) = files_view.mode {
-            format!("Viewing: {}", &files_view.files[files_view.selected]).with(Color::Cyan)
+            if files_view.selected < files_view.files.len() {
+                format!("Viewing: {}", &files_view.files[files_view.selected]).with(Color::Cyan)
+            } else {
+                "Viewing".to_string().with(Color::Cyan)
+            }
         } else {
             format!("PWD: {}", files_view.pwd).with(Color::Cyan)
         };
@@ -364,6 +388,90 @@ impl TerminalUI {
         }
     }
 
+    fn clamp_view(view: &mut FilesView) {
+        if !view.files.is_empty() {
+            view.selected = view.selected.min(view.files.len() - 1);
+            view.start = view.start.min(view.selected);
+        } else {
+            view.selected = 0;
+            view.start = 0;
+        }
+    }
+
+    fn actions_width(&self, actions: &[String], sep_len: usize) -> usize {
+        if actions.is_empty() {
+            return 0;
+        }
+        actions.iter().map(|a| a.len()).sum::<usize>() + sep_len * (actions.len() - 1)
+    }
+
+    fn draw_help_overlay(&mut self) {
+        let mut entries: Vec<(String, String)> = vec![
+            ("F1".into(), "Toggle help overlay".into()),
+            ("Arrows".into(), "Navigate".into()),
+            ("Enter".into(), "Open dir/file".into()),
+            ("Backspace".into(), "Go up one level".into()),
+            ("F3".into(), "Quick view (text/images/dirs)".into()),
+            ("Space".into(), "Toggle selection (batch delete)".into()),
+            ("Ctrl+W".into(), "Delete selected/current".into()),
+            ("Tab".into(), "Switch pane (two-pane)".into()),
+            ("Esc".into(), "Cancel filter/close view".into()),
+            ("F10/Ctrl+C".into(), "Quit".into()),
+        ];
+        for feature in &self.features {
+            entries.extend(feature.overlay_help());
+        }
+
+        let title = "Keyboard shortcuts";
+        let col_gap = HELP_OVERLAY_COL_GAP;
+        // Extra padding for the overlay box (left/right margin)
+        const OVERLAY_PADDING: usize = 4;
+        let max_key = entries.iter().map(|(k, _)| k.len()).max().unwrap_or(0);
+        let max_desc = entries.iter().map(|(_, d)| d.len()).max().unwrap_or(0);
+        let total_width =
+            (max_key + col_gap + max_desc + OVERLAY_PADDING).min(self.columns as usize);
+        let start_col = ((self.columns as usize).saturating_sub(total_width)) / 2;
+
+        let start_row = HELP_OVERLAY_START_ROW;
+        let _ = queue!(
+            &self.stdout,
+            cursor::MoveTo(0, start_row),
+            terminal::Clear(ClearType::FromCursorDown)
+        );
+
+        // Title
+        let _ = queue!(
+            &self.stdout,
+            cursor::MoveTo(start_col as u16, start_row),
+            Print(title.with(Color::Cyan).attribute(crossterm::style::Attribute::Bold))
+        );
+
+        // Separator
+        let sep = "─".repeat(total_width.min(self.columns as usize));
+        let _ = queue!(
+            &self.stdout,
+            cursor::MoveTo(start_col as u16, start_row + 1),
+            Print(sep.with(Color::Blue))
+        );
+
+        // Entries
+        let mut row = start_row + 2;
+        for (key, desc) in entries {
+            if row as u16 >= self.rows.saturating_sub(1) {
+                break;
+            }
+            let padded_key = format!("{:width$}", key, width = max_key);
+            let _ = queue!(
+                &self.stdout,
+                cursor::MoveTo(start_col as u16, row as u16),
+                Print(padded_key.with(Color::Yellow)),
+                cursor::MoveTo((start_col + max_key + col_gap) as u16, row as u16),
+                Print(desc.with(Color::Green))
+            );
+            row += 1;
+        }
+    }
+
     fn draw_files_list_two_panes(
         &mut self,
         left: &FilesView,
@@ -518,16 +626,30 @@ impl TerminalUI {
         }
     }
 
-    fn get_footer_actions_by_mode(&self, mode: &FilesViewMode) -> Vec<&str> {
+    fn get_footer_actions_by_mode(&self, mode: &FilesViewMode) -> Vec<String> {
         match mode {
-            FilesViewMode::Normal => vec!["[f3]view"],
-            FilesViewMode::Filter => vec!["[f3]view", "[f4]edit", "[esc]clear"],
+            FilesViewMode::Normal => vec![
+                "[f1]help".into(),
+                "[enter]open".into(),
+                "[backspace]up".into(),
+                "[f3]quick view".into(),
+                "[space]select".into(),
+                "[tab]switch pane".into(),
+                "[f10]quit".into(),
+            ],
+            FilesViewMode::Filter => vec![
+                "[f1]help".into(),
+                "[enter]open".into(),
+                "[esc]clear".into(),
+                "[f3]quick view".into(),
+                "[f10]quit".into(),
+            ],
             FilesViewMode::QuickView(_) => vec![
-                "[up]scroll up",
-                "[down]scroll down",
-                "[left]previous file",
-                "[right]next file",
-                "[f3]close view",
+                "[f1]help".into(),
+                "[up/down]scroll".into(),
+                "[pgup/pgdn]page".into(),
+                "[left/right]prev/next".into(),
+                "[f3]close view".into(),
             ],
         }
     }
@@ -553,7 +675,11 @@ impl TerminalUI {
                 .iter()
                 .filter(|name| name.ends_with(MAIN_SEPARATOR))
                 .count();
-            let total_files = files_view.files.len() - total_dirs - 1;
+            let total_files = files_view
+                .files
+                .len()
+                .saturating_sub(total_dirs)
+                .saturating_sub(1);
             format!("{} dirs, {} files", total_dirs, total_files).with(Color::Green)
         };
 
@@ -568,23 +694,50 @@ impl TerminalUI {
     fn draw_footer_actions(&self, files_view: &FilesView) {
         let mut actions = self.get_footer_actions_by_mode(&files_view.mode);
 
-        // TODO: rewrite quickview to be a feature
-        if !matches!(&files_view.mode, FilesViewMode::QuickView(_)) {
-            self.features.iter().for_each(|feature| {
-                feature.modify_footer_actions(&mut actions);
-            });
+        // Let features append their own hints (skip QuickView to avoid stale hints).
+        if !matches!(files_view.mode, FilesViewMode::QuickView(_)) {
+            for feature in &self.features {
+                actions.extend(feature.footer_help());
+            }
         }
-        actions.push("[f10]quit");
 
-        let actions_str = actions.join("");
-        // Avoid underflow or division by zero on narrow terminals.
+        while self.actions_width(&actions, 0) > self.columns as usize && actions.len() > 1 {
+            actions.pop();
+        }
+
+        if actions.is_empty() {
+            return;
+        }
+
         let available = self.columns as usize;
-        let padding = if actions.len() > 1 && available > actions_str.len() {
-            (available - actions_str.len()) / (actions.len() - 1)
+        let content_width: usize = actions.iter().map(|a| a.len()).sum();
+
+        let mut rendered = String::new();
+        if actions.len() == 1 {
+            let pad = available.saturating_sub(content_width) / 2;
+            rendered.push_str(&" ".repeat(pad));
+            rendered.push_str(&actions[0]);
         } else {
-            1
-        };
-        let actions_row = actions.join(&" ".repeat(padding.max(1))).with(Color::Green);
+            let gaps = actions.len() - 1;
+            let extra_space = available.saturating_sub(content_width);
+            let base_spacing = extra_space / gaps;
+            let remainder = extra_space % gaps;
+
+            for (idx, action) in actions.iter().enumerate() {
+                rendered.push_str(action);
+                if idx + 1 < actions.len() {
+                    let bonus = if idx < remainder { 1 } else { 0 };
+                    let spacing = base_spacing + bonus;
+                    rendered.push_str(&" ".repeat(spacing.max(1)));
+                }
+            }
+        }
+
+        let actions_row = rendered
+            .chars()
+            .take(self.columns as usize)
+            .collect::<String>()
+            .with(Color::Green);
 
         let _ = queue!(
             &self.stdout,
@@ -603,7 +756,6 @@ impl TerminalUI {
     }
 
     pub fn reset_terminal(&mut self) {
-        println!("Dropping TerminalUI, restoring terminal state...");
         let _ = queue!(
             &self.stdout,
             cursor::MoveTo(0, 0),
@@ -611,6 +763,7 @@ impl TerminalUI {
             cursor::EnableBlinking,
             terminal::Clear(ClearType::All)
         );
+        let _ = terminal::disable_raw_mode();
         let _ = &self.stdout.flush();
     }
 }
