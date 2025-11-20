@@ -10,7 +10,12 @@ use crate::{
     files_view::{FilesView, FOOTER_ROWS},
     terminal_ui::{FeatureTrait, Message, TerminalUI},
 };
-use std::{process::Command, sync::mpsc::Sender, thread};
+use std::{
+    path::{Path, MAIN_SEPARATOR},
+    process::Command,
+    sync::mpsc::Sender,
+    thread,
+};
 
 pub struct FindFeature {
     filter: Option<String>,
@@ -43,7 +48,18 @@ impl FindFeature {
         if let Ok(output) = output {
             if output.status.success() {
                 let result = String::from_utf8_lossy(&output.stdout);
-                return result.lines().map(|s| s.to_string()).collect();
+                return result
+                    .lines()
+                    .map(|s| s.to_string())
+                    .map(|rel| {
+                        let abs = Path::new(dir).join(&rel);
+                        if abs.is_dir() {
+                            format!("{}{}", rel, MAIN_SEPARATOR)
+                        } else {
+                            rel
+                        }
+                    })
+                    .collect();
             }
         }
         Vec::new()
@@ -60,8 +76,13 @@ impl FindFeature {
                 let mut results = Vec::new();
                 let result_str = String::from_utf8_lossy(&output.stdout);
                 for line in result_str.lines() {
+                    let abs_path = Path::new(line);
                     let path_relative = line.trim_start_matches(dir);
-                    results.push(path_relative.to_string());
+                    if abs_path.is_dir() {
+                        results.push(format!("{}{}", path_relative, MAIN_SEPARATOR));
+                    } else {
+                        results.push(path_relative.to_string());
+                    }
                 }
                 return results;
             }
