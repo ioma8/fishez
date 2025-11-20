@@ -421,7 +421,7 @@ impl TerminalUI {
             } => {
                 self.draw_text_content(content, *start, rows_available);
             }
-            QuickViewMode::Image(data, bytes) => {
+            QuickViewMode::Image(_data, bytes) => {
                 let encoded = iterm2img::from_bytes(bytes.to_vec())
                     .width(self.columns as u64)
                     .height(rows_available as u64)
@@ -442,12 +442,12 @@ impl TerminalUI {
                 self.draw_text_content(lines, 0, rows_available);
             }
             _ => {
-                self.draw_text_content(&vec!["".into()], 0, rows_available);
+                self.draw_text_content(&["".into()], 0, rows_available);
             }
         }
     }
 
-    fn draw_text_content(&self, content: &Vec<String>, start: usize, rows_available: u16) {
+    fn draw_text_content(&self, content: &[String], start: usize, rows_available: u16) {
         let content_to_display = content[start..].iter().take(rows_available as usize);
         let _ = queue!(&self.stdout, cursor::MoveTo(0, HEADER_ROWS));
         for line in content_to_display {
@@ -470,6 +470,7 @@ impl TerminalUI {
         }
     }
 
+    #[allow(dead_code)]
     fn draw_image_content(&mut self, data: ImageBuffer<image::Rgb<u8>, Vec<u8>>) {
         let (orig_width, orig_height) = data.dimensions();
         let (new_width, new_height) = self.calculate_aspect_ratio_fit(orig_width * 2, orig_height);
@@ -506,6 +507,7 @@ impl TerminalUI {
         }
     }
 
+    #[allow(dead_code)]
     fn calculate_aspect_ratio_fit(&self, orig_width: u32, orig_height: u32) -> (u32, u32) {
         let max_width = self.columns as u32;
         let max_height = (self.rows - HEADER_ROWS - FOOTER_ROWS) as u32;

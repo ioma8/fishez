@@ -17,7 +17,6 @@ use little_exif::metadata::Metadata;
 
 use image::DynamicImage;
 use image::ImageBuffer;
-use textwrap;
 
 use crate::logger::log;
 
@@ -222,11 +221,10 @@ impl FilesView {
     }
 
     pub fn toggle_multi_selection(&mut self, index: usize) {
-        if let Some(name) = self.files.get(index) {
-            if name == ".." {
+        if let Some(name) = self.files.get(index)
+            && name == ".." {
                 return;
             }
-        }
 
         if self.multi_selected.contains(&index) {
             self.multi_selected.remove(&index);
