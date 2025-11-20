@@ -190,14 +190,8 @@ fn handle_normal_navigation(files_view: &mut FilesView, event: KeyEvent, rows: u
 }
 
 fn handle_quit(event: KeyEvent) -> bool {
-    if (KeyCode::F(10) == event.code)
-        || (KeyCode::Char('c') == event.code
+    (KeyCode::F(10) == event.code) || (KeyCode::Char('c') == event.code
             && event.modifiers.contains(event::KeyModifiers::CONTROL))
-    {
-        true
-    } else {
-        false
-    }
 }
 
 fn handle_normal_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16, cols: u16) {
@@ -242,5 +236,35 @@ fn handle_quick_view_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16
         }
         KeyCode::Esc | KeyCode::F(3) => files_view.mode = FilesViewMode::Normal,
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_handle_quit_f10() {
+        let event = KeyEvent::new(KeyCode::F(10), KeyModifiers::empty());
+        assert!(handle_quit(event));
+    }
+
+    #[test]
+    fn test_handle_quit_ctrl_c() {
+        let event = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL);
+        assert!(handle_quit(event));
+    }
+
+    #[test]
+    fn test_handle_quit_normal_key() {
+        let event = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::empty());
+        assert!(!handle_quit(event));
+    }
+
+    #[test]
+    fn test_handle_quit_c_without_ctrl() {
+        let event = KeyEvent::new(KeyCode::Char('c'), KeyModifiers::empty());
+        assert!(!handle_quit(event));
     }
 }

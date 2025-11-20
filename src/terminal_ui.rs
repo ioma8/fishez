@@ -421,7 +421,7 @@ impl TerminalUI {
             } => {
                 self.draw_text_content(content, *start, rows_available);
             }
-            QuickViewMode::Image(data, bytes) => {
+            QuickViewMode::Image(_data, bytes) => {
                 let encoded = iterm2img::from_bytes(bytes.to_vec())
                     .width(self.columns as u64)
                     .height(rows_available as u64)
@@ -442,12 +442,12 @@ impl TerminalUI {
                 self.draw_text_content(lines, 0, rows_available);
             }
             _ => {
-                self.draw_text_content(&vec!["".into()], 0, rows_available);
+                self.draw_text_content(&["".into()], 0, rows_available);
             }
         }
     }
 
-    fn draw_text_content(&self, content: &Vec<String>, start: usize, rows_available: u16) {
+    fn draw_text_content(&self, content: &[String], start: usize, rows_available: u16) {
         let content_to_display = content[start..].iter().take(rows_available as usize);
         let _ = queue!(&self.stdout, cursor::MoveTo(0, HEADER_ROWS));
         for line in content_to_display {
@@ -470,6 +470,7 @@ impl TerminalUI {
         }
     }
 
+    #[allow(dead_code)]
     fn draw_image_content(&mut self, data: ImageBuffer<image::Rgb<u8>, Vec<u8>>) {
         let (orig_width, orig_height) = data.dimensions();
         let (new_width, new_height) = self.calculate_aspect_ratio_fit(orig_width * 2, orig_height);
@@ -506,6 +507,7 @@ impl TerminalUI {
         }
     }
 
+    #[allow(dead_code)]
     fn calculate_aspect_ratio_fit(&self, orig_width: u32, orig_height: u32) -> (u32, u32) {
         let max_width = self.columns as u32;
         let max_height = (self.rows - HEADER_ROWS - FOOTER_ROWS) as u32;
@@ -618,5 +620,93 @@ impl TerminalUI {
 impl Drop for TerminalUI {
     fn drop(&mut self) {
         self.reset_terminal();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_active_pane_enum() {
+        let left = ActivePane::Left;
+        let right = ActivePane::Right;
+        
+        // Test that enums are distinct
+        assert!(matches!(left, ActivePane::Left));
+        assert!(matches!(right, ActivePane::Right));
+        assert!(!matches!(left, ActivePane::Right));
+        assert!(!matches!(right, ActivePane::Left));
+    }
+
+    #[test]
+    fn test_active_pane_switching() {
+        let mut active = ActivePane::Left;
+        
+        // Simulate Tab key switching
+        active = match active {
+            ActivePane::Left => ActivePane::Right,
+            ActivePane::Right => ActivePane::Left,
+        };
+        assert!(matches!(active, ActivePane::Right));
+        
+        // Switch back
+        active = match active {
+            ActivePane::Left => ActivePane::Right,
+            ActivePane::Right => ActivePane::Left,
+        };
+        assert!(matches!(active, ActivePane::Left));
+    }
+
+    #[test]
+    fn test_truncate_plain() {
+        let (sender, _receiver) = std::sync::mpsc::channel::<Message>();
+        let ui = TerminalUI::new(sender);
+        
+        // Test text shorter than width
+        let result = ui.truncate_plain("hello", 10);
+        assert_eq!(result, "hello");
+        
+        // Test text equal to width
+        let result = ui.truncate_plain("hello", 5);
+        assert_eq!(result, "hello");
+        
+        // Test text longer than width
+        let result = ui.truncate_plain("hello world", 8);
+        assert_eq!(result, "hello w…");
+        
+        // Test with width 1 (edge case)
+        let result = ui.truncate_plain("hello", 1);
+        assert_eq!(result, "hello");
+        
+        // Test with width 2
+        let result = ui.truncate_plain("hello", 2);
+        assert_eq!(result, "h…");
+    }
+
+    #[test]
+    fn test_truncate_styled() {
+        let (sender, _receiver) = std::sync::mpsc::channel::<Message>();
+        let ui = TerminalUI::new(sender);
+        
+        // Test styled content shorter than width
+        let styled = "hello".to_string().with(Color::Cyan);
+        let result = ui.truncate_styled(styled, 10);
+        assert_eq!(result.content(), "hello");
+        
+        // Test styled content longer than width
+        let styled = "hello world".to_string().with(Color::Cyan);
+        let result = ui.truncate_styled(styled, 8);
+        assert_eq!(result.content(), "hello w…");
+        assert_eq!(result.style().foreground_color, Some(Color::Cyan));
+    }
+
+    #[test]
+    fn test_message_enum() {
+        let files = vec!["file1.txt".to_string(), "file2.txt".to_string()];
+        let message = Message::DrawFiles(files.clone());
+        
+        let Message::DrawFiles(received_files) = message;
+        assert_eq!(received_files, files);
     }
 }
