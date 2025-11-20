@@ -163,21 +163,22 @@ impl FilesView {
         self.update();
     }
 
-    pub fn scroll_content(&mut self, direction: isize) {
+    pub fn scroll_content(&mut self, direction: isize, rows: u16) {
         if let FilesViewMode::QuickView(QuickViewMode::Text {
             lines,
             start,
             length,
         }) = &self.mode
         {
-            let new_start = *start as isize + direction;
-            if new_start >= 0 && (new_start as usize) < *length {
-                self.mode = FilesViewMode::QuickView(QuickViewMode::Text {
-                    lines: lines.clone(),
-                    start: new_start as usize,
-                    length: *length,
-                });
-            }
+            let visible_rows = rows.saturating_sub(HEADER_ROWS + FOOTER_ROWS) as usize;
+            let max_start = length.saturating_sub(visible_rows.max(1));
+            let new_start = (*start as isize + direction).clamp(0, max_start as isize) as usize;
+
+            self.mode = FilesViewMode::QuickView(QuickViewMode::Text {
+                lines: lines.clone(),
+                start: new_start,
+                length: *length,
+            });
         }
     }
 
@@ -250,8 +251,10 @@ impl FilesView {
         let mut indexes: Vec<usize> = self.multi_selected.iter().copied().collect();
         indexes.sort_unstable();
 
+        let len = self.files.len();
         indexes
             .into_iter()
+            .filter(|idx| *idx < len)
             .filter_map(|idx| self.files.get(idx))
             .filter(|name| *name != "..")
             .map(|name| format!("{}{}{}", self.pwd, MAIN_SEPARATOR, name))
@@ -302,11 +305,11 @@ impl FilesView {
         }
     }
 
-    pub fn open_quick_view(&mut self) {
+    pub fn open_quick_view(&mut self, wrap_width: u16) {
         let selected_file = self.files[self.selected].clone();
         let file_path = format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file);
 
-        self.show_file_quick_view(file_path, &selected_file);
+        self.show_file_quick_view(file_path, &selected_file, wrap_width);
     }
 
     fn get_type_from_path(&self, file_path: &String) -> FileType {
@@ -330,7 +333,7 @@ impl FilesView {
         }
     }
 
-    fn show_file_quick_view(&mut self, file_path: String, selected_file: &String) {
+    fn show_file_quick_view(&mut self, file_path: String, selected_file: &String, wrap_width: u16) {
         let meta = fs::metadata(&file_path).is_ok();
 
         if !meta {
@@ -345,16 +348,17 @@ impl FilesView {
 
         let ftype = self.get_type_from_path(&file_path);
         match ftype {
-            FileType::Text => self.show_file_quick_view_text(file_path.clone(), selected_file),
+            FileType::Text => self.show_file_quick_view_text(file_path.clone(), selected_file, wrap_width),
             FileType::Image => self.show_file_quick_view_image(file_path.clone()),
             _ => self.show_file_quick_view_not_supported(file_path.clone()),
         }
     }
 
-    fn show_file_quick_view_text(&mut self, file_path: String, selected_file: &String) {
+    fn show_file_quick_view_text(&mut self, file_path: String, selected_file: &String, wrap_width: u16) {
         if let Ok(content) = fs::read_to_string(&file_path) {
             // TODO: předávat asi přímo Reader namísto celého filu ve stringu
-            let lines: Vec<String> = textwrap::wrap(&content, 50)
+            let width = wrap_width.saturating_sub(4).max(20) as usize;
+            let lines: Vec<String> = textwrap::wrap(&content, width)
                 .into_iter()
                 .map(|line| line.to_string())
                 .collect();
