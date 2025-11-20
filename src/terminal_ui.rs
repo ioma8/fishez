@@ -125,6 +125,7 @@ impl TerminalUI {
     }
 
     pub fn draw_ui(&mut self, files_view: &mut FilesView) {
+        Self::clamp_view(files_view);
         files_view.clear_notification();
         let _ = queue!(&self.stdout, cursor::DisableBlinking, cursor::Hide);
 
@@ -159,6 +160,8 @@ impl TerminalUI {
         right: &mut FilesView,
         active: ActivePane,
     ) {
+        Self::clamp_view(left);
+        Self::clamp_view(right);
         left.clear_notification();
         right.clear_notification();
         let _ = queue!(&self.stdout, cursor::DisableBlinking, cursor::Hide);
@@ -375,6 +378,16 @@ impl TerminalUI {
             truncated
         } else {
             text.to_string()
+        }
+    }
+
+    fn clamp_view(view: &mut FilesView) {
+        if !view.files.is_empty() {
+            view.selected = view.selected.min(view.files.len() - 1);
+            view.start = view.start.min(view.selected);
+        } else {
+            view.selected = 0;
+            view.start = 0;
         }
     }
 

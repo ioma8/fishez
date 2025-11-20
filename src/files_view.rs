@@ -221,6 +221,14 @@ impl FilesView {
         }
     }
 
+    pub fn replace_files(&mut self, files: Vec<String>) {
+        self.files = files;
+        self.selected = 0;
+        self.start = 0;
+        self.mode = FilesViewMode::Normal;
+        self.filter_string.clear();
+    }
+
     pub fn toggle_multi_selection(&mut self, index: usize) {
         if let Some(name) = self.files.get(index) {
             if name == ".." {

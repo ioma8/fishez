@@ -89,7 +89,7 @@ fn main() {
                             ActivePane::Right => &mut right_files_view,
                         };
                         active_view.clear_notification_force();
-                        active_view.files = files;
+                        active_view.replace_files(files);
                         ui.draw_ui_two_panes(
                             &mut left_files_view,
                             &mut right_files_view,
@@ -97,7 +97,7 @@ fn main() {
                         );
                     } else {
                         left_files_view.clear_notification_force();
-                        left_files_view.files = files;
+                        left_files_view.replace_files(files);
                         ui.draw_ui(&mut left_files_view);
                     }
                 }
