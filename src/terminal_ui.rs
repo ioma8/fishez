@@ -688,7 +688,6 @@ impl TerminalUI {
     }
 
     pub fn reset_terminal(&mut self) {
-        println!("Dropping TerminalUI, restoring terminal state...");
         let _ = queue!(
             &self.stdout,
             cursor::MoveTo(0, 0),
@@ -696,6 +695,7 @@ impl TerminalUI {
             cursor::EnableBlinking,
             terminal::Clear(ClearType::All)
         );
+        let _ = terminal::disable_raw_mode();
         let _ = &self.stdout.flush();
     }
 }
