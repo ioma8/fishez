@@ -400,9 +400,11 @@ impl TerminalUI {
 
         let title = "Keyboard shortcuts";
         let col_gap = 4;
+        // Extra padding for the overlay box (left/right margin)
+        const OVERLAY_PADDING: usize = 4;
         let max_key = entries.iter().map(|(k, _)| k.len()).max().unwrap_or(0);
         let max_desc = entries.iter().map(|(_, d)| d.len()).max().unwrap_or(0);
-        let total_width = (max_key + col_gap + max_desc + 4).min(self.columns as usize);
+        let total_width = (max_key + col_gap + max_desc + OVERLAY_PADDING).min(self.columns as usize);
         let start_col = ((self.columns as usize).saturating_sub(total_width)) / 2;
 
         let start_row = 3;
