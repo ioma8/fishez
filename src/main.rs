@@ -16,6 +16,17 @@ use terminal_ui::ActivePane;
 use std::env;
 
 fn main() {
+    std::panic::set_hook(Box::new(|panic_info| {
+        use std::io::Write;
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("err.txt")
+        {
+            let _ = writeln!(file, "panic: {:?}", panic_info);
+        }
+    }));
+
     let two_pane = env::args().any(|arg| arg == "--two-pane" || arg == "-2");
     let (sender, receiver) = mpsc::channel::<Message>();
     let mut ui = TerminalUI::new(sender.clone());

@@ -203,7 +203,11 @@ impl TerminalUI {
         let _ = queue!(&self.stdout, cursor::MoveTo(0, 0));
 
         let left = if let FilesViewMode::QuickView(_) = files_view.mode {
-            format!("Viewing: {}", &files_view.files[files_view.selected]).with(Color::Cyan)
+            if files_view.selected < files_view.files.len() {
+                format!("Viewing: {}", &files_view.files[files_view.selected]).with(Color::Cyan)
+            } else {
+                "Viewing".to_string().with(Color::Cyan)
+            }
         } else {
             format!("PWD: {}", files_view.pwd).with(Color::Cyan)
         };

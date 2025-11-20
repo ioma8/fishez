@@ -314,6 +314,9 @@ impl FilesView {
     }
 
     pub fn open_quick_view(&mut self, wrap_width: u16) {
+        if self.files.is_empty() {
+            return;
+        }
         let selected_file = self.files[self.selected].clone();
         let file_path = format!("{}{}{}", self.pwd, MAIN_SEPARATOR, selected_file);
 
