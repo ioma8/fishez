@@ -7,11 +7,11 @@ use crossterm::{
 };
 
 use crate::{
-    files_view::{FilesView, FOOTER_ROWS},
+    files_view::{FOOTER_ROWS, FilesView},
     terminal_ui::{FeatureTrait, Message, TerminalUI},
 };
 use std::{
-    path::{Path, MAIN_SEPARATOR},
+    path::{MAIN_SEPARATOR, Path},
     process::Command,
     sync::mpsc::Sender,
     thread,

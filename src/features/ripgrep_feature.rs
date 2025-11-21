@@ -7,7 +7,7 @@ use crossterm::{
 };
 
 use crate::{
-    files_view::{FilesView, FOOTER_ROWS},
+    files_view::{FOOTER_ROWS, FilesView},
     terminal_ui::{FeatureTrait, Message, TerminalUI},
 };
 use std::{process::Command, sync::mpsc::Sender};

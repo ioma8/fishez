@@ -3,8 +3,8 @@ use std::env;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
 use std::path::MAIN_SEPARATOR;
+use std::path::PathBuf;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -361,13 +361,20 @@ impl FilesView {
 
         let ftype = self.get_type_from_path(&file_path);
         match ftype {
-            FileType::Text => self.show_file_quick_view_text(file_path.clone(), selected_file, wrap_width),
+            FileType::Text => {
+                self.show_file_quick_view_text(file_path.clone(), selected_file, wrap_width)
+            }
             FileType::Image => self.show_file_quick_view_image(file_path.clone()),
             _ => self.show_file_quick_view_not_supported(file_path.clone()),
         }
     }
 
-    fn show_file_quick_view_text(&mut self, file_path: String, selected_file: &String, wrap_width: u16) {
+    fn show_file_quick_view_text(
+        &mut self,
+        file_path: String,
+        selected_file: &String,
+        wrap_width: u16,
+    ) {
         if let Ok(content) = fs::read_to_string(&file_path) {
             // TODO: předávat asi přímo Reader namísto celého filu ve stringu
             let width = wrap_width.saturating_sub(4).max(MIN_WRAP_WIDTH) as usize;
@@ -463,7 +470,10 @@ impl FilesView {
             dirs.len(),
             files.len()
         ));
-        lines.push(format!("Size (files only): {}", Self::human_readable_size(total_size)));
+        lines.push(format!(
+            "Size (files only): {}",
+            Self::human_readable_size(total_size)
+        ));
         lines.push(String::new());
 
         if !dirs.is_empty() {

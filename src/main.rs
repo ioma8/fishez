@@ -8,12 +8,12 @@ use features::{
     multiselect_feature::MultiSelectFeature, open_feature::OpenFeature,
     ripgrep_feature::RipGrepFeature, vscode_feature::VsCodeFeature,
 };
-use files_view::{FilesView, FilesViewMode, FOOTER_ROWS, HEADER_ROWS};
+use files_view::{FOOTER_ROWS, FilesView, FilesViewMode, HEADER_ROWS};
+use std::env;
 use std::{process::exit, sync::mpsc};
+use terminal_ui::ActivePane;
 use terminal_ui::Message;
 use terminal_ui::TerminalUI;
-use terminal_ui::ActivePane;
-use std::env;
 
 fn main() {
     std::panic::set_hook(Box::new(|panic_info| {
@@ -165,7 +165,9 @@ fn handle_key_event_two_panes(
     match &active_view.mode {
         FilesViewMode::Normal => handle_normal_mode(active_view, event, ui.rows, ui.columns),
         FilesViewMode::Filter => handle_filter_mode(active_view, event, ui.rows, ui.columns),
-        FilesViewMode::QuickView(_) => handle_quick_view_mode(active_view, event, ui.rows, ui.columns),
+        FilesViewMode::QuickView(_) => {
+            handle_quick_view_mode(active_view, event, ui.rows, ui.columns)
+        }
     }
 }
 
@@ -198,7 +200,9 @@ fn handle_key_event_single(files_view: &mut FilesView, event: KeyEvent, ui: &mut
     match &files_view.mode {
         FilesViewMode::Normal => handle_normal_mode(files_view, event, ui.rows, ui.columns),
         FilesViewMode::Filter => handle_filter_mode(files_view, event, ui.rows, ui.columns),
-        FilesViewMode::QuickView(_) => handle_quick_view_mode(files_view, event, ui.rows, ui.columns),
+        FilesViewMode::QuickView(_) => {
+            handle_quick_view_mode(files_view, event, ui.rows, ui.columns)
+        }
     }
 }
 

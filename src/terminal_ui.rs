@@ -229,7 +229,11 @@ impl TerminalUI {
     }
 
     fn draw_dual_header(&self, left: &FilesView, right: &FilesView, active: ActivePane) {
-        let _ = queue!(&self.stdout, cursor::MoveTo(0, 0), terminal::Clear(ClearType::UntilNewLine));
+        let _ = queue!(
+            &self.stdout,
+            cursor::MoveTo(0, 0),
+            terminal::Clear(ClearType::UntilNewLine)
+        );
         let pane_width = self.columns.saturating_sub(1) / 2;
 
         let (left_label, right_label) = match active {
@@ -343,11 +347,7 @@ impl TerminalUI {
         }
     }
 
-    fn styled_name_for_index(
-        &self,
-        files_view: &FilesView,
-        index: usize,
-    ) -> StyledContent<String> {
+    fn styled_name_for_index(&self, files_view: &FilesView, index: usize) -> StyledContent<String> {
         let file = &files_view.files[index];
         let name = if file.ends_with(MAIN_SEPARATOR) {
             file.to_string().yellow()
@@ -373,10 +373,7 @@ impl TerminalUI {
     fn truncate_styled(&self, item: StyledContent<String>, width: u16) -> StyledContent<String> {
         let text = item.content().clone();
         if text.len() as u16 > width && width > 1 {
-            let mut truncated = text
-                .chars()
-                .take((width - 1) as usize)
-                .collect::<String>();
+            let mut truncated = text.chars().take((width - 1) as usize).collect::<String>();
             truncated.push('…');
             item.style().apply(truncated)
         } else {
@@ -449,7 +446,11 @@ impl TerminalUI {
         let _ = queue!(
             &self.stdout,
             cursor::MoveTo(start_col as u16, start_row),
-            Print(title.with(Color::Cyan).attribute(crossterm::style::Attribute::Bold))
+            Print(
+                title
+                    .with(Color::Cyan)
+                    .attribute(crossterm::style::Attribute::Bold)
+            )
         );
 
         // Separator
@@ -501,7 +502,11 @@ impl TerminalUI {
             if left_index < left.files.len() {
                 let left_name = self.styled_name_for_index(left, left_index);
                 let left_trunc = self.truncate_styled(left_name, pane_width);
-                let _ = queue!(&self.stdout, cursor::MoveTo(0, screen_row), Print(left_trunc));
+                let _ = queue!(
+                    &self.stdout,
+                    cursor::MoveTo(0, screen_row),
+                    Print(left_trunc)
+                );
             }
 
             // separator
@@ -520,7 +525,11 @@ impl TerminalUI {
             if right_index < right.files.len() {
                 let right_name = self.styled_name_for_index(right, right_index);
                 let right_trunc = self.truncate_styled(right_name, pane_width.saturating_sub(1));
-                let _ = queue!(&self.stdout, cursor::MoveTo(right_col, screen_row), Print(right_trunc));
+                let _ = queue!(
+                    &self.stdout,
+                    cursor::MoveTo(right_col, screen_row),
+                    Print(right_trunc)
+                );
             }
         }
     }
@@ -632,7 +641,10 @@ impl TerminalUI {
         }
     }
 
-    fn get_footer_actions_by_mode(&self, mode: &FilesViewMode) -> Vec<(String, FooterActionsPosition)> {
+    fn get_footer_actions_by_mode(
+        &self,
+        mode: &FilesViewMode,
+    ) -> Vec<(String, FooterActionsPosition)> {
         match mode {
             FilesViewMode::Normal => vec![
                 ("[f1]help".into(), FooterActionsPosition::Start),
@@ -647,10 +659,22 @@ impl TerminalUI {
             ],
             FilesViewMode::QuickView(_) => vec![
                 ("[f1]help".into(), FooterActionsPosition::Start),
-                ("[up/down]scroll".into(), FooterActionsPosition::Nondetermined),
-                ("[pgup/pgdn]page".into(), FooterActionsPosition::Nondetermined),
-                ("[left/right]prev/next".into(), FooterActionsPosition::Nondetermined),
-                ("[f3]close view".into(), FooterActionsPosition::Nondetermined),
+                (
+                    "[up/down]scroll".into(),
+                    FooterActionsPosition::Nondetermined,
+                ),
+                (
+                    "[pgup/pgdn]page".into(),
+                    FooterActionsPosition::Nondetermined,
+                ),
+                (
+                    "[left/right]prev/next".into(),
+                    FooterActionsPosition::Nondetermined,
+                ),
+                (
+                    "[f3]close view".into(),
+                    FooterActionsPosition::Nondetermined,
+                ),
             ],
         }
     }
@@ -698,7 +722,12 @@ impl TerminalUI {
         // Let features append their own hints (skip QuickView to avoid stale hints).
         if !matches!(files_view.mode, FilesViewMode::QuickView(_)) {
             for feature in &self.features {
-                actions.extend(feature.footer_help().iter().map(|item|(item.clone(), FooterActionsPosition::Nondetermined)));
+                actions.extend(
+                    feature
+                        .footer_help()
+                        .iter()
+                        .map(|item| (item.clone(), FooterActionsPosition::Nondetermined)),
+                );
             }
         }
 
@@ -710,15 +739,15 @@ impl TerminalUI {
             return;
         }
 
-        actions.sort_by(|(a, pos_a), (b, pos_b)| {
-            match (pos_a, pos_b) {
-                (FooterActionsPosition::Start, FooterActionsPosition::Start) => a.cmp(b),
-                (FooterActionsPosition::Start, _) => std::cmp::Ordering::Less,
-                (_, FooterActionsPosition::Start) => std::cmp::Ordering::Greater,
-                (FooterActionsPosition::End, FooterActionsPosition::End) => a.cmp(b),
-                (FooterActionsPosition::End, _) => std::cmp::Ordering::Greater,
-                (_, FooterActionsPosition::End) => std::cmp::Ordering::Less,
-                (FooterActionsPosition::Nondetermined, FooterActionsPosition::Nondetermined) => a.cmp(b),
+        actions.sort_by(|(a, pos_a), (b, pos_b)| match (pos_a, pos_b) {
+            (FooterActionsPosition::Start, FooterActionsPosition::Start) => a.cmp(b),
+            (FooterActionsPosition::Start, _) => std::cmp::Ordering::Less,
+            (_, FooterActionsPosition::Start) => std::cmp::Ordering::Greater,
+            (FooterActionsPosition::End, FooterActionsPosition::End) => a.cmp(b),
+            (FooterActionsPosition::End, _) => std::cmp::Ordering::Greater,
+            (_, FooterActionsPosition::End) => std::cmp::Ordering::Less,
+            (FooterActionsPosition::Nondetermined, FooterActionsPosition::Nondetermined) => {
+                a.cmp(b)
             }
         });
 

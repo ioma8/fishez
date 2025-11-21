@@ -9,12 +9,11 @@ use crossterm::{
 };
 
 use crate::{
-    files_view::{FilesView, FilesViewMode, FOOTER_ROWS},
+    files_view::{FOOTER_ROWS, FilesView, FilesViewMode},
     terminal_ui::{FeatureTrait, Message, TerminalUI},
 };
 
-pub struct MultiSelectFeature {
-}
+pub struct MultiSelectFeature {}
 
 // TODO: tato featura neni jeste funkcni
 impl Default for MultiSelectFeature {

@@ -9,7 +9,7 @@ use crossterm::{
 };
 
 use crate::{
-    files_view::{FilesView, FOOTER_ROWS, HEADER_ROWS},
+    files_view::{FOOTER_ROWS, FilesView, HEADER_ROWS},
     terminal_ui::{FeatureTrait, Message, TerminalUI},
 };
 
