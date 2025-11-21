@@ -86,7 +86,7 @@ impl FeatureTrait for MultiSelectFeature {
     }
 
     fn footer_help(&self) -> Vec<String> {
-        vec!["[space]select".into()]
+        vec![]
     }
 
     fn overlay_help(&self) -> Vec<(String, String)> {

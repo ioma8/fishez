@@ -142,7 +142,7 @@ impl FeatureTrait for FavouritesFeature {
     }
 
     fn footer_help(&self) -> Vec<String> {
-        vec!["[ctrl+d]favourites".into()]
+        vec![]
     }
 
     fn overlay_help(&self) -> Vec<(String, String)> {

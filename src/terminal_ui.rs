@@ -67,6 +67,12 @@ pub enum ActivePane {
     Right,
 }
 
+enum FooterActionsPosition {
+    Start,
+    End,
+    Nondetermined,
+}
+
 impl TerminalUI {
     pub fn new(sender: Sender<Message>) -> Self {
         let (columns, rows) = terminal::size().expect("Error getting terminal size");
@@ -398,11 +404,11 @@ impl TerminalUI {
         }
     }
 
-    fn actions_width(&self, actions: &[String], sep_len: usize) -> usize {
+    fn actions_width(&self, actions: &[(String, FooterActionsPosition)], sep_len: usize) -> usize {
         if actions.is_empty() {
             return 0;
         }
-        actions.iter().map(|a| a.len()).sum::<usize>() + sep_len * (actions.len() - 1)
+        actions.iter().map(|(a, _)| a.len()).sum::<usize>() + sep_len * (actions.len() - 1)
     }
 
     fn draw_help_overlay(&mut self) {
@@ -412,8 +418,6 @@ impl TerminalUI {
             ("Enter".into(), "Open dir/file".into()),
             ("Backspace".into(), "Go up one level".into()),
             ("F3".into(), "Quick view (text/images/dirs)".into()),
-            ("Space".into(), "Toggle selection (batch delete)".into()),
-            ("Ctrl+W".into(), "Delete selected/current".into()),
             ("Tab".into(), "Switch pane (two-pane)".into()),
             ("Esc".into(), "Cancel filter/close view".into()),
             ("F10/Ctrl+C".into(), "Quit".into()),
@@ -421,6 +425,8 @@ impl TerminalUI {
         for feature in &self.features {
             entries.extend(feature.overlay_help());
         }
+
+        entries.sort_by_key(|(k, _)| k.clone());
 
         let title = "Keyboard shortcuts";
         let col_gap = HELP_OVERLAY_COL_GAP;
@@ -529,7 +535,7 @@ impl TerminalUI {
             } => {
                 self.draw_text_content(content, *start, rows_available);
             }
-            QuickViewMode::Image(data, bytes) => {
+            QuickViewMode::Image(_data, bytes) => {
                 let encoded = iterm2img::from_bytes(bytes.to_vec())
                     .width(self.columns as u64)
                     .height(rows_available as u64)
@@ -578,9 +584,9 @@ impl TerminalUI {
         }
     }
 
-    fn draw_image_content(&mut self, data: ImageBuffer<image::Rgb<u8>, Vec<u8>>) {
+    fn _draw_image_content(&mut self, data: ImageBuffer<image::Rgb<u8>, Vec<u8>>) {
         let (orig_width, orig_height) = data.dimensions();
-        let (new_width, new_height) = self.calculate_aspect_ratio_fit(orig_width * 2, orig_height);
+        let (new_width, new_height) = self._calculate_aspect_ratio_fit(orig_width * 2, orig_height);
 
         let resized = image::imageops::resize(
             &data,
@@ -614,7 +620,7 @@ impl TerminalUI {
         }
     }
 
-    fn calculate_aspect_ratio_fit(&self, orig_width: u32, orig_height: u32) -> (u32, u32) {
+    fn _calculate_aspect_ratio_fit(&self, orig_width: u32, orig_height: u32) -> (u32, u32) {
         let max_width = self.columns as u32;
         let max_height = (self.rows - HEADER_ROWS - FOOTER_ROWS) as u32;
         let aspect_ratio = orig_width as f32 / orig_height as f32;
@@ -626,30 +632,25 @@ impl TerminalUI {
         }
     }
 
-    fn get_footer_actions_by_mode(&self, mode: &FilesViewMode) -> Vec<String> {
+    fn get_footer_actions_by_mode(&self, mode: &FilesViewMode) -> Vec<(String, FooterActionsPosition)> {
         match mode {
             FilesViewMode::Normal => vec![
-                "[f1]help".into(),
-                "[enter]open".into(),
-                "[backspace]up".into(),
-                "[f3]quick view".into(),
-                "[space]select".into(),
-                "[tab]switch pane".into(),
-                "[f10]quit".into(),
+                ("[f1]help".into(), FooterActionsPosition::Start),
+                ("[f3]view".into(), FooterActionsPosition::Nondetermined),
+                ("[f10]quit".into(), FooterActionsPosition::End),
             ],
             FilesViewMode::Filter => vec![
-                "[f1]help".into(),
-                "[enter]open".into(),
-                "[esc]clear".into(),
-                "[f3]quick view".into(),
-                "[f10]quit".into(),
+                ("[f1]help".into(), FooterActionsPosition::Start),
+                ("[esc]clear".into(), FooterActionsPosition::End),
+                ("[f3]view".into(), FooterActionsPosition::Nondetermined),
+                ("[f10]quit".into(), FooterActionsPosition::End),
             ],
             FilesViewMode::QuickView(_) => vec![
-                "[f1]help".into(),
-                "[up/down]scroll".into(),
-                "[pgup/pgdn]page".into(),
-                "[left/right]prev/next".into(),
-                "[f3]close view".into(),
+                ("[f1]help".into(), FooterActionsPosition::Start),
+                ("[up/down]scroll".into(), FooterActionsPosition::Nondetermined),
+                ("[pgup/pgdn]page".into(), FooterActionsPosition::Nondetermined),
+                ("[left/right]prev/next".into(), FooterActionsPosition::Nondetermined),
+                ("[f3]close view".into(), FooterActionsPosition::Nondetermined),
             ],
         }
     }
@@ -697,7 +698,7 @@ impl TerminalUI {
         // Let features append their own hints (skip QuickView to avoid stale hints).
         if !matches!(files_view.mode, FilesViewMode::QuickView(_)) {
             for feature in &self.features {
-                actions.extend(feature.footer_help());
+                actions.extend(feature.footer_help().iter().map(|item|(item.clone(), FooterActionsPosition::Nondetermined)));
             }
         }
 
@@ -709,21 +710,33 @@ impl TerminalUI {
             return;
         }
 
+        actions.sort_by(|(a, pos_a), (b, pos_b)| {
+            match (pos_a, pos_b) {
+                (FooterActionsPosition::Start, FooterActionsPosition::Start) => a.cmp(b),
+                (FooterActionsPosition::Start, _) => std::cmp::Ordering::Less,
+                (_, FooterActionsPosition::Start) => std::cmp::Ordering::Greater,
+                (FooterActionsPosition::End, FooterActionsPosition::End) => a.cmp(b),
+                (FooterActionsPosition::End, _) => std::cmp::Ordering::Greater,
+                (_, FooterActionsPosition::End) => std::cmp::Ordering::Less,
+                (FooterActionsPosition::Nondetermined, FooterActionsPosition::Nondetermined) => a.cmp(b),
+            }
+        });
+
         let available = self.columns as usize;
-        let content_width: usize = actions.iter().map(|a| a.len()).sum();
+        let content_width: usize = actions.iter().map(|(a, _)| a.len()).sum();
 
         let mut rendered = String::new();
         if actions.len() == 1 {
             let pad = available.saturating_sub(content_width) / 2;
             rendered.push_str(&" ".repeat(pad));
-            rendered.push_str(&actions[0]);
+            rendered.push_str(&actions[0].0);
         } else {
             let gaps = actions.len() - 1;
             let extra_space = available.saturating_sub(content_width);
             let base_spacing = extra_space / gaps;
             let remainder = extra_space % gaps;
 
-            for (idx, action) in actions.iter().enumerate() {
+            for (idx, (action, _)) in actions.iter().enumerate() {
                 rendered.push_str(action);
                 if idx + 1 < actions.len() {
                     let bonus = if idx < remainder { 1 } else { 0 };
