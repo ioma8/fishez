@@ -45,22 +45,20 @@ impl FindFeature {
 
     fn find_unix(&self, filter: &str, dir: &str) -> Vec<String> {
         let output = Command::new("fd").arg(filter).current_dir(dir).output();
-        if let Ok(output) = output {
-            if output.status.success() {
-                let result = String::from_utf8_lossy(&output.stdout);
-                return result
-                    .lines()
-                    .map(|s| s.to_string())
-                    .map(|rel| {
-                        let abs = Path::new(dir).join(&rel);
-                        if abs.is_dir() {
-                            format!("{}{}", rel, MAIN_SEPARATOR)
-                        } else {
-                            rel
-                        }
-                    })
-                    .collect();
-            }
+        if let Ok(output) = output && output.status.success() {
+            let result = String::from_utf8_lossy(&output.stdout);
+            return result
+                .lines()
+                .map(|s| s.to_string())
+                .map(|rel| {
+                    let abs = Path::new(dir).join(&rel);
+                    if abs.is_dir() {
+                        format!("{}{}", rel, MAIN_SEPARATOR)
+                    } else {
+                        rel
+                    }
+                })
+                .collect();
         }
         Vec::new()
     }
@@ -71,21 +69,19 @@ impl FindFeature {
             .current_dir(dir)
             .output();
 
-        if let Ok(output) = output {
-            if output.status.success() {
-                let mut results = Vec::new();
-                let result_str = String::from_utf8_lossy(&output.stdout);
-                for line in result_str.lines() {
-                    let abs_path = Path::new(line);
-                    let path_relative = line.trim_start_matches(dir);
-                    if abs_path.is_dir() {
-                        results.push(format!("{}{}", path_relative, MAIN_SEPARATOR));
-                    } else {
-                        results.push(path_relative.to_string());
-                    }
+        if let Ok(output) = output && output.status.success() {
+            let mut results = Vec::new();
+            let result_str = String::from_utf8_lossy(&output.stdout);
+            for line in result_str.lines() {
+                let abs_path = Path::new(line);
+                let path_relative = line.trim_start_matches(dir);
+                if abs_path.is_dir() {
+                    results.push(format!("{}{}", path_relative, MAIN_SEPARATOR));
+                } else {
+                    results.push(path_relative.to_string());
                 }
-                return results;
             }
+            return results;
         }
         Vec::new()
     }

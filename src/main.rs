@@ -229,14 +229,9 @@ fn handle_normal_navigation(files_view: &mut FilesView, event: KeyEvent, rows: u
 }
 
 fn handle_quit(event: KeyEvent) -> bool {
-    if (KeyCode::F(10) == event.code)
+    (KeyCode::F(10) == event.code)
         || (KeyCode::Char('c') == event.code
             && event.modifiers.contains(event::KeyModifiers::CONTROL))
-    {
-        true
-    } else {
-        false
-    }
 }
 
 fn handle_normal_mode(files_view: &mut FilesView, event: KeyEvent, rows: u16, cols: u16) {

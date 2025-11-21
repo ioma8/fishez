@@ -464,15 +464,15 @@ impl TerminalUI {
         // Entries
         let mut row = start_row + 2;
         for (key, desc) in entries {
-            if row as u16 >= self.rows.saturating_sub(1) {
+            if row >= self.rows.saturating_sub(1) {
                 break;
             }
             let padded_key = format!("{:width$}", key, width = max_key);
             let _ = queue!(
                 &self.stdout,
-                cursor::MoveTo(start_col as u16, row as u16),
+                cursor::MoveTo(start_col as u16, row),
                 Print(padded_key.with(Color::Yellow)),
-                cursor::MoveTo((start_col + max_key + col_gap) as u16, row as u16),
+                cursor::MoveTo((start_col + max_key + col_gap) as u16, row),
                 Print(desc.with(Color::Green))
             );
             row += 1;
@@ -565,12 +565,13 @@ impl TerminalUI {
                 self.draw_text_content(lines, 0, rows_available);
             }
             _ => {
-                self.draw_text_content(&vec!["".into()], 0, rows_available);
+                static EMPTY_LINE: &str = "";
+                self.draw_text_content(&[EMPTY_LINE.to_string()], 0, rows_available);
             }
         }
     }
 
-    fn draw_text_content(&self, content: &Vec<String>, start: usize, rows_available: u16) {
+    fn draw_text_content(&self, content: &[String], start: usize, rows_available: u16) {
         let content_to_display = content[start..].iter().take(rows_available as usize);
         let _ = queue!(&self.stdout, cursor::MoveTo(0, HEADER_ROWS));
         for line in content_to_display {
