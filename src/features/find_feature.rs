@@ -45,7 +45,9 @@ impl FindFeature {
 
     fn find_unix(&self, filter: &str, dir: &str) -> Vec<String> {
         let output = Command::new("fd").arg(filter).current_dir(dir).output();
-        if let Ok(output) = output && output.status.success() {
+        if let Ok(output) = output
+            && output.status.success()
+        {
             let result = String::from_utf8_lossy(&output.stdout);
             return result
                 .lines()
@@ -69,7 +71,9 @@ impl FindFeature {
             .current_dir(dir)
             .output();
 
-        if let Ok(output) = output && output.status.success() {
+        if let Ok(output) = output
+            && output.status.success()
+        {
             let mut results = Vec::new();
             let result_str = String::from_utf8_lossy(&output.stdout);
             for line in result_str.lines() {

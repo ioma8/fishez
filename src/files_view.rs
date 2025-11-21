@@ -15,9 +15,9 @@ use image::load_from_memory;
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
 
+use crate::logger::log;
 use image::DynamicImage;
 use image::ImageBuffer;
-use crate::logger::log;
 
 #[derive(Debug)]
 pub struct FilesView {
@@ -230,7 +230,9 @@ impl FilesView {
     }
 
     pub fn toggle_multi_selection(&mut self, index: usize) {
-        if let Some(name) = self.files.get(index) && name == ".." {
+        if let Some(name) = self.files.get(index)
+            && name == ".."
+        {
             return;
         }
 
