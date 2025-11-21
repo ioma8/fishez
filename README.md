@@ -1,4 +1,4 @@
-# fishez
+# fishez ![CI](https://github.com/ioma8/fishez/actions/workflows/ci.yml/badge.svg)
 
 fishez is a fast terminal file manager with previews and extensible actions.
 
