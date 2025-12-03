@@ -454,7 +454,7 @@ fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], sel
     let _ = queue!(
         &renderer.stdout,
         cursor::MoveTo(0, 0),
-        Print("Favourites"),
+        Print("Favorites"),
         terminal::Clear(ClearType::UntilNewLine)
     );
 

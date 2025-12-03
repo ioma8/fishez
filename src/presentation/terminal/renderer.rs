@@ -23,7 +23,7 @@ pub enum Message {
 pub enum FooterActionsPosition {
     Start,
     End,
-    Nondetermined,
+    Undetermined,
 }
 
 /// Terminal renderer - draws the UI based on AppState.
@@ -436,9 +436,7 @@ impl TerminalRenderer {
             (FooterActionsPosition::End, FooterActionsPosition::End) => a.cmp(b),
             (FooterActionsPosition::End, _) => std::cmp::Ordering::Greater,
             (_, FooterActionsPosition::End) => std::cmp::Ordering::Less,
-            (FooterActionsPosition::Nondetermined, FooterActionsPosition::Nondetermined) => {
-                a.cmp(b)
-            }
+            (FooterActionsPosition::Undetermined, FooterActionsPosition::Undetermined) => a.cmp(b),
         });
 
         let available = self.columns as usize;
@@ -483,40 +481,34 @@ impl TerminalRenderer {
         match mode {
             PanelMode::Normal => vec![
                 ("[f1]help".into(), FooterActionsPosition::Start),
-                ("[f3]view".into(), FooterActionsPosition::Nondetermined),
-                ("[f4]edit".into(), FooterActionsPosition::Nondetermined),
-                ("[f6]find".into(), FooterActionsPosition::Nondetermined),
-                ("[f7]ripgrep".into(), FooterActionsPosition::Nondetermined),
-                (
-                    "[ctrl+w]delete".into(),
-                    FooterActionsPosition::Nondetermined,
-                ),
+                ("[f3]view".into(), FooterActionsPosition::Undetermined),
+                ("[f4]edit".into(), FooterActionsPosition::Undetermined),
+                ("[f6]find".into(), FooterActionsPosition::Undetermined),
+                ("[f7]ripgrep".into(), FooterActionsPosition::Undetermined),
+                ("[ctrl+w]delete".into(), FooterActionsPosition::Undetermined),
                 ("[f10]quit".into(), FooterActionsPosition::End),
             ],
             PanelMode::Filter => vec![
                 ("[f1]help".into(), FooterActionsPosition::Start),
                 ("[esc]clear".into(), FooterActionsPosition::End),
-                ("[f3]view".into(), FooterActionsPosition::Nondetermined),
+                ("[f3]view".into(), FooterActionsPosition::Undetermined),
                 ("[f10]quit".into(), FooterActionsPosition::End),
             ],
             PanelMode::QuickView(_) => vec![
                 ("[f1]help".into(), FooterActionsPosition::Start),
                 (
                     "[up/down]scroll".into(),
-                    FooterActionsPosition::Nondetermined,
+                    FooterActionsPosition::Undetermined,
                 ),
                 (
                     "[pgup/pgdn]page".into(),
-                    FooterActionsPosition::Nondetermined,
+                    FooterActionsPosition::Undetermined,
                 ),
                 (
                     "[left/right]prev/next".into(),
-                    FooterActionsPosition::Nondetermined,
+                    FooterActionsPosition::Undetermined,
                 ),
-                (
-                    "[f3]close view".into(),
-                    FooterActionsPosition::Nondetermined,
-                ),
+                ("[f3]close view".into(), FooterActionsPosition::Undetermined),
             ],
         }
     }
