@@ -186,3 +186,404 @@ impl AppState {
         };
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::EntryKind;
+    use std::thread;
+    use std::time::Duration;
+
+    // Helper to create test entries
+    fn create_test_entries() -> Vec<FileEntry> {
+        vec![
+            FileEntry::new(
+                PathBuf::from("/home/user/file1.txt"),
+                "file1.txt".to_string(),
+                EntryKind::File,
+                100,
+            ),
+            FileEntry::new(
+                PathBuf::from("/home/user/file2.txt"),
+                "file2.txt".to_string(),
+                EntryKind::File,
+                200,
+            ),
+            FileEntry::new(
+                PathBuf::from("/home/user/docs"),
+                "docs".to_string(),
+                EntryKind::Dir,
+                0,
+            ),
+        ]
+    }
+
+    // PanelMode tests
+    #[test]
+    fn test_panel_mode_normal() {
+        let mode = PanelMode::Normal;
+        assert_eq!(mode, PanelMode::Normal);
+    }
+
+    #[test]
+    fn test_panel_mode_filter() {
+        let mode = PanelMode::Filter;
+        assert_eq!(mode, PanelMode::Filter);
+    }
+
+    #[test]
+    fn test_panel_mode_quick_view_text() {
+        let mode = PanelMode::QuickView(QuickViewMode::Text {
+            lines: vec!["line1".to_string(), "line2".to_string()],
+            start: 0,
+            length: 2,
+        });
+        if let PanelMode::QuickView(QuickViewMode::Text {
+            lines,
+            start,
+            length,
+        }) = mode
+        {
+            assert_eq!(lines.len(), 2);
+            assert_eq!(start, 0);
+            assert_eq!(length, 2);
+        } else {
+            panic!("Expected QuickView Text mode");
+        }
+    }
+
+    #[test]
+    fn test_panel_mode_quick_view_directory() {
+        let mode = PanelMode::QuickView(QuickViewMode::Directory {
+            lines: vec!["dir1/".to_string()],
+        });
+        if let PanelMode::QuickView(QuickViewMode::Directory { lines }) = mode {
+            assert_eq!(lines.len(), 1);
+        } else {
+            panic!("Expected QuickView Directory mode");
+        }
+    }
+
+    #[test]
+    fn test_panel_mode_quick_view_image() {
+        let mode = PanelMode::QuickView(QuickViewMode::Image(vec![1, 2, 3], vec![4, 5, 6]));
+        if let PanelMode::QuickView(QuickViewMode::Image(pixels, raw)) = mode {
+            assert_eq!(pixels, vec![1, 2, 3]);
+            assert_eq!(raw, vec![4, 5, 6]);
+        } else {
+            panic!("Expected QuickView Image mode");
+        }
+    }
+
+    #[test]
+    fn test_panel_mode_quick_view_not_supported() {
+        let mode = PanelMode::QuickView(QuickViewMode::NotSupported);
+        assert_eq!(mode, PanelMode::QuickView(QuickViewMode::NotSupported));
+    }
+
+    #[test]
+    fn test_panel_mode_clone() {
+        let mode = PanelMode::Normal;
+        let cloned = mode.clone();
+        assert_eq!(mode, cloned);
+    }
+
+    // PanelState tests
+    #[test]
+    fn test_panel_state_new() {
+        let panel = PanelState::new();
+        assert!(panel.entries.is_empty());
+        assert_eq!(panel.cursor, 0);
+        assert_eq!(panel.scroll, 0);
+        assert_eq!(panel.mode, PanelMode::Normal);
+        assert!(panel.filter_string.is_empty());
+        assert!(panel.notification.is_none());
+        assert!(panel.multi_selected.is_empty());
+    }
+
+    #[test]
+    fn test_panel_state_default() {
+        let panel = PanelState::default();
+        assert!(panel.entries.is_empty());
+        assert_eq!(panel.cursor, 0);
+    }
+
+    #[test]
+    fn test_panel_state_set_notification() {
+        let mut panel = PanelState::new();
+        panel.set_notification("Test message".to_string());
+        assert_eq!(panel.notification, Some("Test message".to_string()));
+    }
+
+    #[test]
+    fn test_panel_state_clear_notification_force() {
+        let mut panel = PanelState::new();
+        panel.set_notification("Test".to_string());
+        assert!(panel.notification.is_some());
+        panel.clear_notification_force();
+        assert!(panel.notification.is_none());
+    }
+
+    #[test]
+    fn test_panel_state_clear_notification_if_expired_not_expired() {
+        let mut panel = PanelState::new();
+        panel.set_notification("Test".to_string());
+        panel.clear_notification_if_expired(5000);
+        assert!(panel.notification.is_some());
+    }
+
+    #[test]
+    fn test_panel_state_clear_notification_if_expired_expired() {
+        let mut panel = PanelState::new();
+        panel.set_notification("Test".to_string());
+        // Force the notification to be old
+        thread::sleep(Duration::from_millis(10));
+        panel.clear_notification_if_expired(1);
+        assert!(panel.notification.is_none());
+    }
+
+    #[test]
+    fn test_panel_state_clear_notification_if_expired_no_notification() {
+        let mut panel = PanelState::new();
+        panel.clear_notification_if_expired(1000);
+        assert!(panel.notification.is_none());
+    }
+
+    #[test]
+    fn test_panel_state_get_selected_path_empty() {
+        let panel = PanelState::new();
+        assert!(panel.get_selected_path().is_none());
+    }
+
+    #[test]
+    fn test_panel_state_get_selected_path_with_entries() {
+        let mut panel = PanelState::new();
+        panel.entries = create_test_entries();
+        panel.cursor = 0;
+        assert_eq!(
+            panel.get_selected_path(),
+            Some(PathBuf::from("/home/user/file1.txt"))
+        );
+    }
+
+    #[test]
+    fn test_panel_state_get_selected_path_cursor_at_end() {
+        let mut panel = PanelState::new();
+        panel.entries = create_test_entries();
+        panel.cursor = 2;
+        assert_eq!(
+            panel.get_selected_path(),
+            Some(PathBuf::from("/home/user/docs"))
+        );
+    }
+
+    #[test]
+    fn test_panel_state_get_selected_path_cursor_out_of_bounds() {
+        let mut panel = PanelState::new();
+        panel.entries = create_test_entries();
+        panel.cursor = 100;
+        assert!(panel.get_selected_path().is_none());
+    }
+
+    #[test]
+    fn test_panel_state_toggle_multi_selection_add() {
+        let mut panel = PanelState::new();
+        panel.entries = create_test_entries();
+        panel.toggle_multi_selection(0);
+        assert!(panel.is_multi_selected(0));
+        assert!(!panel.is_multi_selected(1));
+    }
+
+    #[test]
+    fn test_panel_state_toggle_multi_selection_remove() {
+        let mut panel = PanelState::new();
+        panel.entries = create_test_entries();
+        panel.toggle_multi_selection(0);
+        assert!(panel.is_multi_selected(0));
+        panel.toggle_multi_selection(0);
+        assert!(!panel.is_multi_selected(0));
+    }
+
+    #[test]
+    fn test_panel_state_toggle_multi_selection_out_of_bounds() {
+        let mut panel = PanelState::new();
+        panel.entries = create_test_entries();
+        panel.toggle_multi_selection(100);
+        assert_eq!(panel.multi_selected_count(), 0);
+    }
+
+    #[test]
+    fn test_panel_state_clear_multi_selection() {
+        let mut panel = PanelState::new();
+        panel.entries = create_test_entries();
+        panel.toggle_multi_selection(0);
+        panel.toggle_multi_selection(1);
+        assert_eq!(panel.multi_selected_count(), 2);
+        panel.clear_multi_selection();
+        assert_eq!(panel.multi_selected_count(), 0);
+    }
+
+    #[test]
+    fn test_panel_state_multi_selected_count() {
+        let mut panel = PanelState::new();
+        panel.entries = create_test_entries();
+        assert_eq!(panel.multi_selected_count(), 0);
+        panel.toggle_multi_selection(0);
+        assert_eq!(panel.multi_selected_count(), 1);
+        panel.toggle_multi_selection(1);
+        assert_eq!(panel.multi_selected_count(), 2);
+        panel.toggle_multi_selection(2);
+        assert_eq!(panel.multi_selected_count(), 3);
+    }
+
+    #[test]
+    fn test_panel_state_is_multi_selected() {
+        let mut panel = PanelState::new();
+        panel.entries = create_test_entries();
+        assert!(!panel.is_multi_selected(0));
+        panel.toggle_multi_selection(0);
+        assert!(panel.is_multi_selected(0));
+    }
+
+    #[test]
+    fn test_panel_state_multi_selected_paths_empty() {
+        let panel = PanelState::new();
+        assert!(panel.multi_selected_paths().is_empty());
+    }
+
+    #[test]
+    fn test_panel_state_multi_selected_paths_with_selections() {
+        let mut panel = PanelState::new();
+        panel.entries = create_test_entries();
+        panel.toggle_multi_selection(0);
+        panel.toggle_multi_selection(2);
+        let paths = panel.multi_selected_paths();
+        assert_eq!(paths.len(), 2);
+        assert_eq!(paths[0], PathBuf::from("/home/user/file1.txt"));
+        assert_eq!(paths[1], PathBuf::from("/home/user/docs"));
+    }
+
+    #[test]
+    fn test_panel_state_multi_selected_paths_sorted() {
+        let mut panel = PanelState::new();
+        panel.entries = create_test_entries();
+        panel.toggle_multi_selection(2);
+        panel.toggle_multi_selection(0);
+        let paths = panel.multi_selected_paths();
+        // Should be sorted by index
+        assert_eq!(paths[0], PathBuf::from("/home/user/file1.txt"));
+        assert_eq!(paths[1], PathBuf::from("/home/user/docs"));
+    }
+
+    // ActivePane tests
+    #[test]
+    fn test_active_pane_left() {
+        let pane = ActivePane::Left;
+        assert_eq!(pane, ActivePane::Left);
+    }
+
+    #[test]
+    fn test_active_pane_right() {
+        let pane = ActivePane::Right;
+        assert_eq!(pane, ActivePane::Right);
+    }
+
+    #[test]
+    fn test_active_pane_clone() {
+        let pane = ActivePane::Left;
+        let cloned = pane;
+        assert_eq!(pane, cloned);
+    }
+
+    // AppState tests
+    #[test]
+    fn test_app_state_new_single_pane() {
+        let state = AppState::new(false);
+        assert_eq!(state.active_pane, ActivePane::Left);
+        assert!(!state.show_help);
+        assert!(!state.two_pane_mode);
+    }
+
+    #[test]
+    fn test_app_state_new_two_pane() {
+        let state = AppState::new(true);
+        assert!(state.two_pane_mode);
+    }
+
+    #[test]
+    fn test_app_state_default() {
+        let state = AppState::default();
+        assert!(!state.two_pane_mode);
+        assert_eq!(state.active_pane, ActivePane::Left);
+    }
+
+    #[test]
+    fn test_app_state_active_panel_mut_left() {
+        let mut state = AppState::new(false);
+        state.active_pane = ActivePane::Left;
+        state.left_panel.cursor = 5;
+        let panel = state.active_panel_mut();
+        assert_eq!(panel.cursor, 5);
+    }
+
+    #[test]
+    fn test_app_state_active_panel_mut_right() {
+        let mut state = AppState::new(true);
+        state.active_pane = ActivePane::Right;
+        state.right_panel.cursor = 10;
+        let panel = state.active_panel_mut();
+        assert_eq!(panel.cursor, 10);
+    }
+
+    #[test]
+    fn test_app_state_active_panel_left() {
+        let mut state = AppState::new(false);
+        state.active_pane = ActivePane::Left;
+        state.left_panel.cursor = 5;
+        let panel = state.active_panel();
+        assert_eq!(panel.cursor, 5);
+    }
+
+    #[test]
+    fn test_app_state_active_panel_right() {
+        let mut state = AppState::new(true);
+        state.active_pane = ActivePane::Right;
+        state.right_panel.cursor = 10;
+        let panel = state.active_panel();
+        assert_eq!(panel.cursor, 10);
+    }
+
+    #[test]
+    fn test_app_state_switch_pane_left_to_right() {
+        let mut state = AppState::new(true);
+        assert_eq!(state.active_pane, ActivePane::Left);
+        state.switch_pane();
+        assert_eq!(state.active_pane, ActivePane::Right);
+    }
+
+    #[test]
+    fn test_app_state_switch_pane_right_to_left() {
+        let mut state = AppState::new(true);
+        state.active_pane = ActivePane::Right;
+        state.switch_pane();
+        assert_eq!(state.active_pane, ActivePane::Left);
+    }
+
+    #[test]
+    fn test_app_state_switch_pane_toggle() {
+        let mut state = AppState::new(true);
+        assert_eq!(state.active_pane, ActivePane::Left);
+        state.switch_pane();
+        assert_eq!(state.active_pane, ActivePane::Right);
+        state.switch_pane();
+        assert_eq!(state.active_pane, ActivePane::Left);
+    }
+
+    #[test]
+    fn test_app_state_show_help_toggle() {
+        let mut state = AppState::new(false);
+        assert!(!state.show_help);
+        state.show_help = true;
+        assert!(state.show_help);
+    }
+}
