@@ -5,16 +5,8 @@
 mod application;
 mod domain;
 mod infrastructure;
-mod presentation;
-
-// Legacy modules (temporarily kept for features not yet migrated)
-#[allow(dead_code)]
-mod features;
-#[allow(dead_code)]
-mod files_view;
 mod logger;
-#[allow(dead_code)]
-mod terminal_ui;
+mod presentation;
 
 use application::use_cases::{file_ops, navigate};
 use application::{AppState, PanelMode, QuickViewMode};

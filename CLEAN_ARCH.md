@@ -28,6 +28,8 @@ src/
 │   └── terminal/
 │       ├── mod.rs
 │       └── renderer.rs
+├── logger.rs                  # Utility module for logging
+├── lib.rs                     # Library root
 └── main.rs                    # Composition Root
 ```
 
