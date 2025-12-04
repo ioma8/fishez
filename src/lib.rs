@@ -1,4 +1,6 @@
-pub mod features;
-pub mod files_view;
+// Clean Architecture Layers
+pub mod application;
+pub mod domain;
+pub mod infrastructure;
 pub mod logger;
-pub mod terminal_ui;
+pub mod presentation;
