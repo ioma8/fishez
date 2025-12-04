@@ -10,11 +10,15 @@ use std::io::Write;
 pub const HEADER_ROWS: u16 = 2;
 pub const FOOTER_ROWS: u16 = 3;
 
+/// Embedded SVG logo bytes (loaded at compile time)
+const LOGO_SVG: &[u8] = include_bytes!("../../../Fishez_logo.svg");
+
 pub struct TerminalRenderer {
     pub columns: u16,
     pub rows: u16,
     pub stdout: std::io::Stdout,
     help_entries: Vec<(String, String)>,
+    logo_png: Option<Vec<u8>>,
 }
 
 impl Default for TerminalRenderer {
@@ -27,11 +31,16 @@ impl TerminalRenderer {
     pub fn new() -> Self {
         let (columns, rows) = terminal::size().expect("Error getting terminal size");
         enable_raw_mode().expect("Failed to enable raw mode");
+
+        // Pre-render SVG logo to PNG bytes
+        let logo_png = render_svg_to_png(LOGO_SVG);
+
         Self {
             columns,
             rows,
             stdout: std::io::stdout(),
             help_entries: default_help_entries(),
+            logo_png,
         }
     }
 
@@ -355,9 +364,45 @@ impl TerminalRenderer {
             cursor::MoveTo(0, 2),
             terminal::Clear(ClearType::FromCursorDown)
         );
+
+        // Draw SVG logo using iTerm2 image protocol, or fallback to ASCII
+        let logo_height: u16 = if let Some(png_bytes) = &self.logo_png {
+            let enc = iterm2img::from_bytes(png_bytes.clone())
+                .height(6)
+                .preserve_aspect_ratio(true)
+                .inline(true)
+                .build();
+            let _ = queue!(
+                &self.stdout,
+                cursor::MoveTo(0, 2),
+                Print(enc)
+            );
+            7 // logo takes about 6-7 rows
+        } else {
+            // Fallback ASCII logo for non-iTerm2 terminals
+            let logo = [
+                r"   _____ _     _              ",
+                r"  |  ___(_)___| |__   ___ ____",
+                r"  | |_  | / __| '_ \ / _ \_  /",
+                r"  |  _| | \__ \ | | |  __// / ",
+                r"  |_|   |_|___/_| |_|\___/___|",
+            ];
+            let logo_width = logo.iter().map(|l| l.len()).max().unwrap_or(0);
+            let logo_start = ((self.columns as usize).saturating_sub(logo_width)) / 2;
+            for (i, line) in logo.iter().enumerate() {
+                let _ = queue!(
+                    &self.stdout,
+                    cursor::MoveTo(logo_start as u16, 2 + i as u16),
+                    Print(line.with(Color::Cyan))
+                );
+            }
+            logo.len() as u16 + 1
+        };
+
+        let content_start = 2 + logo_height;
         let _ = queue!(
             &self.stdout,
-            cursor::MoveTo(sc as u16, 2),
+            cursor::MoveTo(sc as u16, content_start),
             Print(
                 "Keyboard shortcuts"
                     .with(Color::Cyan)
@@ -366,18 +411,18 @@ impl TerminalRenderer {
         );
         let _ = queue!(
             &self.stdout,
-            cursor::MoveTo(sc as u16, 3),
+            cursor::MoveTo(sc as u16, content_start + 1),
             Print("─".repeat(tw).with(Color::Blue))
         );
         for (i, (key, desc)) in e.iter().enumerate() {
-            if 4 + i as u16 >= self.rows - 1 {
+            if content_start + 2 + i as u16 >= self.rows - 1 {
                 break;
             }
             let _ = queue!(
                 &self.stdout,
-                cursor::MoveTo(sc as u16, 4 + i as u16),
+                cursor::MoveTo(sc as u16, content_start + 2 + i as u16),
                 Print(format!("{:w$}", key, w = mk).with(Color::Yellow)),
-                cursor::MoveTo((sc + mk + 4) as u16, 4 + i as u16),
+                cursor::MoveTo((sc + mk + 4) as u16, content_start + 2 + i as u16),
                 Print(desc.clone().with(Color::Green))
             );
         }
@@ -485,4 +530,22 @@ fn truncate(t: &str, w: usize) -> String {
     } else {
         t.to_string()
     }
+}
+
+/// Render SVG bytes to PNG bytes using resvg
+fn render_svg_to_png(svg_data: &[u8]) -> Option<Vec<u8>> {
+    use resvg::tiny_skia;
+    use resvg::usvg;
+
+    let opts = usvg::Options::default();
+    let tree = usvg::Tree::from_data(svg_data, &opts).ok()?;
+
+    let size = tree.size();
+    let width = size.width() as u32;
+    let height = size.height() as u32;
+
+    let mut pixmap = tiny_skia::Pixmap::new(width, height)?;
+    resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+
+    pixmap.encode_png().ok()
 }

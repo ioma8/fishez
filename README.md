@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🐟 fishez
+<img src="Fishez_logo.svg" alt="fishez logo" width="180" />
+
+# fishez
 
 **A lightning-fast terminal file manager built for developers**
 
