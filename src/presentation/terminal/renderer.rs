@@ -352,12 +352,12 @@ impl TerminalRenderer {
         let sc = ((self.columns as usize).saturating_sub(tw)) / 2;
         let _ = queue!(
             &self.stdout,
-            cursor::MoveTo(0, 3),
+            cursor::MoveTo(0, 2),
             terminal::Clear(ClearType::FromCursorDown)
         );
         let _ = queue!(
             &self.stdout,
-            cursor::MoveTo(sc as u16, 3),
+            cursor::MoveTo(sc as u16, 2),
             Print(
                 "Keyboard shortcuts"
                     .with(Color::Cyan)
@@ -366,18 +366,18 @@ impl TerminalRenderer {
         );
         let _ = queue!(
             &self.stdout,
-            cursor::MoveTo(sc as u16, 4),
+            cursor::MoveTo(sc as u16, 3),
             Print("─".repeat(tw).with(Color::Blue))
         );
         for (i, (key, desc)) in e.iter().enumerate() {
-            if 5 + i as u16 >= self.rows - 1 {
+            if 4 + i as u16 >= self.rows - 1 {
                 break;
             }
             let _ = queue!(
                 &self.stdout,
-                cursor::MoveTo(sc as u16, 5 + i as u16),
+                cursor::MoveTo(sc as u16, 4 + i as u16),
                 Print(format!("{:w$}", key, w = mk).with(Color::Yellow)),
-                cursor::MoveTo((sc + mk + 4) as u16, 5 + i as u16),
+                cursor::MoveTo((sc + mk + 4) as u16, 4 + i as u16),
                 Print(desc.clone().with(Color::Green))
             );
         }
