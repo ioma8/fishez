@@ -30,7 +30,7 @@ src/
 │       └── renderer.rs
 ├── logger.rs                  # Utility module for logging
 ├── lib.rs                     # Library root
-└── main.rs                    # Composition Root
+└── main.rs                    # Composition Root & Event Handling
 ```
 
 ---
@@ -55,50 +55,42 @@ src/
 #### Ports (Interfaces)
 | File | Trait | Description |
 |------|-------|-------------|
-| `ports.rs` | `FileSystemPort` | Interface for file system operations (`list_dir`, `delete`, `read_file`, `is_file`, `is_dir`) |
-| `ports.rs` | `SearchPort` | Interface for search operations (`find`) |
-| `ports.rs` | `ClipboardPort` | Interface for clipboard operations (`copy`) |
-| `ports.rs` | `OpenPort` | Interface for opening files with system apps (`open`) |
+| `ports.rs` | `FileSystemPort` | Interface for file system operations |
+| `ports.rs` | `SearchPort` | Interface for search operations |
+| `ports.rs` | `ClipboardPort` | Interface for clipboard operations |
+| `ports.rs` | `OpenPort` | Interface for opening files |
 
 #### State
 | File | Structs/Enums | Description |
 |------|---------------|-------------|
-| `state.rs` | `AppState` | Global application state (panels, active pane, help mode) |
-| `state.rs` | `PanelState` | Single panel state (path, entries, cursor, scroll, mode, selections) |
-| `state.rs` | `ActivePane` | Enum: `Left` \| `Right` |
+| `state.rs` | `AppState` | Global app state (panels, active pane, help) |
+| `state.rs` | `PanelState` | Panel state (path, entries, cursor, scroll, mode, multi-selection) |
 | `state.rs` | `PanelMode` | Enum: `Normal` \| `Filter` \| `QuickView(...)` |
 | `state.rs` | `QuickViewMode` | Enum: `Text` \| `Image` \| `Directory` \| `NotSupported` |
 
 #### Use Cases
 | File | Functions | Description |
 |------|-----------|-------------|
-| `navigate.rs` | `refresh_entries()` | Loads directory contents into panel |
-| `navigate.rs` | `move_cursor()` | Moves cursor up/down |
-| `navigate.rs` | `navigate_home()` / `navigate_end()` | Jump to first/last entry |
-| `navigate.rs` | `enter_selected()` | Enter directory or open file |
-| `navigate.rs` | `go_up_one_level()` | Navigate to parent directory |
-| `navigate.rs` | `change_directory()` | Change to specific path |
-| `navigate.rs` | `replace_entries_from_search()` | Populate panel with search results |
-| `file_ops.rs` | `delete_selected()` | Delete files/directories to trash |
-| `file_ops.rs` | `copy_to_clipboard()` | Copy path/name to clipboard |
+| `navigate.rs` | Navigation functions | Cursor movement, directory changes, search results |
+| `file_ops.rs` | File operations | Delete, copy to clipboard |
+
+**Note:** Multi-select and Favorites features are implemented in `main.rs` using the Clean Architecture ports and state.
 
 **Dependency Rule:** Application depends only on Domain.
 
 ---
 
 ### 🟠 Infrastructure Layer (`src/infrastructure/`)
-> **The outer circle** - Implements the ports using real libraries and system calls.
+> **The outer circle** - Implements the ports using real libraries.
 
 | File | Struct | Implements | Dependencies |
 |------|--------|------------|--------------|
-| `fs_adapter.rs` | `StdFileSystem` | `FileSystemPort` | `std::fs`, `trash` crate |
-| `search_adapter.rs` | `FdSearchAdapter` | `SearchPort` | `fd` command (external) |
-| `search_adapter.rs` | `RipGrepAdapter` | `SearchPort` | `rg` command (external) |
+| `fs_adapter.rs` | `StdFileSystem` | `FileSystemPort` | `std::fs`, `trash` |
+| `search_adapter.rs` | `FdSearchAdapter` | `SearchPort` | `fd` command |
+| `search_adapter.rs` | `RipGrepAdapter` | `SearchPort` | `rg` command |
 | `clipboard_adapter.rs` | `SystemClipboard` | `ClipboardPort` | `clipboard` crate |
-| `open_adapter.rs` | `SystemOpenAdapter` | `OpenPort` | `open`/`xdg-open`/`start` commands |
+| `open_adapter.rs` | `SystemOpenAdapter` | `OpenPort` | System commands |
 | `open_adapter.rs` | `VsCodeAdapter` | `OpenPort` | `code` command |
-
-**Dependency Rule:** Infrastructure depends on Application (ports) and Domain.
 
 ---
 
@@ -107,25 +99,34 @@ src/
 
 | File | Struct | Description |
 |------|--------|-------------|
-| `renderer.rs` | `TerminalRenderer` | Draws the TUI based on `AppState` |
-| `renderer.rs` | `FooterActionsPosition` | Enum for footer layout |
-| `renderer.rs` | `Message` | Enum for async UI messages |
+| `renderer.rs` | `TerminalRenderer` | Draws TUI based on `AppState` |
 
-**Key Principle:** The renderer is "dumb" - it only draws what it's given. All logic lives in the Application layer.
+**Key Principle:** The renderer is "dumb" - it only draws what it's given.
 
-**Dependency Rule:** Presentation depends on Application (state) and Domain.
+---
+
+## Features
+
+### Multi-select (Space)
+- Toggle selection with `Space` key
+- Multi-selected items highlighted in blue
+- Bulk delete with `Ctrl+W`
+- Clear selection with `Esc`
+
+### Favorites (Ctrl+D)
+- `Ctrl+D` opens favorites list
+- `Ctrl+Shift+D` adds current directory to favorites
+- Navigate with arrow keys, select with `Enter`
+- Stored in `favorites.txt`
 
 ---
 
 ## Composition Root (`src/main.rs`)
 
-The `main.rs` file wires everything together:
-
 ```rust
 // 1. Initialize Infrastructure (Adapters)
 let fs_adapter = StdFileSystem::new();
 let clipboard_adapter = SystemClipboard::new();
-let open_adapter = SystemOpenAdapter::new();
 
 // 2. Initialize Application State
 let mut app_state = AppState::new(two_pane_mode);
@@ -133,13 +134,13 @@ let mut app_state = AppState::new(two_pane_mode);
 // 3. Initialize Presentation (Renderer)
 let mut renderer = TerminalRenderer::new();
 
-// 4. Event Loop
+// 4. Event Loop - dispatch to Application Layer
 loop {
     renderer.draw(&app_state);
-    
     match event.code {
         KeyCode::Up => navigate::move_cursor(&mut panel, -1, rows),
         KeyCode::Enter => navigate::enter_selected(&fs, &mut panel),
+        KeyCode::Char(' ') => panel.toggle_multi_selection(panel.cursor),
         // ...
     }
 }
@@ -152,8 +153,6 @@ loop {
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     main.rs (Composition Root)              │
-│  - Instantiates all layers                                  │
-│  - Runs event loop                                          │
 └─────────────────────────────────────────────────────────────┘
                               │
          ┌────────────────────┼────────────────────┐
