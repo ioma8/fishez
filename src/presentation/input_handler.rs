@@ -36,6 +36,7 @@ pub fn handle_normal_mode(
         KeyCode::Char(c) => {
             panel.mode = PanelMode::Filter;
             panel.filter_string.push(c);
+            navigate::refresh_entries(fs, panel);
         }
         KeyCode::Backspace => navigate::go_up_one_level(fs, panel),
         KeyCode::Up => navigate::move_cursor(panel, -1, visible_rows),
