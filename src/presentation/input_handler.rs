@@ -2,7 +2,7 @@
 
 use crate::application::ports::{FileSystemPort, OpenPort, SearchPort};
 use crate::application::use_cases::{file_ops, navigate, quick_view};
-use crate::application::{AppState, PanelMode, PanelState};
+use crate::application::{ActivePane, AppState, PanelMode, PanelState};
 use crate::infrastructure::{
     FdSearchAdapter, RipGrepAdapter, StdFileSystem, SystemClipboard, SystemOpenAdapter,
 };
@@ -14,7 +14,11 @@ use std::thread;
 
 #[derive(Debug)]
 pub enum Message {
-    DrawFiles(Vec<String>),
+    DrawFiles {
+        pane: ActivePane,
+        base_path: PathBuf,
+        files: Vec<String>,
+    },
 }
 
 pub fn is_quit(event: KeyEvent) -> bool {
@@ -172,6 +176,7 @@ pub fn handle_find_input(
             }
             KeyCode::Enter => {
                 let sender = sender.clone();
+                let pane = state.active_pane;
                 let pwd = state.active_panel().current_path.clone();
                 let query = filter.clone();
                 state
@@ -179,7 +184,11 @@ pub fn handle_find_input(
                     .set_notification("Searching...".to_string());
                 thread::spawn(move || {
                     let results = FdSearchAdapter::new().find(&query, &pwd);
-                    let _ = sender.send(Message::DrawFiles(results));
+                    let _ = sender.send(Message::DrawFiles {
+                        pane,
+                        base_path: pwd,
+                        files: results,
+                    });
                 });
                 *find_filter = None;
             }

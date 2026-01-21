@@ -49,7 +49,7 @@ impl TerminalRenderer {
         self.rows = rows;
     }
     pub fn visible_rows(&self) -> u16 {
-        self.rows - HEADER_ROWS - FOOTER_ROWS
+        self.rows.saturating_sub(HEADER_ROWS + FOOTER_ROWS)
     }
 
     pub fn reset_terminal(&mut self) {
@@ -145,14 +145,19 @@ impl TerminalRenderer {
     }
 
     fn draw_system_header(&self, panel: &PanelState) {
-        let right = panel
+        let mut right = panel
             .notification
             .clone()
             .map(|n| n.on(Color::DarkMagenta))
             .unwrap_or_else(|| "FISHEZ".to_string().with(Color::Cyan));
+        let max_width = self.columns as usize;
+        if right.content().len() > max_width {
+            let truncated: String = right.content().chars().take(max_width).collect();
+            right = right.style().apply(truncated);
+        }
         let _ = queue!(
             &self.stdout,
-            cursor::MoveTo(self.columns - right.content().len() as u16, 0),
+            cursor::MoveTo(self.columns.saturating_sub(right.content().len() as u16), 0),
             Print(right)
         );
         self.draw_line(1);
@@ -161,7 +166,8 @@ impl TerminalRenderer {
     fn draw_files_list(&mut self, panel: &PanelState) {
         let rows = self.visible_rows();
         let _ = queue!(&self.stdout, cursor::MoveTo(0, HEADER_ROWS));
-        for (i, entry) in panel.entries[panel.scroll..]
+        let start = panel.scroll.min(panel.entries.len());
+        for (i, entry) in panel.entries[start..]
             .iter()
             .take(rows as usize)
             .enumerate()
@@ -301,11 +307,23 @@ impl TerminalRenderer {
         } else if panel.multi_selected_count() > 0 {
             format!("Selected: {}", panel.multi_selected_count()).with(Color::Yellow)
         } else {
-            let dirs = panel.entries.iter().filter(|e| e.is_dir()).count();
+            let has_parent = panel
+                .entries
+                .first()
+                .map(|e| e.name == "..")
+                .unwrap_or(false);
+            let dirs = panel
+                .entries
+                .iter()
+                .filter(|e| e.is_dir() && e.name != "..")
+                .count();
             format!(
                 "{} dirs, {} files",
                 dirs,
-                panel.entries.len().saturating_sub(dirs + 1)
+                panel
+                    .entries
+                    .len()
+                    .saturating_sub(dirs + if has_parent { 1 } else { 0 })
             )
             .with(Color::Green)
         };

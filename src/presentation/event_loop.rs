@@ -1,7 +1,7 @@
 //! Event loop - main application loop.
 
 use crate::application::use_cases::navigate;
-use crate::application::{AppState, PanelMode};
+use crate::application::{ActivePane, AppState, PanelMode};
 use crate::infrastructure::{StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter};
 use crate::presentation::TerminalRenderer;
 use crate::presentation::input_handler::{
@@ -242,10 +242,16 @@ fn handle_async_messages(
 ) {
     if let Ok(message) = receiver.try_recv() {
         match message {
-            Message::DrawFiles(files) => {
-                let panel = app_state.active_panel_mut();
+            Message::DrawFiles {
+                pane,
+                base_path,
+                files,
+            } => {
+                let panel = match pane {
+                    ActivePane::Left => &mut app_state.left_panel,
+                    ActivePane::Right => &mut app_state.right_panel,
+                };
                 panel.clear_notification_force();
-                let base_path = panel.current_path.clone();
                 navigate::replace_entries_from_search(panel, files, &base_path);
                 overlays::draw(renderer, app_state);
             }

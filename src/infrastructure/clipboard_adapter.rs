@@ -5,7 +5,7 @@ use clipboard::{ClipboardContext, ClipboardProvider};
 
 /// System clipboard adapter.
 pub struct SystemClipboard {
-    ctx: ClipboardContext,
+    ctx: Option<ClipboardContext>,
 }
 
 impl Default for SystemClipboard {
@@ -17,15 +17,17 @@ impl Default for SystemClipboard {
 impl SystemClipboard {
     pub fn new() -> Self {
         Self {
-            ctx: ClipboardProvider::new().expect("Failed to initialize clipboard"),
+            ctx: ClipboardProvider::new().ok(),
         }
     }
 }
 
 impl ClipboardPort for SystemClipboard {
     fn copy(&mut self, text: &str) -> Result<(), String> {
-        self.ctx
-            .set_contents(text.to_string())
+        let Some(ctx) = &mut self.ctx else {
+            return Err("Clipboard unavailable".to_string());
+        };
+        ctx.set_contents(text.to_string())
             .map_err(|e| e.to_string())
     }
 }

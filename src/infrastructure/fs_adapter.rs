@@ -26,7 +26,7 @@ impl FileSystemPort for StdFileSystem {
 
         let mut result = Vec::new();
         for entry in entries.flatten() {
-            let file_name = entry.file_name().into_string().unwrap_or_default();
+            let file_name = entry.file_name().to_string_lossy().to_string();
             let file_path = entry.path();
             let metadata = entry.metadata().ok();
             let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);

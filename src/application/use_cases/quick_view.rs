@@ -89,6 +89,8 @@ fn show_text(panel: &mut PanelState, path: &Path, wrap_width: u16) {
             start: 0,
             length,
         });
+    } else {
+        panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
     }
 }
 
@@ -182,14 +184,20 @@ fn show_image(panel: &mut PanelState, path: &Path) {
     let pixels = thumb
         .map(|t| t.to_rgb8())
         .or_else(|| image::open(path).ok().map(|i| i.to_rgb8()));
-    let Ok(mut f) = File::open(path) else { return };
+    let Ok(mut f) = File::open(path) else {
+        panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
+        return;
+    };
     let mut buf = Vec::new();
     if f.read_to_end(&mut buf).is_err() {
+        panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
         return;
     }
     crate::logger::log(&format!("Image loading took: {:?}", now.elapsed()));
     if let Some(px) = pixels {
         panel.mode = PanelMode::QuickView(QuickViewMode::Image(px.into_raw(), buf));
+    } else {
+        panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
     }
 }
 

@@ -62,14 +62,17 @@ fn find_windows(filter: &str, dir: &Path) -> Vec<String> {
     {
         let mut results = Vec::new();
         let result_str = String::from_utf8_lossy(&output.stdout);
-        let dir_str = dir.to_string_lossy();
         for line in result_str.lines() {
             let abs_path = Path::new(line);
-            let path_relative = line.trim_start_matches(dir_str.as_ref());
+            let rel = abs_path
+                .strip_prefix(dir)
+                .unwrap_or(abs_path)
+                .to_string_lossy()
+                .to_string();
             if abs_path.is_dir() {
-                results.push(format!("{}{}", path_relative, MAIN_SEPARATOR));
+                results.push(format!("{}{}", rel, MAIN_SEPARATOR));
             } else {
-                results.push(path_relative.to_string());
+                results.push(rel);
             }
         }
         return results;
@@ -93,21 +96,20 @@ impl RipGrepAdapter {
 }
 
 impl SearchPort for RipGrepAdapter {
-    fn find(&self, query: &str, _path: &Path) -> Vec<String> {
-        let output = Command::new("rg").arg(query).output();
+    fn find(&self, query: &str, path: &Path) -> Vec<String> {
+        let output = Command::new("rg")
+            .args(["--files-with-matches", "-0", query])
+            .current_dir(path)
+            .output();
 
         if let Ok(output) = output
             && output.status.success()
         {
             let result = String::from_utf8_lossy(&output.stdout);
             return result
-                .lines()
+                .split('\0')
+                .filter(|s| !s.is_empty())
                 .map(|s| s.to_string())
-                .map(|s| {
-                    let mut parts = s.split(':');
-                    let path = parts.next().unwrap();
-                    path.to_string()
-                })
                 .collect();
         }
         Vec::new()
