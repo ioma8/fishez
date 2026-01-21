@@ -390,11 +390,7 @@ impl TerminalRenderer {
                 .preserve_aspect_ratio(true)
                 .inline(true)
                 .build();
-            let _ = queue!(
-                &self.stdout,
-                cursor::MoveTo(0, 2),
-                Print(enc)
-            );
+            let _ = queue!(&self.stdout, cursor::MoveTo(0, 2), Print(enc));
             7 // logo takes about 6-7 rows
         } else {
             // Fallback ASCII logo for non-iTerm2 terminals

@@ -238,11 +238,13 @@ mod tests {
             Some("/home/user/file1.txt".to_string())
         );
         assert!(panel.notification.is_some());
-        assert!(panel
-            .notification
-            .as_ref()
-            .unwrap()
-            .contains("absolute path"));
+        assert!(
+            panel
+                .notification
+                .as_ref()
+                .unwrap()
+                .contains("absolute path")
+        );
     }
 
     #[test]
