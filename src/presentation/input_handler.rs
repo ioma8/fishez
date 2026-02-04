@@ -288,6 +288,28 @@ fn has_absurd_repeat_run(query: &str) -> bool {
     false
 }
 
+pub fn handle_favorites_input(
+    event: KeyEvent,
+    active: &mut bool,
+    items: &[String],
+    selected: &mut usize,
+    fs: &StdFileSystem,
+    state: &mut AppState,
+) {
+    match event.code {
+        KeyCode::Up => *selected = selected.saturating_sub(1),
+        KeyCode::Down => *selected = (*selected + 1).min(items.len().saturating_sub(1)),
+        KeyCode::Enter => {
+            if let Some(item) = items.get(*selected) {
+                navigate::change_directory(fs, state.active_panel_mut(), PathBuf::from(item));
+                *active = false;
+            }
+        }
+        KeyCode::Esc => *active = false,
+        _ => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -327,27 +349,5 @@ mod tests {
     #[test]
     fn test_has_absurd_repeat_run_false() {
         assert!(!has_absurd_repeat_run("abcabc"));
-    }
-}
-
-pub fn handle_favorites_input(
-    event: KeyEvent,
-    active: &mut bool,
-    items: &[String],
-    selected: &mut usize,
-    fs: &StdFileSystem,
-    state: &mut AppState,
-) {
-    match event.code {
-        KeyCode::Up => *selected = selected.saturating_sub(1),
-        KeyCode::Down => *selected = (*selected + 1).min(items.len().saturating_sub(1)),
-        KeyCode::Enter => {
-            if let Some(item) = items.get(*selected) {
-                navigate::change_directory(fs, state.active_panel_mut(), PathBuf::from(item));
-                *active = false;
-            }
-        }
-        KeyCode::Esc => *active = false,
-        _ => {}
     }
 }
