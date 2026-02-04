@@ -1,7 +1,7 @@
 //! Quick view use case - file preview.
 
 use crate::application::{PanelMode, PanelState, QuickViewMode};
-use image::{DynamicImage, load_from_memory};
+use image::{load_from_memory, DynamicImage};
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
 use std::fs::{self, File};
@@ -225,5 +225,116 @@ fn human_size(bytes: u64) -> String {
         format!("{} {}", bytes, U[i])
     } else {
         format!("{:.2} {}", s, U[i])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn create_temp_dir(prefix: &str) -> PathBuf {
+        let mut path = std::env::temp_dir();
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        path.push(format!("{}_{}", prefix, nanos));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    #[test]
+    fn test_scroll_clamps_bounds() {
+        let mut panel = PanelState::new();
+        panel.mode = PanelMode::QuickView(QuickViewMode::Text {
+            lines: vec!["a".to_string(); 50],
+            start: 0,
+            length: 50,
+        });
+        scroll(&mut panel, 100, 10, 1, 1);
+        if let PanelMode::QuickView(QuickViewMode::Text { start, .. }) = panel.mode {
+            assert!(start <= 48);
+        } else {
+            panic!("Expected QuickView Text mode");
+        }
+    }
+
+    #[test]
+    fn test_show_text_sets_quick_view_mode() {
+        let base = create_temp_dir("quick_view_text");
+        let file_path = base.join("note.txt");
+        fs::write(&file_path, "hello world").unwrap();
+
+        let mut panel = PanelState::new();
+        show_text(&mut panel, &file_path, 10);
+        assert!(matches!(
+            panel.mode,
+            PanelMode::QuickView(QuickViewMode::Text { .. })
+        ));
+    }
+
+    #[test]
+    fn test_show_text_uses_min_wrap_width() {
+        let base = create_temp_dir("quick_view_wrap");
+        let file_path = base.join("long.txt");
+        fs::write(&file_path, "word ".repeat(100)).unwrap();
+
+        let mut panel = PanelState::new();
+        show_text(&mut panel, &file_path, 5);
+        if let PanelMode::QuickView(QuickViewMode::Text { lines, .. }) = &panel.mode {
+            assert!(!lines.is_empty());
+        } else {
+            panic!("Expected QuickView Text mode");
+        }
+    }
+
+    #[test]
+    fn test_show_directory_preview_limit() {
+        let base = create_temp_dir("quick_view_dir");
+        for i in 0..25 {
+            let file_path = base.join(format!("file{}.txt", i));
+            fs::write(&file_path, "data").unwrap();
+        }
+
+        let mut panel = PanelState::new();
+        show_directory(&mut panel, &base);
+        if let PanelMode::QuickView(QuickViewMode::Directory { lines }) = &panel.mode {
+            let has_more = lines.iter().any(|line| line.contains("... and"));
+            assert!(has_more);
+        } else {
+            panic!("Expected QuickView Directory mode");
+        }
+    }
+
+    #[test]
+    fn test_human_size_units() {
+        assert_eq!(human_size(0), "0 B");
+        assert_eq!(human_size(1024), "1.00 KB");
+        assert_eq!(human_size(1024 * 1024), "1.00 MB");
+    }
+
+    #[test]
+    fn test_get_type_text_extension() {
+        let base = create_temp_dir("quick_view_type_text");
+        let file_path = base.join("main.rs");
+        fs::write(&file_path, "fn main() {}\n").unwrap();
+        assert!(matches!(get_type(&file_path), FileType::Text));
+    }
+
+    #[test]
+    fn test_get_type_image_extension() {
+        let base = create_temp_dir("quick_view_type_image");
+        let file_path = base.join("image.gif");
+        fs::write(&file_path, b"GIF89a").unwrap();
+        assert!(matches!(get_type(&file_path), FileType::Image));
+    }
+
+    #[test]
+    fn test_get_type_other_extension() {
+        let base = create_temp_dir("quick_view_type_other");
+        let file_path = base.join("data.bin");
+        fs::write(&file_path, [0u8, 159, 146, 150]).unwrap();
+        assert!(matches!(get_type(&file_path), FileType::Other));
     }
 }

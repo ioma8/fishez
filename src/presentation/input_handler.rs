@@ -21,6 +21,12 @@ pub enum Message {
     },
 }
 
+const MAX_QUERY_LEN: usize = 64;
+const MAX_REPEAT_RUN: usize = 16;
+const FORBIDDEN_REGEX_CHARS: &[char] = &[
+    '*', '+', '?', '|', '{', '}', '(', ')', '[', ']', '\\', '^', '$',
+];
+
 pub fn is_quit(event: KeyEvent) -> bool {
     event.code == KeyCode::F(10)
         || (event.code == KeyCode::Char('c') && event.modifiers.contains(KeyModifiers::CONTROL))
@@ -175,10 +181,16 @@ pub fn handle_find_input(
                 filter.pop();
             }
             KeyCode::Enter => {
+                let query = match validate_query(filter) {
+                    Ok(query) => query,
+                    Err(message) => {
+                        state.active_panel_mut().set_notification(message);
+                        return;
+                    }
+                };
                 let sender = sender.clone();
                 let pane = state.active_pane;
                 let pwd = state.active_panel().current_path.clone();
-                let query = filter.clone();
                 state
                     .active_panel_mut()
                     .set_notification("Searching...".to_string());
@@ -214,7 +226,15 @@ pub fn handle_ripgrep_input(
                 f.pop();
             }
             KeyCode::Enter => {
-                let results = RipGrepAdapter::new().find(f, &state.active_panel().current_path);
+                let query = match validate_query(f) {
+                    Ok(query) => query,
+                    Err(message) => {
+                        state.active_panel_mut().set_notification(message);
+                        return;
+                    }
+                };
+                let results =
+                    RipGrepAdapter::new().find(&query, &state.active_panel().current_path);
                 let panel = state.active_panel_mut();
                 let base = panel.current_path.clone();
                 navigate::replace_entries_from_search(panel, results, &base);
@@ -226,6 +246,87 @@ pub fn handle_ripgrep_input(
             }
             _ => {}
         }
+    }
+}
+
+fn validate_query(raw: &str) -> Result<String, String> {
+    let query = raw.trim();
+    if query.is_empty() {
+        return Err("Query is empty".to_string());
+    }
+
+    let length = query.chars().count();
+    if length > MAX_QUERY_LEN {
+        return Err(format!("Query too long (max {})", MAX_QUERY_LEN));
+    }
+
+    if query.chars().any(|c| FORBIDDEN_REGEX_CHARS.contains(&c)) {
+        return Err("Query contains unsupported regex tokens".to_string());
+    }
+
+    if has_absurd_repeat_run(query) {
+        return Err("Query looks too repetitive".to_string());
+    }
+
+    Ok(query.to_string())
+}
+
+fn has_absurd_repeat_run(query: &str) -> bool {
+    let mut last: Option<char> = None;
+    let mut run = 0usize;
+    for ch in query.chars() {
+        if Some(ch) == last {
+            run += 1;
+        } else {
+            last = Some(ch);
+            run = 1;
+        }
+        if run >= MAX_REPEAT_RUN {
+            return true;
+        }
+    }
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_query_accepts_trimmed() {
+        let result = validate_query("  hello  ");
+        assert_eq!(result.unwrap(), "hello".to_string());
+    }
+
+    #[test]
+    fn test_validate_query_rejects_empty() {
+        let result = validate_query("   ");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_query_rejects_too_long() {
+        let long = "a".repeat(MAX_QUERY_LEN + 1);
+        let result = validate_query(&long);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_query_rejects_regex_tokens() {
+        let result = validate_query("a+b");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_query_rejects_absurd_repeat() {
+        let long = "a".repeat(MAX_REPEAT_RUN);
+        let result = validate_query(&long);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_has_absurd_repeat_run_false() {
+        assert!(!has_absurd_repeat_run("abcabc"));
     }
 }
 
