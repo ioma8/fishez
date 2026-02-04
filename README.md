@@ -153,6 +153,18 @@ cargo clippy    # Lint
 cargo test      # Run tests
 ```
 
+### CI Integration Tests
+
+CI runs extra integration tests that are gated locally to avoid opening files
+or moving items to trash during development. To run them locally:
+
+```bash
+FISHEZ_RUN_OPEN_TESTS=1 FISHEZ_RUN_TRASH_TESTS=1 cargo test --test integration_flows
+```
+
+On Linux CI, the workflow installs `fd`, `ripgrep`, and `xdg-utils` to support
+these tests and the file open adapter.
+
 ## 📄 License
 
 MIT © [ioma8](https://github.com/ioma8)

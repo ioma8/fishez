@@ -1,7 +1,7 @@
 //! Quick view use case - file preview.
 
 use crate::application::{PanelMode, PanelState, QuickViewMode};
-use image::{load_from_memory, DynamicImage};
+use image::{DynamicImage, load_from_memory};
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
 use std::fs::{self, File};

@@ -3,10 +3,10 @@ use fishez::application::use_cases::{file_ops, navigate, quick_view};
 use fishez::application::{PanelMode, PanelState, QuickViewMode};
 use fishez::domain::{EntryKind, FileEntry};
 use fishez::infrastructure::favorites_adapter::save_favorites;
-use fishez::infrastructure::{add_favorite, load_favorites};
 use fishez::infrastructure::{FdSearchAdapter, RipGrepAdapter, StdFileSystem, SystemOpenAdapter};
+use fishez::infrastructure::{add_favorite, load_favorites};
 use std::fs;
-use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
 
@@ -83,22 +83,28 @@ fn integration_navigation_refresh_entries() {
     panel.mode = PanelMode::Normal;
     navigate::refresh_entries(&fs_adapter, &mut panel);
     assert!(panel.entries.iter().any(|e| e.name == ".."));
-    assert!(panel
-        .entries
-        .iter()
-        .any(|e| e.name == "file.txt" && e.kind == EntryKind::File));
-    assert!(panel
-        .entries
-        .iter()
-        .any(|e| e.name == format!("docs{}", MAIN_SEPARATOR)));
+    assert!(
+        panel
+            .entries
+            .iter()
+            .any(|e| e.name == "file.txt" && e.kind == EntryKind::File)
+    );
+    assert!(
+        panel
+            .entries
+            .iter()
+            .any(|e| e.name == format!("docs{}", MAIN_SEPARATOR))
+    );
 
     panel.filter_string = "file".to_string();
     navigate::refresh_entries(&fs_adapter, &mut panel);
     assert!(panel.entries.iter().any(|e| e.name == "file.txt"));
-    assert!(!panel
-        .entries
-        .iter()
-        .any(|e| e.name == format!("docs{}", MAIN_SEPARATOR)));
+    assert!(
+        !panel
+            .entries
+            .iter()
+            .any(|e| e.name == format!("docs{}", MAIN_SEPARATOR))
+    );
 }
 
 #[test]
