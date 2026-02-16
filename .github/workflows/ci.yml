@@ -49,7 +49,7 @@ jobs:
         run: cargo tree
 
       - name: cargo doc (HTML output)
-        run: cargo doc --no-deps --document-private-items --out-dir docs --html
+        run: cargo doc --no-deps --document-private-items
 
       - name: Verify docs build
         run: test -f target/doc/fishez/index.html
