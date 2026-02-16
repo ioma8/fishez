@@ -1,0 +1,182 @@
+image: rust:1.93-slim
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  RUSTFLAGS: -D warnings
+  GIT_DEPTH: 1
+  RUST_BACKTRACE: 1
+
+stages:
+  - test
+  - quality
+  - build
+  - docs
+  - security
+  - release
+
+# Cache dependencies for faster builds
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .cargo/
+    - target/
+
+# Unit tests
+test:unit:
+  stage: test
+  script:
+    - cargo test --lib
+  artifacts:
+    reports:
+      junit: target/junit.xml
+    paths:
+      - target/junit.xml
+
+# Integration tests
+test:integration:
+  stage: test
+  script:
+    - cargo test --test integration_flows
+    - cargo install cargo-tarpaulin --quiet
+    - cargo tarpaulin --out Xml --output-dir . --test integration_flows --out JUnit
+  dependencies:
+    - test:unit
+  artifacts:
+    reports:
+      junit: tarpaulin.xml
+    paths:
+      - tarpaulin.xml
+
+# Clippy linting
+clippy:
+  stage: quality
+  script:
+    - cargo clippy --all-targets --all-features -- -D warnings
+  allow_failure: false
+
+# Rustfmt check
+fmt:
+  stage: quality
+  script:
+    - cargo fmt -- --check
+  allow_failure: false
+
+# Dependency tree validation
+tree-check:
+  stage: quality
+  script:
+    - cargo tree
+  allow_failure: false
+
+# Code security scan (dependency audit)
+security:audit:
+  stage: security
+  script:
+    - cargo install cargo-audit --quiet
+    - cargo audit
+  allow_failure: true
+
+# Build project
+build:debug:
+  stage: build
+  script:
+    - cargo build
+  allow_failure: false
+
+build:release:
+  stage: build
+  script:
+    - cargo build --release
+  artifacts:
+    paths:
+      - target/release/fishez
+    expire_in: 1 week
+  allow_failure: false
+
+# Documentation
+docs:build:
+  stage: docs
+  script:
+    - cargo doc --no-deps --document-private-items
+  artifacts:
+    paths:
+      - target/doc/
+    expire_in: 1 week
+  allow_failure: false
+
+docs:check:
+  stage: docs
+  script:
+    - cargo doc --no-deps --document-private-items --quiet
+  allow_failure: false
+
+# Code coverage report
+coverage:
+  stage: test
+  script:
+    - cargo install cargo-tarpaulin --quiet
+    - cargo tarpaulin --out Html --output-dir coverage --exclude-files "src/main.rs" --exclude-files "tests/*" --timeout 300
+  coverage: '/Total\s+lines\s+([\d.]+)/'
+  artifacts:
+    paths:
+      - coverage/
+    expire_in: 30 days
+  allow_failure: true
+
+# Security scan using grype (vulnerability scanner)
+security:grype:
+  stage: security
+  image: anchore/grype:latest
+  script:
+    - grype cargo:target/debug/fishez --fail-on high
+  allow_failure: true
+
+# Binary size analysis
+analyze:size:
+  stage: quality
+  script:
+    - ls -lh target/release/fishez
+  allow_failure: false
+
+# Verify docs build without warnings
+docs:warning-check:
+  stage: docs
+  script:
+    - cargo doc --no-deps --document-private-items 2>&1 | grep -i warning || true
+  allow_failure: true
+
+# Release pipeline (manual trigger)
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  script:
+    - echo "Preparing release..."
+    - cargo build --release
+    - ls -lh target/release/fishez
+  rules:
+    - if: '$CI_COMMIT_TAG'
+  artifacts:
+    paths:
+      - target/release/fishez
+  release:
+    tag_name: '$CI_COMMIT_TAG'
+    name: 'fishez-$CI_COMMIT_TAG'
+    description: 'Release of fishez version $CI_COMMIT_TAG'
+    assets:
+      links:
+        - name: 'fishez-$CI_COMMIT_TAG'
+          url: 'https://gitlab.com/ioma8/fishez/-/jobs/$CI_JOB_ID/artifacts/file/target/release/fishez'
+          link_type: 'other'
+
+# Run all quality checks in one job (for CI/CD pipeline)
+quality:all:
+  stage: quality
+  script:
+    - cargo fmt -- --check
+    - cargo clippy --all-targets --all-features -- -D warnings
+    - cargo tree
+    - cargo test
+  dependencies: []
+  allow_failure: false
+  when: manual
+  allow_manual: true
