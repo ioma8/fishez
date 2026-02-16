@@ -44,3 +44,12 @@ jobs:
           FISHEZ_RUN_OPEN_TESTS: "1"
           FISHEZ_RUN_TRASH_TESTS: "1"
         run: cargo test
+
+      - name: cargo tree check
+        run: cargo tree
+
+      - name: cargo doc (HTML output)
+        run: cargo doc --no-deps --document-private-items --out-dir docs --html
+
+      - name: Verify docs build
+        run: test -f target/doc/fishez/index.html
