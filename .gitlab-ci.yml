@@ -7,9 +7,9 @@ variables:
   RUST_BACKTRACE: 1
 
 stages:
+  - build
   - test
   - quality
-  - build
   - docs
   - security
   - release
@@ -21,7 +21,86 @@ cache:
     - .cargo/
     - target/
 
-# Unit tests
+# Multi-platform build jobs
+build:linux-x86_64:
+  stage: build
+  image: rust:1.93-slim
+  variables:
+    CARGO_TARGET: x86_64-unknown-linux-gnu
+    PLATFORM: linux-x86_64
+  script:
+    - rustup target add $CARGO_TARGET
+    - apt-get update && apt-get install -y libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev ripgrep fd-find
+    - cargo build --release --target $CARGO_TARGET
+    - chmod +x target/$CARGO_TARGET/release/fishez
+    - mkdir -p dist
+    - cp target/$CARGO_TARGET/release/fishez dist/fishez-$PLATFORM
+    - chmod +x dist/fishez-$PLATFORM
+    - ls -lh dist/
+  artifacts:
+    paths:
+      - dist/fishez-$PLATFORM
+    expire_in: 30 days
+
+build:linux-aarch64:
+  stage: build
+  image: rust:1.93-slim
+  variables:
+    CARGO_TARGET: aarch64-unknown-linux-gnu
+    PLATFORM: linux-aarch64
+  script:
+    - rustup target add $CARGO_TARGET
+    - apt-get update && apt-get install -y libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev ripgrep fd-find
+    - cargo build --release --target $CARGO_TARGET
+    - chmod +x target/$CARGO_TARGET/release/fishez
+    - mkdir -p dist
+    - cp target/$CARGO_TARGET/release/fishez dist/fishez-$PLATFORM
+    - chmod +x dist/fishez-$PLATFORM
+    - ls -lh dist/
+  artifacts:
+    paths:
+      - dist/fishez-$PLATFORM
+    expire_in: 30 days
+
+build:macos-x86_64:
+  stage: build
+  image: rust:1.93-slim
+  variables:
+    CARGO_TARGET: x86_64-apple-darwin
+    PLATFORM: macos-x86_64
+  script:
+    - rustup target add $CARGO_TARGET
+    - cargo build --release --target $CARGO_TARGET
+    - chmod +x target/$CARGO_TARGET/release/fishez
+    - mkdir -p dist
+    - cp target/$CARGO_TARGET/release/fishez dist/fishez-$PLATFORM
+    - chmod +x dist/fishez-$PLATFORM
+    - ls -lh dist/
+  artifacts:
+    paths:
+      - dist/fishez-$PLATFORM
+    expire_in: 30 days
+
+build:macos-aarch64:
+  stage: build
+  image: rust:1.93-slim
+  variables:
+    CARGO_TARGET: aarch64-apple-darwin
+    PLATFORM: macos-aarch64
+  script:
+    - rustup target add $CARGO_TARGET
+    - cargo build --release --target $CARGO_TARGET
+    - chmod +x target/$CARGO_TARGET/release/fishez
+    - mkdir -p dist
+    - cp target/$CARGO_TARGET/release/fishez dist/fishez-$PLATFORM
+    - chmod +x dist/fishez-$PLATFORM
+    - ls -lh dist/
+  artifacts:
+    paths:
+      - dist/fishez-$PLATFORM
+    expire_in: 30 days
+
+# Run tests on all platforms
 test:unit:
   stage: test
   script:
@@ -32,7 +111,6 @@ test:unit:
     paths:
       - target/junit.xml
 
-# Integration tests
 test:integration:
   stage: test
   script:
@@ -151,21 +229,30 @@ release:
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   script:
     - echo "Preparing release..."
-    - cargo build --release
-    - ls -lh target/release/fishez
+    - mkdir -p release-artifacts
+    - cp dist/fishez-* release-artifacts/
   rules:
     - if: '$CI_COMMIT_TAG'
   artifacts:
     paths:
-      - target/release/fishez
+      - release-artifacts/
   release:
     tag_name: '$CI_COMMIT_TAG'
     name: 'fishez-$CI_COMMIT_TAG'
     description: 'Release of fishez version $CI_COMMIT_TAG'
     assets:
       links:
-        - name: 'fishez-$CI_COMMIT_TAG'
-          url: 'https://gitlab.com/ioma8/fishez/-/jobs/$CI_JOB_ID/artifacts/file/target/release/fishez'
+        - name: 'fishez-linux-x86_64'
+          url: 'https://gitlab.com/ioma8/fishez/-/jobs/$CI_JOB_ID/artifacts/file/dist/fishez-linux-x86_64'
+          link_type: 'other'
+        - name: 'fishez-linux-aarch64'
+          url: 'https://gitlab.com/ioma8/fishez/-/jobs/$CI_JOB_ID/artifacts/file/dist/fishez-linux-aarch64'
+          link_type: 'other'
+        - name: 'fishez-macos-x86_64'
+          url: 'https://gitlab.com/ioma8/fishez/-/jobs/$CI_JOB_ID/artifacts/file/dist/fishez-macos-x86_64'
+          link_type: 'other'
+        - name: 'fishez-macos-aarch64'
+          url: 'https://gitlab.com/ioma8/fishez/-/jobs/$CI_JOB_ID/artifacts/file/dist/fishez-macos-aarch64'
           link_type: 'other'
 
 # Run all quality checks in one job (for CI/CD pipeline)
