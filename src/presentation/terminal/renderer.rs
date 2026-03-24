@@ -7,6 +7,8 @@ use crossterm::terminal::{ClearType, enable_raw_mode};
 use crossterm::{cursor, queue, terminal};
 use std::io::Write;
 
+const LOADING_FRAMES: [&str; 4] = ["|", "/", "-", "\\"];
+
 #[cfg(test)]
 use std::cell::RefCell;
 #[cfg(test)]
@@ -72,6 +74,7 @@ pub struct TerminalRenderer {
     stdout: StdoutKind,
     help_entries: Vec<(String, String)>,
     logo_png: Option<Vec<u8>>,
+    loading_frame: usize,
 }
 
 impl Default for TerminalRenderer {
@@ -94,6 +97,7 @@ impl TerminalRenderer {
             stdout: StdoutKind::Real(std::io::stdout()),
             help_entries: default_help_entries(),
             logo_png,
+            loading_frame: 0,
         }
     }
 
@@ -310,6 +314,10 @@ impl TerminalRenderer {
 
     fn draw_quick_view(&mut self, qv: &QuickViewMode) {
         self.clear_quick_view_area();
+        if let QuickViewMode::Loading { message } = qv {
+            self.draw_loading_indicator(message);
+            return;
+        }
         let rows = self.visible_rows();
         match qv {
             QuickViewMode::Text { lines, start, .. } => self.draw_text(lines, *start, rows),
@@ -330,6 +338,7 @@ impl TerminalRenderer {
             }
             QuickViewMode::Directory { lines } => self.draw_text(lines, 0, rows),
             QuickViewMode::NotSupported => self.draw_text(&["".to_string()], 0, rows),
+            _ => {}
         }
     }
 
@@ -338,6 +347,17 @@ impl TerminalRenderer {
             &mut self.stdout,
             cursor::MoveTo(0, HEADER_ROWS),
             terminal::Clear(ClearType::FromCursorDown)
+        );
+    }
+
+    fn draw_loading_indicator(&mut self, message: &str) {
+        let frame = LOADING_FRAMES[self.loading_frame % LOADING_FRAMES.len()];
+        self.loading_frame = self.loading_frame.wrapping_add(1);
+        let _ = queue!(
+            &mut self.stdout,
+            cursor::MoveTo(0, HEADER_ROWS),
+            Print(format!("{} {}", frame, message)),
+            terminal::Clear(ClearType::UntilNewLine)
         );
     }
 
@@ -535,6 +555,7 @@ impl TerminalRenderer {
                 stdout: StdoutKind::Test(writer),
                 help_entries: default_help_entries(),
                 logo_png: None,
+                loading_frame: 0,
             },
             buffer,
         )

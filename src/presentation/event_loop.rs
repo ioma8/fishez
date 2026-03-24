@@ -135,6 +135,7 @@ fn route_input(
         fs_adapter,
         open_adapter,
         clipboard_adapter,
+        sender,
     );
     overlays::draw(renderer, app_state);
 }
@@ -212,6 +213,7 @@ fn handle_mode_input(
     fs_adapter: &StdFileSystem,
     open_adapter: &SystemOpenAdapter,
     clipboard_adapter: &mut SystemClipboard,
+    sender: &Sender<Message>,
 ) {
     let panel = app_state.active_panel_mut();
     match &panel.mode {
@@ -222,6 +224,7 @@ fn handle_mode_input(
             clipboard_adapter,
             app_state,
             renderer,
+            sender,
         ),
         PanelMode::Filter => handle_filter_mode(
             event,
@@ -230,6 +233,7 @@ fn handle_mode_input(
             clipboard_adapter,
             app_state,
             renderer,
+            sender,
         ),
         PanelMode::QuickView(_) => handle_quick_view_mode(event, app_state, renderer),
     }
@@ -253,6 +257,14 @@ fn handle_async_messages(
                 };
                 panel.clear_notification_force();
                 navigate::replace_entries_from_search(panel, files, &base_path);
+                overlays::draw(renderer, app_state);
+            }
+            Message::QuickViewResult { pane, mode } => {
+                let panel = match pane {
+                    ActivePane::Left => &mut app_state.left_panel,
+                    ActivePane::Right => &mut app_state.right_panel,
+                };
+                panel.mode = PanelMode::QuickView(mode);
                 overlays::draw(renderer, app_state);
             }
         }

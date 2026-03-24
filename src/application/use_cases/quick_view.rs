@@ -2,7 +2,7 @@
 
 use crate::application::use_cases::raw_image;
 use crate::application::{PanelMode, PanelState, QuickViewMode};
-use image::{DynamicImage, load_from_memory};
+use image::{DynamicImage, codecs::jpeg::JpegEncoder, imageops, load_from_memory};
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
 use std::fs;
@@ -14,7 +14,7 @@ const DIR_PREVIEW_LIMIT: usize = 20;
 
 pub fn open(panel: &mut PanelState, wrap_width: u16) {
     if let Some(path) = panel.get_selected_path() {
-        show_file(panel, path, wrap_width);
+        panel.mode = PanelMode::QuickView(preview(path, wrap_width));
     }
 }
 
@@ -26,15 +26,14 @@ pub fn scroll(panel: &mut PanelState, direction: isize, rows: u16, header: u16, 
     }
 }
 
-fn show_file(panel: &mut PanelState, path: PathBuf, wrap_width: u16) {
+pub fn preview(path: PathBuf, wrap_width: u16) -> QuickViewMode {
     if path.is_dir() {
-        show_directory(panel, &path);
-        return;
+        return preview_directory(&path);
     }
     match get_type(&path) {
-        FileType::Text => show_text(panel, &path, wrap_width),
-        FileType::Image => show_image(panel, &path),
-        FileType::Other => panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported),
+        FileType::Text => preview_text(&path, wrap_width),
+        FileType::Image => preview_image(&path, wrap_width),
+        FileType::Other => QuickViewMode::NotSupported,
     }
 }
 
@@ -68,19 +67,19 @@ fn get_type(path: &Path) -> FileType {
     }
 }
 
-fn show_text(panel: &mut PanelState, path: &Path, wrap_width: u16) {
+fn preview_text(path: &Path, wrap_width: u16) -> QuickViewMode {
     if let Ok(content) = fs::read_to_string(path) {
         let width = wrap_width.saturating_sub(4).max(MIN_WRAP_WIDTH) as usize;
         let lines: Vec<String> = textwrap::wrap(&content, width)
             .into_iter()
             .map(|l| l.to_string())
             .collect();
-        panel.mode = PanelMode::QuickView(QuickViewMode::Text {
+        QuickViewMode::Text {
             lines: highlight(lines),
             start: 0,
-        });
+        }
     } else {
-        panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
+        QuickViewMode::NotSupported
     }
 }
 
@@ -119,7 +118,7 @@ fn highlight(lines: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-fn show_directory(panel: &mut PanelState, path: &Path) {
+fn preview_directory(path: &Path) -> QuickViewMode {
     let (mut files, mut dirs, mut size, mut total) = (vec![], vec![], 0u64, 0usize);
     if let Ok(entries) = fs::read_dir(path) {
         for e in entries.flatten() {
@@ -165,19 +164,17 @@ fn show_directory(panel: &mut PanelState, path: &Path) {
             lines.push(format!("... and {} more", files.len() - DIR_PREVIEW_LIMIT));
         }
     }
-    panel.mode = PanelMode::QuickView(QuickViewMode::Directory { lines });
+    QuickViewMode::Directory { lines }
 }
 
-fn show_image(panel: &mut PanelState, path: &Path) {
+fn preview_image(path: &Path, wrap_width: u16) -> QuickViewMode {
     if let Some(raw_bytes) = raw_image::try_render_from_raw(path) {
         crate::logger::log("Raw image rendered via jpgfromrawlib");
-        panel.mode = PanelMode::QuickView(QuickViewMode::Image(raw_bytes));
-        return;
+        return QuickViewMode::Image(raw_bytes);
     }
     let now = Instant::now();
     let Ok(buf) = fs::read(path) else {
-        panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
-        return;
+        return QuickViewMode::NotSupported;
     };
     let thumb = extract_thumbnail(path);
     let pixels = thumb
@@ -185,10 +182,32 @@ fn show_image(panel: &mut PanelState, path: &Path) {
         .or_else(|| load_from_memory(&buf).ok().map(|i| i.to_rgb8()));
     crate::logger::log(&format!("Image loading took: {:?}", now.elapsed()));
     if pixels.is_some() {
-        panel.mode = PanelMode::QuickView(QuickViewMode::Image(buf));
+        let target = terminal_pixel_limit(wrap_width);
+        let image_bytes = downscale_image_if_needed(&buf, target).unwrap_or(buf);
+        QuickViewMode::Image(image_bytes)
     } else {
-        panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
+        QuickViewMode::NotSupported
     }
+}
+
+fn terminal_pixel_limit(wrap_width: u16) -> u32 {
+    const PIXELS_PER_COLUMN: u32 = 8;
+    const MAX_SIDE: u32 = 2048;
+    let side = wrap_width as u32 * PIXELS_PER_COLUMN;
+    side.min(MAX_SIDE)
+}
+
+fn downscale_image_if_needed(bytes: &[u8], max_side: u32) -> Option<Vec<u8>> {
+    let img = image::load_from_memory(bytes).ok()?;
+    if img.width() <= max_side && img.height() <= max_side {
+        return None;
+    }
+    let resized = imageops::thumbnail(&img, max_side, max_side);
+    let mut output = Vec::new();
+    let _ = JpegEncoder::new_with_quality(&mut output, 80)
+        .encode_image(&resized)
+        .ok()?;
+    Some(output)
 }
 
 fn extract_thumbnail(path: &Path) -> Option<DynamicImage> {
@@ -240,29 +259,24 @@ mod tests {
     }
 
     #[test]
-    fn test_show_text_sets_quick_view_mode() {
+    fn test_preview_text_returns_text_mode() {
         let base = create_temp_dir("quick_view_text");
         let file_path = base.join("note.txt");
         fs::write(&file_path, "hello world").unwrap();
 
-        let mut panel = PanelState::new();
-        show_text(&mut panel, &file_path, 10);
-        assert!(matches!(
-            panel.mode,
-            PanelMode::QuickView(QuickViewMode::Text { .. })
-        ));
+        let mode = preview_text(&file_path, 10);
+        assert!(matches!(mode, QuickViewMode::Text { lines: _, start: _ }));
     }
 
     #[test]
-    fn test_show_text_uses_min_wrap_width() {
+    fn test_preview_text_uses_min_wrap_width() {
         let base = create_temp_dir("quick_view_wrap");
         let file_path = base.join("long.txt");
         fs::write(&file_path, "word ".repeat(100)).unwrap();
 
-        let mut panel = PanelState::new();
-        show_text(&mut panel, &file_path, 5);
-        if let PanelMode::QuickView(QuickViewMode::Text { lines, .. }) = &panel.mode {
-            assert!(!lines.is_empty());
+        let mode = preview_text(&file_path, 5);
+        if let QuickViewMode::Text { lines, .. } = mode {
+            assert!(lines.iter().any(|line| line.contains("word")));
         } else {
             panic!("Expected QuickView Text mode");
         }
@@ -276,9 +290,8 @@ mod tests {
             fs::write(&file_path, "data").unwrap();
         }
 
-        let mut panel = PanelState::new();
-        show_directory(&mut panel, &base);
-        if let PanelMode::QuickView(QuickViewMode::Directory { lines }) = &panel.mode {
+        let mode = preview_directory(&base);
+        if let QuickViewMode::Directory { lines } = mode {
             let has_more = lines.iter().any(|line| line.contains("... and"));
             assert!(has_more);
         } else {
@@ -315,5 +328,22 @@ mod tests {
         let file_path = base.join("data.bin");
         fs::write(&file_path, [0u8, 159, 146, 150]).unwrap();
         assert!(matches!(get_type(&file_path), FileType::Other));
+    }
+
+    #[test]
+    fn preview_image_downscales_large_images() {
+        let base = create_temp_dir("quick_view_image_downscale");
+        let file_path = base.join("huge.jpg");
+        let img = image::RgbImage::from_fn(4000, 3000, |x, y| {
+            image::Rgb([(x % 256) as u8, (y % 256) as u8, ((x + y) % 256) as u8])
+        });
+        img.save(&file_path).unwrap();
+
+        if let QuickViewMode::Image(bytes) = preview_image(&file_path, 60) {
+            let original = fs::metadata(&file_path).unwrap().len() as usize;
+            assert!(bytes.len() < original);
+        } else {
+            panic!("Expected QuickView Image mode");
+        }
     }
 }

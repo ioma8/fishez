@@ -2,7 +2,7 @@
 
 use crate::application::ports::{OpenPort, SearchPort};
 use crate::application::use_cases::{file_ops, navigate, quick_view};
-use crate::application::{ActivePane, AppState, PanelMode, PanelState};
+use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode};
 use crate::infrastructure::{
     FdSearchAdapter, RipGrepAdapter, StdFileSystem, SystemClipboard, SystemOpenAdapter,
 };
@@ -18,6 +18,10 @@ pub enum Message {
         pane: ActivePane,
         base_path: PathBuf,
         files: Vec<String>,
+    },
+    QuickViewResult {
+        pane: ActivePane,
+        mode: QuickViewMode,
     },
 }
 
@@ -46,8 +50,10 @@ pub fn handle_normal_mode(
     clipboard: &mut SystemClipboard,
     state: &mut AppState,
     renderer: &TerminalRenderer,
+    sender: &Sender<Message>,
 ) {
     let visible_rows = renderer.visible_rows();
+    let pane = state.active_pane;
     let panel = state.active_panel_mut();
     match event.code {
         KeyCode::Char(c) => {
@@ -64,6 +70,8 @@ pub fn handle_normal_mode(
             panel,
             renderer.columns,
             visible_rows,
+            pane,
+            sender,
         ),
     }
 }
@@ -75,8 +83,10 @@ pub fn handle_filter_mode(
     clipboard: &mut SystemClipboard,
     state: &mut AppState,
     renderer: &TerminalRenderer,
+    sender: &Sender<Message>,
 ) {
     let visible_rows = renderer.visible_rows();
+    let pane = state.active_pane;
     let panel = state.active_panel_mut();
     match event.code {
         KeyCode::Esc => {
@@ -100,6 +110,8 @@ pub fn handle_filter_mode(
             panel,
             renderer.columns,
             visible_rows,
+            pane,
+            sender,
         ),
     }
 }
@@ -112,6 +124,8 @@ fn handle_panel_navigation(
     panel: &mut PanelState,
     columns: u16,
     visible_rows: u16,
+    pane: ActivePane,
+    sender: &Sender<Message>,
 ) {
     match event.code {
         KeyCode::Up => navigate::move_cursor(panel, -1, visible_rows),
@@ -119,8 +133,29 @@ fn handle_panel_navigation(
         KeyCode::Home => navigate::navigate_home(panel),
         KeyCode::End => navigate::navigate_end(panel, visible_rows),
         KeyCode::Enter => handle_enter(event, fs, open, clipboard, panel),
-        KeyCode::F(3) => quick_view::open(panel, columns),
+        KeyCode::F(3) => schedule_quick_view(panel, pane, columns, sender),
         _ => {}
+    }
+}
+
+fn schedule_quick_view(
+    panel: &mut PanelState,
+    pane: ActivePane,
+    columns: u16,
+    sender: &Sender<Message>,
+) {
+    if let Some(path) = panel.get_selected_path() {
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(|name| format!("Loading {}", name))
+            .unwrap_or_else(|| format!("Loading {}", path.display()));
+        panel.mode = PanelMode::QuickView(QuickViewMode::Loading { message: file_name });
+        let sender = sender.clone();
+        thread::spawn(move || {
+            let mode = quick_view::preview(path, columns);
+            let _ = sender.send(Message::QuickViewResult { pane, mode });
+        });
     }
 }
 

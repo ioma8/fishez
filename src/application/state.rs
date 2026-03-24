@@ -16,6 +16,7 @@ pub enum PanelMode {
 /// Quick view mode variants.
 #[derive(Debug, Clone, PartialEq)]
 pub enum QuickViewMode {
+    Loading { message: String },
     Text { lines: Vec<String>, start: usize },
     Image(Vec<u8>),
     Directory { lines: Vec<String> },
