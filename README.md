@@ -63,6 +63,7 @@ Written in Rust with zero-copy rendering. Directory listings appear instantly. P
 - **One-key VS Code integration** (`F4`)
 - **ripgrep-powered search** finds content across thousands of files in seconds
 - **fd integration** for blazing-fast fuzzy file search
+- **Raw image previews** via the `jpgfromrawlib`-supported camera formats directly in quick view
 
 ### Clean Architecture
 Built with maintainability in mind using Clean Architecture principles. Domain logic stays pure, adapters are swappable, and the codebase remains readable. Contributing is straightforward.

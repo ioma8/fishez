@@ -1,5 +1,6 @@
 //! Quick view use case - file preview.
 
+use crate::application::use_cases::raw_image;
 use crate::application::{PanelMode, PanelState, QuickViewMode};
 use image::{DynamicImage, load_from_memory};
 use little_exif::exif_tag::ExifTag;
@@ -44,6 +45,10 @@ enum FileType {
 }
 
 fn get_type(path: &Path) -> FileType {
+    if raw_image::supports_path(path) {
+        return FileType::Image;
+    }
+
     if let Some(mime) = tree_magic_mini::from_filepath(path) {
         match mime.split('/').next() {
             Some("text") => FileType::Text,
@@ -55,7 +60,11 @@ fn get_type(path: &Path) -> FileType {
             },
         }
     } else {
-        FileType::Other
+        match path.extension().and_then(std::ffi::OsStr::to_str) {
+            Some("txt") | Some("md") | Some("rs") | Some("toml") => FileType::Text,
+            Some("png") | Some("jpg") | Some("jpeg") | Some("gif") => FileType::Image,
+            _ => FileType::Other,
+        }
     }
 }
 
@@ -160,6 +169,11 @@ fn show_directory(panel: &mut PanelState, path: &Path) {
 }
 
 fn show_image(panel: &mut PanelState, path: &Path) {
+    if let Some(raw_bytes) = raw_image::try_render_from_raw(path) {
+        crate::logger::log("Raw image rendered via jpgfromrawlib");
+        panel.mode = PanelMode::QuickView(QuickViewMode::Image(raw_bytes));
+        return;
+    }
     let now = Instant::now();
     let Ok(buf) = fs::read(path) else {
         panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
