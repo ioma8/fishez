@@ -27,6 +27,13 @@ const FORBIDDEN_REGEX_CHARS: &[char] = &[
     '*', '+', '?', '|', '{', '}', '(', ')', '[', ']', '\\', '^', '$',
 ];
 
+enum QueryInputAction {
+    None,
+    Cancel,
+    Submit(String),
+    Invalid(String),
+}
+
 pub fn is_quit(event: KeyEvent) -> bool {
     event.code == KeyCode::F(10)
         || (event.code == KeyCode::Char('c') && event.modifiers.contains(KeyModifiers::CONTROL))
@@ -104,10 +111,10 @@ fn handle_enter(
         let absolute = event.modifiers.contains(KeyModifiers::SHIFT);
         let _ = file_ops::copy_to_clipboard(clipboard, panel, absolute);
     } else if !navigate::enter_selected(fs, panel)
-        && let Some(path) = panel.get_selected_path()
-        && fs.is_file(&path)
+        && let Some(entry) = panel.entries.get(panel.cursor)
+        && entry.is_file()
     {
-        open.open(&path);
+        open.open(&entry.path);
     }
 }
 
@@ -175,19 +182,12 @@ pub fn handle_find_input(
     state: &mut AppState,
 ) {
     if let Some(filter) = find_filter {
-        match event.code {
-            KeyCode::Char(c) => filter.push(c),
-            KeyCode::Backspace => {
-                filter.pop();
+        match handle_query_input_event(event, filter) {
+            QueryInputAction::None => {}
+            QueryInputAction::Invalid(message) => {
+                state.active_panel_mut().set_notification(message)
             }
-            KeyCode::Enter => {
-                let query = match validate_query(filter) {
-                    Ok(query) => query,
-                    Err(message) => {
-                        state.active_panel_mut().set_notification(message);
-                        return;
-                    }
-                };
+            QueryInputAction::Submit(query) => {
                 let sender = sender.clone();
                 let pane = state.active_pane;
                 let pwd = state.active_panel().current_path.clone();
@@ -204,11 +204,10 @@ pub fn handle_find_input(
                 });
                 *find_filter = None;
             }
-            KeyCode::Esc => {
+            QueryInputAction::Cancel => {
                 *find_filter = None;
                 navigate::refresh_entries(fs, state.active_panel_mut());
             }
-            _ => {}
         }
     }
 }
@@ -220,19 +219,12 @@ pub fn handle_ripgrep_input(
     state: &mut AppState,
 ) {
     if let Some(f) = filter {
-        match event.code {
-            KeyCode::Char(c) => f.push(c),
-            KeyCode::Backspace => {
-                f.pop();
+        match handle_query_input_event(event, f) {
+            QueryInputAction::None => {}
+            QueryInputAction::Invalid(message) => {
+                state.active_panel_mut().set_notification(message)
             }
-            KeyCode::Enter => {
-                let query = match validate_query(f) {
-                    Ok(query) => query,
-                    Err(message) => {
-                        state.active_panel_mut().set_notification(message);
-                        return;
-                    }
-                };
+            QueryInputAction::Submit(query) => {
                 let results =
                     RipGrepAdapter::new().find(&query, &state.active_panel().current_path);
                 let panel = state.active_panel_mut();
@@ -240,12 +232,30 @@ pub fn handle_ripgrep_input(
                 navigate::replace_entries_from_search(panel, results, &base);
                 *filter = None;
             }
-            KeyCode::Esc => {
+            QueryInputAction::Cancel => {
                 *filter = None;
                 navigate::refresh_entries(fs, state.active_panel_mut());
             }
-            _ => {}
         }
+    }
+}
+
+fn handle_query_input_event(event: KeyEvent, input: &mut String) -> QueryInputAction {
+    match event.code {
+        KeyCode::Char(c) => {
+            input.push(c);
+            QueryInputAction::None
+        }
+        KeyCode::Backspace => {
+            input.pop();
+            QueryInputAction::None
+        }
+        KeyCode::Enter => match validate_query(input) {
+            Ok(query) => QueryInputAction::Submit(query),
+            Err(message) => QueryInputAction::Invalid(message),
+        },
+        KeyCode::Esc => QueryInputAction::Cancel,
+        _ => QueryInputAction::None,
     }
 }
 

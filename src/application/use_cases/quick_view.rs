@@ -4,8 +4,7 @@ use crate::application::{PanelMode, PanelState, QuickViewMode};
 use image::{DynamicImage, load_from_memory};
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
-use std::fs::{self, File};
-use std::io::Read;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -21,28 +20,14 @@ pub fn open(panel: &mut PanelState, wrap_width: u16) {
 }
 
 pub fn scroll(panel: &mut PanelState, direction: isize, rows: u16, header: u16, footer: u16) {
-    if let PanelMode::QuickView(QuickViewMode::Text {
-        lines,
-        start,
-        length,
-    }) = &panel.mode
-    {
+    if let PanelMode::QuickView(QuickViewMode::Text { start, length, .. }) = &mut panel.mode {
         let visible = rows.saturating_sub(header + footer) as usize;
         let max = length.saturating_sub(visible.max(1));
-        let new = (*start as isize + direction).clamp(0, max as isize) as usize;
-        panel.mode = PanelMode::QuickView(QuickViewMode::Text {
-            lines: lines.clone(),
-            start: new,
-            length: *length,
-        });
+        *start = (*start as isize + direction).clamp(0, max as isize) as usize;
     }
 }
 
 fn show_file(panel: &mut PanelState, path: PathBuf, wrap_width: u16) {
-    if fs::metadata(&path).is_err() {
-        panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
-        return;
-    }
     if path.is_dir() {
         show_directory(panel, &path);
         return;
@@ -180,19 +165,14 @@ fn show_directory(panel: &mut PanelState, path: &Path) {
 
 fn show_image(panel: &mut PanelState, path: &Path) {
     let now = Instant::now();
-    let thumb = extract_thumbnail(path);
-    let pixels = thumb
-        .map(|t| t.to_rgb8())
-        .or_else(|| image::open(path).ok().map(|i| i.to_rgb8()));
-    let Ok(mut f) = File::open(path) else {
+    let Ok(buf) = fs::read(path) else {
         panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
         return;
     };
-    let mut buf = Vec::new();
-    if f.read_to_end(&mut buf).is_err() {
-        panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
-        return;
-    }
+    let thumb = extract_thumbnail(path);
+    let pixels = thumb
+        .map(|t| t.to_rgb8())
+        .or_else(|| load_from_memory(&buf).ok().map(|i| i.to_rgb8()));
     crate::logger::log(&format!("Image loading took: {:?}", now.elapsed()));
     if let Some(px) = pixels {
         panel.mode = PanelMode::QuickView(QuickViewMode::Image(px.into_raw(), buf));

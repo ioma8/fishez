@@ -15,9 +15,6 @@ pub trait FileSystemPort {
     #[allow(dead_code)]
     fn read_file(&self, path: &Path) -> Result<String, String>;
 
-    /// Checks if the given path is a file.
-    fn is_file(&self, path: &Path) -> bool;
-
     /// Checks if the given path is a directory.
     #[allow(dead_code)]
     fn is_dir(&self, path: &Path) -> bool;

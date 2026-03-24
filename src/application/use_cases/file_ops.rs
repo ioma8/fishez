@@ -101,10 +101,6 @@ mod tests {
             Ok(String::new())
         }
 
-        fn is_file(&self, _path: &Path) -> bool {
-            true
-        }
-
         fn is_dir(&self, _path: &Path) -> bool {
             false
         }

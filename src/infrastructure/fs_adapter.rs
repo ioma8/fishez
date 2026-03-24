@@ -28,9 +28,12 @@ impl FileSystemPort for StdFileSystem {
         for entry in entries.flatten() {
             let file_name = entry.file_name().to_string_lossy().to_string();
             let file_path = entry.path();
-            let metadata = entry.metadata().ok();
             let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
-            let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+            let size = if is_dir {
+                0
+            } else {
+                entry.metadata().map(|m| m.len()).unwrap_or(0)
+            };
 
             let kind = if is_dir {
                 EntryKind::Dir
@@ -38,7 +41,6 @@ impl FileSystemPort for StdFileSystem {
                 EntryKind::File
             };
 
-            // Append separator to directory names
             let display_name = if is_dir {
                 format!("{}{}", file_name, std::path::MAIN_SEPARATOR)
             } else {
@@ -57,10 +59,6 @@ impl FileSystemPort for StdFileSystem {
 
     fn read_file(&self, path: &Path) -> Result<String, String> {
         fs::read_to_string(path).map_err(|e| e.to_string())
-    }
-
-    fn is_file(&self, path: &Path) -> bool {
-        fs::metadata(path).map(|m| m.is_file()).unwrap_or(false)
     }
 
     fn is_dir(&self, path: &Path) -> bool {
@@ -124,7 +122,5 @@ mod tests {
         let fs_adapter = StdFileSystem::new();
         assert!(fs_adapter.is_dir(&dir_path));
         assert!(!fs_adapter.is_dir(&file_path));
-        assert!(fs_adapter.is_file(&file_path));
-        assert!(!fs_adapter.is_file(&dir_path));
     }
 }
