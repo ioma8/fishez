@@ -1,6 +1,6 @@
 //! Input handler - keyboard event processing.
 
-use crate::application::ports::{FileSystemPort, OpenPort, SearchPort};
+use crate::application::ports::{OpenPort, SearchPort};
 use crate::application::use_cases::{file_ops, navigate, quick_view};
 use crate::application::{ActivePane, AppState, PanelMode, PanelState};
 use crate::infrastructure::{
@@ -56,13 +56,15 @@ pub fn handle_normal_mode(
             navigate::refresh_entries(fs, panel);
         }
         KeyCode::Backspace => navigate::go_up_one_level(fs, panel),
-        KeyCode::Up => navigate::move_cursor(panel, -1, visible_rows),
-        KeyCode::Down => navigate::move_cursor(panel, 1, visible_rows),
-        KeyCode::Home => navigate::navigate_home(panel),
-        KeyCode::End => navigate::navigate_end(panel, visible_rows),
-        KeyCode::Enter => handle_enter(event, fs, open, clipboard, panel),
-        KeyCode::F(3) => quick_view::open(panel, renderer.columns),
-        _ => {}
+        _ => handle_panel_navigation(
+            event,
+            fs,
+            open,
+            clipboard,
+            panel,
+            renderer.columns,
+            visible_rows,
+        ),
     }
 }
 
@@ -90,12 +92,34 @@ pub fn handle_filter_mode(
             panel.filter_string.push(c);
             navigate::refresh_entries(fs, panel);
         }
+        _ => handle_panel_navigation(
+            event,
+            fs,
+            open,
+            clipboard,
+            panel,
+            renderer.columns,
+            visible_rows,
+        ),
+    }
+}
+
+fn handle_panel_navigation(
+    event: KeyEvent,
+    fs: &StdFileSystem,
+    open: &SystemOpenAdapter,
+    clipboard: &mut SystemClipboard,
+    panel: &mut PanelState,
+    columns: u16,
+    visible_rows: u16,
+) {
+    match event.code {
         KeyCode::Up => navigate::move_cursor(panel, -1, visible_rows),
         KeyCode::Down => navigate::move_cursor(panel, 1, visible_rows),
         KeyCode::Home => navigate::navigate_home(panel),
         KeyCode::End => navigate::navigate_end(panel, visible_rows),
         KeyCode::Enter => handle_enter(event, fs, open, clipboard, panel),
-        KeyCode::F(3) => quick_view::open(panel, renderer.columns),
+        KeyCode::F(3) => quick_view::open(panel, columns),
         _ => {}
     }
 }
@@ -111,7 +135,7 @@ fn handle_enter(
         let absolute = event.modifiers.contains(KeyModifiers::SHIFT);
         let _ = file_ops::copy_to_clipboard(clipboard, panel, absolute);
     } else if !navigate::enter_selected(fs, panel)
-        && let Some(entry) = panel.entries.get(panel.cursor)
+        && let Some(entry) = panel.selected_entry()
         && entry.is_file()
     {
         open.open(&entry.path);
@@ -157,20 +181,16 @@ pub fn handle_delete_confirmation(
     fs: &StdFileSystem,
     state: &mut AppState,
 ) {
-    if let Some(paths) = delete_paths {
-        match event.code {
-            KeyCode::Char('y') => {
-                for path in paths.iter() {
-                    let _ = fs.delete(path);
-                }
-                *delete_paths = None;
+    match event.code {
+        KeyCode::Char('y') => {
+            if let Some(paths) = delete_paths.take() {
+                let refs: Vec<&std::path::Path> = paths.iter().map(PathBuf::as_path).collect();
                 let panel = state.active_panel_mut();
-                panel.clear_multi_selection();
-                navigate::refresh_entries(fs, panel);
+                let _ = file_ops::delete_selected(fs, panel, &refs);
             }
-            KeyCode::Char('n') | KeyCode::Esc => *delete_paths = None,
-            _ => {}
         }
+        KeyCode::Char('n') | KeyCode::Esc => *delete_paths = None,
+        _ => {}
     }
 }
 
@@ -181,35 +201,22 @@ pub fn handle_find_input(
     fs: &StdFileSystem,
     state: &mut AppState,
 ) {
-    if let Some(filter) = find_filter {
-        match handle_query_input_event(event, filter) {
-            QueryInputAction::None => {}
-            QueryInputAction::Invalid(message) => {
-                state.active_panel_mut().set_notification(message)
-            }
-            QueryInputAction::Submit(query) => {
-                let sender = sender.clone();
-                let pane = state.active_pane;
-                let pwd = state.active_panel().current_path.clone();
-                state
-                    .active_panel_mut()
-                    .set_notification("Searching...".to_string());
-                thread::spawn(move || {
-                    let results = FdSearchAdapter::new().find(&query, &pwd);
-                    let _ = sender.send(Message::DrawFiles {
-                        pane,
-                        base_path: pwd,
-                        files: results,
-                    });
-                });
-                *find_filter = None;
-            }
-            QueryInputAction::Cancel => {
-                *find_filter = None;
-                navigate::refresh_entries(fs, state.active_panel_mut());
-            }
-        }
-    }
+    handle_query_submit(event, find_filter, fs, state, |query, state| {
+        let sender = sender.clone();
+        let pane = state.active_pane;
+        let pwd = state.active_panel().current_path.clone();
+        state
+            .active_panel_mut()
+            .set_notification("Searching...".to_string());
+        thread::spawn(move || {
+            let results = FdSearchAdapter::new().find(&query, &pwd);
+            let _ = sender.send(Message::DrawFiles {
+                pane,
+                base_path: pwd,
+                files: results,
+            });
+        });
+    });
 }
 
 pub fn handle_ripgrep_input(
@@ -218,26 +225,12 @@ pub fn handle_ripgrep_input(
     fs: &StdFileSystem,
     state: &mut AppState,
 ) {
-    if let Some(f) = filter {
-        match handle_query_input_event(event, f) {
-            QueryInputAction::None => {}
-            QueryInputAction::Invalid(message) => {
-                state.active_panel_mut().set_notification(message)
-            }
-            QueryInputAction::Submit(query) => {
-                let results =
-                    RipGrepAdapter::new().find(&query, &state.active_panel().current_path);
-                let panel = state.active_panel_mut();
-                let base = panel.current_path.clone();
-                navigate::replace_entries_from_search(panel, results, &base);
-                *filter = None;
-            }
-            QueryInputAction::Cancel => {
-                *filter = None;
-                navigate::refresh_entries(fs, state.active_panel_mut());
-            }
-        }
-    }
+    handle_query_submit(event, filter, fs, state, |query, state| {
+        let results = RipGrepAdapter::new().find(&query, &state.active_panel().current_path);
+        let panel = state.active_panel_mut();
+        let base = panel.current_path.clone();
+        navigate::replace_entries_from_search(panel, results, &base);
+    });
 }
 
 fn handle_query_input_event(event: KeyEvent, input: &mut String) -> QueryInputAction {
@@ -256,6 +249,30 @@ fn handle_query_input_event(event: KeyEvent, input: &mut String) -> QueryInputAc
         },
         KeyCode::Esc => QueryInputAction::Cancel,
         _ => QueryInputAction::None,
+    }
+}
+
+fn handle_query_submit(
+    event: KeyEvent,
+    input: &mut Option<String>,
+    fs: &StdFileSystem,
+    state: &mut AppState,
+    mut on_submit: impl FnMut(String, &mut AppState),
+) {
+    let Some(value) = input.as_mut() else {
+        return;
+    };
+    match handle_query_input_event(event, value) {
+        QueryInputAction::None => {}
+        QueryInputAction::Invalid(message) => state.active_panel_mut().set_notification(message),
+        QueryInputAction::Submit(query) => {
+            on_submit(query, state);
+            *input = None;
+        }
+        QueryInputAction::Cancel => {
+            *input = None;
+            navigate::refresh_entries(fs, state.active_panel_mut());
+        }
     }
 }
 

@@ -7,6 +7,8 @@ mod domain;
 mod infrastructure;
 mod logger;
 mod presentation;
+#[cfg(test)]
+mod test_support;
 
 use application::AppState;
 use application::use_cases::navigate;

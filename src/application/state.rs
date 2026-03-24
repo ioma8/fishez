@@ -16,15 +16,9 @@ pub enum PanelMode {
 /// Quick view mode variants.
 #[derive(Debug, Clone, PartialEq)]
 pub enum QuickViewMode {
-    Text {
-        lines: Vec<String>,
-        start: usize,
-        length: usize,
-    },
-    Image(Vec<u8>, Vec<u8>),
-    Directory {
-        lines: Vec<String>,
-    },
+    Text { lines: Vec<String>, start: usize },
+    Image(Vec<u8>),
+    Directory { lines: Vec<String> },
     NotSupported,
 }
 
@@ -86,7 +80,12 @@ impl PanelState {
 
     /// Gets the currently selected entry's absolute path.
     pub fn get_selected_path(&self) -> Option<PathBuf> {
-        self.entries.get(self.cursor).map(|e| e.path.clone())
+        self.selected_entry().map(|entry| entry.path.clone())
+    }
+
+    /// Gets the currently selected entry.
+    pub fn selected_entry(&self) -> Option<&FileEntry> {
+        self.entries.get(self.cursor)
     }
 
     /// Toggles multi-selection for the given index.
@@ -236,17 +235,10 @@ mod tests {
         let mode = PanelMode::QuickView(QuickViewMode::Text {
             lines: vec!["line1".to_string(), "line2".to_string()],
             start: 0,
-            length: 2,
         });
-        if let PanelMode::QuickView(QuickViewMode::Text {
-            lines,
-            start,
-            length,
-        }) = mode
-        {
+        if let PanelMode::QuickView(QuickViewMode::Text { lines, start }) = mode {
             assert_eq!(lines.len(), 2);
             assert_eq!(start, 0);
-            assert_eq!(length, 2);
         } else {
             panic!("Expected QuickView Text mode");
         }
@@ -266,9 +258,8 @@ mod tests {
 
     #[test]
     fn test_panel_mode_quick_view_image() {
-        let mode = PanelMode::QuickView(QuickViewMode::Image(vec![1, 2, 3], vec![4, 5, 6]));
-        if let PanelMode::QuickView(QuickViewMode::Image(pixels, raw)) = mode {
-            assert_eq!(pixels, vec![1, 2, 3]);
+        let mode = PanelMode::QuickView(QuickViewMode::Image(vec![4, 5, 6]));
+        if let PanelMode::QuickView(QuickViewMode::Image(raw)) = mode {
             assert_eq!(raw, vec![4, 5, 6]);
         } else {
             panic!("Expected QuickView Image mode");

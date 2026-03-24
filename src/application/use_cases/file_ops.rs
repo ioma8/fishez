@@ -26,11 +26,9 @@ pub fn copy_to_clipboard(
     panel: &mut PanelState,
     absolute_path: bool,
 ) -> Result<(), String> {
-    if panel.entries.is_empty() || panel.cursor >= panel.entries.len() {
+    let Some(entry) = panel.selected_entry() else {
         return Err("No file selected".to_string());
-    }
-
-    let entry = &panel.entries[panel.cursor];
+    };
     let text = if absolute_path {
         entry.path.to_string_lossy().to_string()
     } else {

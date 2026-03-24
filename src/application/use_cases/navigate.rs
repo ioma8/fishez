@@ -27,16 +27,16 @@ pub fn refresh_entries(fs: &dyn FileSystemPort, panel: &mut PanelState) {
 
     // List directory contents
     if let Ok(entries) = fs.list_dir(&panel.current_path) {
-        let filtered: Vec<FileEntry> = entries
-            .into_iter()
-            .filter(|e| {
-                panel.filter_string.is_empty()
-                    || e.name
-                        .to_lowercase()
-                        .contains(&panel.filter_string.to_lowercase())
-            })
-            .collect();
-        panel.entries.extend(filtered);
+        if panel.filter_string.is_empty() {
+            panel.entries.extend(entries);
+        } else {
+            let needle = panel.filter_string.to_lowercase();
+            panel.entries.extend(
+                entries
+                    .into_iter()
+                    .filter(|entry| entry.name.to_lowercase().contains(&needle)),
+            );
+        }
     }
 
     panel.cursor = 0;
@@ -78,11 +78,9 @@ pub fn navigate_end(panel: &mut PanelState, visible_rows: u16) {
 /// Opens the selected entry (enters directory or triggers file action).
 /// Returns true if the selected item is a directory and was entered.
 pub fn enter_selected(fs: &dyn FileSystemPort, panel: &mut PanelState) -> bool {
-    if panel.entries.is_empty() || panel.cursor >= panel.entries.len() {
+    let Some(entry) = panel.selected_entry() else {
         return false;
-    }
-
-    let entry = &panel.entries[panel.cursor];
+    };
 
     if entry.name == ".." {
         go_up_one_level(fs, panel);

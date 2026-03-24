@@ -12,17 +12,15 @@ const MIN_WRAP_WIDTH: u16 = 20;
 const DIR_PREVIEW_LIMIT: usize = 20;
 
 pub fn open(panel: &mut PanelState, wrap_width: u16) {
-    if panel.entries.is_empty() || panel.cursor >= panel.entries.len() {
-        return;
+    if let Some(path) = panel.get_selected_path() {
+        show_file(panel, path, wrap_width);
     }
-    let path = panel.entries[panel.cursor].path.clone();
-    show_file(panel, path, wrap_width);
 }
 
 pub fn scroll(panel: &mut PanelState, direction: isize, rows: u16, header: u16, footer: u16) {
-    if let PanelMode::QuickView(QuickViewMode::Text { start, length, .. }) = &mut panel.mode {
+    if let PanelMode::QuickView(QuickViewMode::Text { lines, start }) = &mut panel.mode {
         let visible = rows.saturating_sub(header + footer) as usize;
-        let max = length.saturating_sub(visible.max(1));
+        let max = lines.len().saturating_sub(visible.max(1));
         *start = (*start as isize + direction).clamp(0, max as isize) as usize;
     }
 }
@@ -68,11 +66,9 @@ fn show_text(panel: &mut PanelState, path: &Path, wrap_width: u16) {
             .into_iter()
             .map(|l| l.to_string())
             .collect();
-        let length = lines.len();
         panel.mode = PanelMode::QuickView(QuickViewMode::Text {
             lines: highlight(lines),
             start: 0,
-            length,
         });
     } else {
         panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
@@ -174,8 +170,8 @@ fn show_image(panel: &mut PanelState, path: &Path) {
         .map(|t| t.to_rgb8())
         .or_else(|| load_from_memory(&buf).ok().map(|i| i.to_rgb8()));
     crate::logger::log(&format!("Image loading took: {:?}", now.elapsed()));
-    if let Some(px) = pixels {
-        panel.mode = PanelMode::QuickView(QuickViewMode::Image(px.into_raw(), buf));
+    if pixels.is_some() {
+        panel.mode = PanelMode::QuickView(QuickViewMode::Image(buf));
     } else {
         panel.mode = PanelMode::QuickView(QuickViewMode::NotSupported);
     }
@@ -211,18 +207,8 @@ fn human_size(bytes: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::create_temp_dir;
     use std::fs;
-
-    fn create_temp_dir(prefix: &str) -> PathBuf {
-        let mut path = std::env::temp_dir();
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        path.push(format!("{}_{}", prefix, nanos));
-        fs::create_dir_all(&path).unwrap();
-        path
-    }
 
     #[test]
     fn test_scroll_clamps_bounds() {
@@ -230,7 +216,6 @@ mod tests {
         panel.mode = PanelMode::QuickView(QuickViewMode::Text {
             lines: vec!["a".to_string(); 50],
             start: 0,
-            length: 50,
         });
         scroll(&mut panel, 100, 10, 1, 1);
         if let PanelMode::QuickView(QuickViewMode::Text { start, .. }) = panel.mode {

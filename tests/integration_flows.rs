@@ -5,23 +5,13 @@ use fishez::domain::{EntryKind, FileEntry};
 use fishez::infrastructure::favorites_adapter::save_favorites;
 use fishez::infrastructure::{FdSearchAdapter, RipGrepAdapter, StdFileSystem, SystemOpenAdapter};
 use fishez::infrastructure::{add_favorite, load_favorites};
+use fishez::test_support::{CwdGuard, create_temp_dir};
 use std::fs;
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::process::Command;
 use std::sync::Mutex;
 
 static CWD_LOCK: Mutex<()> = Mutex::new(());
-
-fn create_temp_dir(prefix: &str) -> PathBuf {
-    let mut path = std::env::temp_dir();
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    path.push(format!("{}_{}", prefix, nanos));
-    fs::create_dir_all(&path).unwrap();
-    path
-}
 
 fn command_available(cmd: &str) -> bool {
     Command::new(cmd).arg("--version").output().is_ok()
@@ -151,8 +141,7 @@ fn integration_quick_view_directory() {
 fn integration_favorites_persistence() {
     let _guard = CWD_LOCK.lock().unwrap();
     let base = create_temp_dir("favorites_integration");
-    let original = std::env::current_dir().unwrap();
-    std::env::set_current_dir(&base).unwrap();
+    let _cwd = CwdGuard::change_to(&base);
 
     let mut items = vec![];
     assert!(add_favorite(&mut items, Path::new("/tmp/integration")));
@@ -163,8 +152,6 @@ fn integration_favorites_persistence() {
     save_favorites(&["/tmp/a".to_string(), "/tmp/b".to_string()]);
     let loaded = load_favorites();
     assert_eq!(loaded, vec!["/tmp/a".to_string(), "/tmp/b".to_string()]);
-
-    std::env::set_current_dir(original).unwrap();
 }
 
 #[test]

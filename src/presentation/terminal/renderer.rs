@@ -259,7 +259,7 @@ impl TerminalRenderer {
         let rows = self.visible_rows();
         match qv {
             QuickViewMode::Text { lines, start, .. } => self.draw_text(lines, *start, rows),
-            QuickViewMode::Image(_, bytes) => {
+            QuickViewMode::Image(bytes) => {
                 let enc = iterm2img::from_bytes(bytes.to_vec())
                     .width(self.columns as u64)
                     .height(rows as u64)

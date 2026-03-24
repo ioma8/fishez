@@ -69,19 +69,8 @@ impl FileSystemPort for StdFileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::create_temp_dir;
     use std::fs;
-    use std::path::PathBuf;
-
-    fn create_temp_dir(prefix: &str) -> PathBuf {
-        let mut path = std::env::temp_dir();
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        path.push(format!("{}_{}", prefix, nanos));
-        fs::create_dir_all(&path).unwrap();
-        path
-    }
 
     #[test]
     fn test_list_dir_formats_entries() {

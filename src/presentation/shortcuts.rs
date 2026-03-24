@@ -121,8 +121,8 @@ fn handle_vscode(
 ) -> bool {
     if event.code == KeyCode::F(4) {
         let panel = app_state.active_panel_mut();
-        if let Some(path) = panel.get_selected_path() {
-            vscode_adapter.open(&path);
+        if let Some(entry) = panel.selected_entry() {
+            vscode_adapter.open(&entry.path);
         }
         overlays::draw(renderer, app_state);
         return true;
