@@ -309,11 +309,11 @@ impl TerminalRenderer {
     }
 
     fn draw_quick_view(&mut self, qv: &QuickViewMode) {
+        self.clear_quick_view_area();
         let rows = self.visible_rows();
         match qv {
             QuickViewMode::Text { lines, start, .. } => self.draw_text(lines, *start, rows),
             QuickViewMode::Image(bytes) => {
-                self.clear_quick_view_area();
                 let enc = iterm2img::from_bytes(bytes.to_vec())
                     .width(self.columns as u64)
                     .height(rows as u64)
@@ -556,6 +556,22 @@ mod tests {
             res.windows(CLEAR_SEQ.len())
                 .any(|window| window == CLEAR_SEQ),
             "expected clear command in quick view image output"
+        );
+    }
+
+    #[test]
+    fn quick_view_text_clears_previous_content() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(40, 20);
+        renderer.draw_quick_view(&QuickViewMode::Text {
+            lines: vec!["first line".to_string()],
+            start: 0,
+        });
+        let res = buffer.borrow();
+        const CLEAR_SEQ: &[u8] = b"\x1b[J";
+        assert!(
+            res.windows(CLEAR_SEQ.len())
+                .any(|window| window == CLEAR_SEQ),
+            "expected clear command in quick view text output"
         );
     }
 }
