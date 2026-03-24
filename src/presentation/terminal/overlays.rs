@@ -33,9 +33,10 @@ fn draw_delete_prompt(renderer: &mut TerminalRenderer, paths: &[PathBuf]) {
             )
         }
     };
+    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
     let _ = queue!(
-        &renderer.stdout,
-        cursor::MoveTo(0, renderer.rows - FOOTER_ROWS + 1),
+        renderer.writer(),
+        cursor::MoveTo(0, prompt_row),
         terminal::Clear(ClearType::UntilNewLine),
         Print(prompt.red().bold()),
     );
@@ -51,9 +52,10 @@ pub fn draw_with_find(renderer: &mut TerminalRenderer, state: &AppState, filter:
 }
 
 fn draw_find_prompt(renderer: &mut TerminalRenderer, filter: &str) {
+    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
     let _ = queue!(
-        &renderer.stdout,
-        cursor::MoveTo(0, renderer.rows - FOOTER_ROWS + 1),
+        renderer.writer(),
+        cursor::MoveTo(0, prompt_row),
         terminal::Clear(ClearType::UntilNewLine),
         Print(format!("Find: {} [enter/esc]", filter).magenta().bold()),
     );
@@ -73,9 +75,10 @@ pub fn draw_with_ripgrep(
 }
 
 fn draw_ripgrep_prompt(renderer: &mut TerminalRenderer, filter: &str) {
+    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
     let _ = queue!(
-        &renderer.stdout,
-        cursor::MoveTo(0, renderer.rows - FOOTER_ROWS + 1),
+        renderer.writer(),
+        cursor::MoveTo(0, prompt_row),
         terminal::Clear(ClearType::UntilNewLine),
         Print(format!("RipGrep: {} [enter/esc]", filter).magenta().bold()),
     );
@@ -102,7 +105,7 @@ fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], sel
 
     // Header
     let _ = queue!(
-        &renderer.stdout,
+        renderer.writer(),
         cursor::MoveTo(0, 0),
         Print("Favorites"),
         terminal::Clear(ClearType::UntilNewLine)
@@ -111,13 +114,13 @@ fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], sel
     // Separator line
     let line = (0..renderer.columns).map(|_| "─").collect::<String>();
     let _ = queue!(
-        &renderer.stdout,
+        renderer.writer(),
         cursor::MoveTo(0, 1),
         Print(line.with(Color::Blue))
     );
 
     // Content
-    let _ = queue!(&renderer.stdout, cursor::MoveTo(0, HEADER_ROWS));
+    let _ = queue!(renderer.writer(), cursor::MoveTo(0, HEADER_ROWS));
 
     for (i, item) in items.iter().enumerate() {
         let name = if i == selected {
@@ -127,7 +130,7 @@ fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], sel
         };
 
         let _ = queue!(
-            &renderer.stdout,
+            renderer.writer(),
             Print(name),
             terminal::Clear(ClearType::UntilNewLine),
             cursor::MoveToNextLine(1)
@@ -138,7 +141,7 @@ fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], sel
     if rows_to_clear > 0 {
         for _ in 0..rows_to_clear {
             let _ = queue!(
-                &renderer.stdout,
+                renderer.writer(),
                 terminal::Clear(ClearType::UntilNewLine),
                 cursor::MoveToNextLine(1)
             );
