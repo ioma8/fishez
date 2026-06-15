@@ -1,7 +1,7 @@
 //! Helper for rendering RAW/raster inputs via `jpgfromrawlib` so quick-view stays on the existing image path.
 
 use jpgfromrawlib::{FindJpegType, SUPPORTED_EXTENSIONS, process_file_bytes};
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 use std::path::Path;
 use tokio::runtime::{Builder, Runtime};
 
@@ -45,7 +45,7 @@ fn call_process_file_bytes(path: &Path) -> Option<Vec<u8>> {
 }
 
 fn runtime() -> &'static Runtime {
-    static RUNTIME: OnceCell<Runtime> = OnceCell::new();
+    static RUNTIME: OnceLock<Runtime> = OnceLock::new();
     RUNTIME.get_or_init(|| {
         Builder::new_current_thread()
             .enable_all()

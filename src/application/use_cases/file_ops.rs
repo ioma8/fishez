@@ -94,14 +94,6 @@ mod tests {
                 Ok(())
             }
         }
-
-        fn read_file(&self, _path: &Path) -> Result<String, String> {
-            Ok(String::new())
-        }
-
-        fn is_dir(&self, _path: &Path) -> bool {
-            false
-        }
     }
 
     /// Mock clipboard for testing

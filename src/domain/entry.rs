@@ -17,29 +17,18 @@ pub struct FileEntry {
     pub kind: EntryKind,
     #[allow(dead_code)]
     pub size: u64,
-    #[allow(dead_code)]
-    pub is_selected: bool,
 }
 
 impl FileEntry {
     /// Creates a new FileEntry.
     pub fn new(path: PathBuf, name: String, kind: EntryKind, size: u64) -> Self {
-        Self {
-            path,
-            name,
-            kind,
-            size,
-            is_selected: false,
-        }
+        Self { path, name, kind, size }
     }
 
-    /// Checks if this entry represents a directory.
     pub fn is_dir(&self) -> bool {
         self.kind == EntryKind::Dir
     }
 
-    /// Checks if this entry represents a file.
-    #[allow(dead_code)]
     pub fn is_file(&self) -> bool {
         self.kind == EntryKind::File
     }
@@ -61,7 +50,6 @@ mod tests {
         assert_eq!(entry.name, "test.txt");
         assert_eq!(entry.kind, EntryKind::File);
         assert_eq!(entry.size, 1024);
-        assert!(!entry.is_selected);
     }
 
     #[test]
@@ -76,7 +64,6 @@ mod tests {
         assert_eq!(entry.name, "docs");
         assert_eq!(entry.kind, EntryKind::Dir);
         assert_eq!(entry.size, 0);
-        assert!(!entry.is_selected);
     }
 
     #[test]
@@ -142,7 +129,6 @@ mod tests {
         assert_eq!(entry.name, cloned.name);
         assert_eq!(entry.kind, cloned.kind);
         assert_eq!(entry.size, cloned.size);
-        assert_eq!(entry.is_selected, cloned.is_selected);
     }
 
     #[test]

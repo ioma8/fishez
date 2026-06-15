@@ -7,7 +7,6 @@ use crate::presentation::terminal::overlays;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::path::PathBuf;
 
-use crate::application::ports::OpenPort;
 
 /// Handle feature shortcuts.
 #[allow(clippy::too_many_arguments)]

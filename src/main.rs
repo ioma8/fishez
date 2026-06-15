@@ -5,7 +5,6 @@
 mod application;
 mod domain;
 mod infrastructure;
-mod logger;
 mod presentation;
 #[cfg(test)]
 mod test_support;
@@ -27,10 +26,10 @@ fn main() {
     let two_pane = env::args().any(|arg| arg == "--two-pane" || arg == "-2");
 
     // Initialize infrastructure (adapters)
-    let fs = StdFileSystem::new();
+    let fs = StdFileSystem;
     let mut clipboard = SystemClipboard::new();
-    let open = SystemOpenAdapter::new();
-    let vscode = VsCodeAdapter::new();
+    let open = SystemOpenAdapter;
+    let vscode = VsCodeAdapter;
 
     // Initialize application state
     let mut state = AppState::new(two_pane);

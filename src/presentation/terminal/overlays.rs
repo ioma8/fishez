@@ -8,13 +8,22 @@ use crossterm::{cursor, queue, terminal};
 use std::io::Write;
 use std::path::PathBuf;
 
+/// Draw the main UI based on state.
+pub fn draw(renderer: &mut TerminalRenderer, state: &AppState) {
+    if state.two_pane_mode {
+        renderer.draw_two_panes(state);
+    } else {
+        renderer.draw(state);
+    }
+}
+
 /// Draw with delete confirmation overlay.
 pub fn draw_with_delete(
     renderer: &mut TerminalRenderer,
     state: &AppState,
     paths: Option<&Vec<PathBuf>>,
 ) {
-    draw_main(renderer, state);
+    draw(renderer, state);
     if let Some(p) = paths {
         draw_delete_prompt(renderer, p);
     }
@@ -45,7 +54,7 @@ fn draw_delete_prompt(renderer: &mut TerminalRenderer, paths: &[PathBuf]) {
 
 /// Draw with find prompt overlay.
 pub fn draw_with_find(renderer: &mut TerminalRenderer, state: &AppState, filter: Option<&String>) {
-    draw_main(renderer, state);
+    draw(renderer, state);
     if let Some(f) = filter {
         draw_find_prompt(renderer, f);
     }
@@ -68,7 +77,7 @@ pub fn draw_with_ripgrep(
     state: &AppState,
     filter: Option<&String>,
 ) {
-    draw_main(renderer, state);
+    draw(renderer, state);
     if let Some(f) = filter {
         draw_ripgrep_prompt(renderer, f);
     }
@@ -96,14 +105,13 @@ pub fn draw_with_favorites(
     if active {
         draw_favorites_overlay(renderer, items, selected);
     } else {
-        draw_main(renderer, state);
+        draw(renderer, state);
     }
 }
 
 fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], selected: usize) {
     let rows_available = renderer.rows - HEADER_ROWS - FOOTER_ROWS;
 
-    // Header
     let _ = queue!(
         renderer.writer(),
         cursor::MoveTo(0, 0),
@@ -111,15 +119,13 @@ fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], sel
         terminal::Clear(ClearType::UntilNewLine)
     );
 
-    // Separator line
-    let line = (0..renderer.columns).map(|_| "─").collect::<String>();
+    let line = "─".repeat(renderer.columns as usize);
     let _ = queue!(
         renderer.writer(),
         cursor::MoveTo(0, 1),
         Print(line.with(Color::Blue))
     );
 
-    // Content
     let _ = queue!(renderer.writer(), cursor::MoveTo(0, HEADER_ROWS));
 
     for (i, item) in items.iter().enumerate() {
@@ -128,7 +134,6 @@ fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], sel
         } else {
             item.clone().dark_magenta()
         };
-
         let _ = queue!(
             renderer.writer(),
             Print(name),
@@ -137,30 +142,14 @@ fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], sel
         );
     }
 
-    let rows_to_clear: i16 = rows_available as i16 - items.len() as i16;
-    if rows_to_clear > 0 {
-        for _ in 0..rows_to_clear {
-            let _ = queue!(
-                renderer.writer(),
-                terminal::Clear(ClearType::UntilNewLine),
-                cursor::MoveToNextLine(1)
-            );
-        }
+    let rows_to_clear = (rows_available as i16 - items.len() as i16).max(0) as u16;
+    for _ in 0..rows_to_clear {
+        let _ = queue!(
+            renderer.writer(),
+            terminal::Clear(ClearType::UntilNewLine),
+            cursor::MoveToNextLine(1)
+        );
     }
 
     let _ = std::io::stdout().flush();
-}
-
-/// Draw the main UI based on state.
-fn draw_main(renderer: &mut TerminalRenderer, state: &AppState) {
-    if state.two_pane_mode {
-        renderer.draw_two_panes(state);
-    } else {
-        renderer.draw(state);
-    }
-}
-
-/// Combined draw function that handles all overlay modes.
-pub fn draw(renderer: &mut TerminalRenderer, state: &AppState) {
-    draw_main(renderer, state);
 }

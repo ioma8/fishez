@@ -1,6 +1,5 @@
 //! Input handler - keyboard event processing.
 
-use crate::application::ports::{OpenPort, SearchPort};
 use crate::application::use_cases::{file_ops, navigate, quick_view};
 use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode};
 use crate::infrastructure::{
@@ -27,9 +26,6 @@ pub enum Message {
 
 const MAX_QUERY_LEN: usize = 64;
 const MAX_REPEAT_RUN: usize = 16;
-const FORBIDDEN_REGEX_CHARS: &[char] = &[
-    '*', '+', '?', '|', '{', '}', '(', ')', '[', ']', '\\', '^', '$',
-];
 
 enum QueryInputAction {
     None,
@@ -244,7 +240,7 @@ pub fn handle_find_input(
             .active_panel_mut()
             .set_notification("Searching...".to_string());
         thread::spawn(move || {
-            let results = FdSearchAdapter::new().find(&query, &pwd);
+            let results = FdSearchAdapter.find(&query, &pwd);
             let _ = sender.send(Message::DrawFiles {
                 pane,
                 base_path: pwd,
@@ -261,7 +257,7 @@ pub fn handle_ripgrep_input(
     state: &mut AppState,
 ) {
     handle_query_submit(event, filter, fs, state, |query, state| {
-        let results = RipGrepAdapter::new().find(&query, &state.active_panel().current_path);
+        let results = RipGrepAdapter.find(&query, &state.active_panel().current_path);
         let panel = state.active_panel_mut();
         let base = panel.current_path.clone();
         navigate::replace_entries_from_search(panel, results, &base);
@@ -322,7 +318,7 @@ fn validate_query(raw: &str) -> Result<String, String> {
         return Err(format!("Query too long (max {})", MAX_QUERY_LEN));
     }
 
-    if query.chars().any(|c| FORBIDDEN_REGEX_CHARS.contains(&c)) {
+    if query.chars().any(|c| matches!(c, '*'|'+'|'?'|'|'|'{'|'}'|'('|')'|'['|']'|'\\'|'^'|'$')) {
         return Err("Query contains unsupported regex tokens".to_string());
     }
 
@@ -334,20 +330,12 @@ fn validate_query(raw: &str) -> Result<String, String> {
 }
 
 fn has_absurd_repeat_run(query: &str) -> bool {
-    let mut last: Option<char> = None;
-    let mut run = 0usize;
-    for ch in query.chars() {
-        if Some(ch) == last {
-            run += 1;
-        } else {
-            last = Some(ch);
-            run = 1;
-        }
-        if run >= MAX_REPEAT_RUN {
-            return true;
-        }
-    }
-    false
+    let (mut last, mut run) = ('\0', 0usize);
+    query.chars().any(|c| {
+        run = if c == last { run + 1 } else { 1 };
+        last = c;
+        run >= MAX_REPEAT_RUN
+    })
 }
 
 pub fn handle_favorites_input(

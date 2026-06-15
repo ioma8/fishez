@@ -1,6 +1,7 @@
+use crate::application::ports::FileSystemPort;
+use crate::domain::FileEntry;
 use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub fn create_temp_dir(prefix: &str) -> PathBuf {
     let mut path = std::env::temp_dir();
@@ -28,5 +29,39 @@ impl CwdGuard {
 impl Drop for CwdGuard {
     fn drop(&mut self) {
         std::env::set_current_dir(&self.original).unwrap();
+    }
+}
+
+/// Shared mock for FileSystemPort. Configurable entries and optional list_dir error.
+pub struct MockFileSystem {
+    pub entries: Vec<FileEntry>,
+    pub error: bool,
+}
+
+impl MockFileSystem {
+    pub fn new() -> Self {
+        Self { entries: vec![], error: false }
+    }
+
+    pub fn with_entries(entries: Vec<FileEntry>) -> Self {
+        Self { entries, error: false }
+    }
+
+    pub fn with_error() -> Self {
+        Self { entries: vec![], error: true }
+    }
+}
+
+impl FileSystemPort for MockFileSystem {
+    fn list_dir(&self, _path: &Path) -> Result<Vec<FileEntry>, String> {
+        if self.error {
+            Err("Mock error".to_string())
+        } else {
+            Ok(self.entries.clone())
+        }
+    }
+
+    fn delete(&self, _path: &Path) -> Result<(), String> {
+        Ok(())
     }
 }

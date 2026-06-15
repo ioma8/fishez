@@ -7,7 +7,6 @@ use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
 
 const MIN_WRAP_WIDTH: u16 = 20;
 const DIR_PREVIEW_LIMIT: usize = 20;
@@ -48,22 +47,32 @@ fn get_type(path: &Path) -> FileType {
         return FileType::Image;
     }
 
+    let extension = path
+        .extension()
+        .and_then(std::ffi::OsStr::to_str)
+        .map(|ext| ext.to_ascii_lowercase());
+    let extension_type = classify_extension(extension.as_deref());
+
+    if matches!(extension_type, FileType::Image) {
+        return FileType::Image;
+    }
+
     if let Some(mime) = tree_magic_mini::from_filepath(path) {
         match mime.split('/').next() {
             Some("text") => FileType::Text,
             Some("image") => FileType::Image,
-            _ => match path.extension().and_then(std::ffi::OsStr::to_str) {
-                Some("txt") | Some("md") | Some("rs") | Some("toml") => FileType::Text,
-                Some("png") | Some("jpg") | Some("jpeg") | Some("gif") => FileType::Image,
-                _ => FileType::Other,
-            },
+            _ => extension_type,
         }
     } else {
-        match path.extension().and_then(std::ffi::OsStr::to_str) {
-            Some("txt") | Some("md") | Some("rs") | Some("toml") => FileType::Text,
-            Some("png") | Some("jpg") | Some("jpeg") | Some("gif") => FileType::Image,
-            _ => FileType::Other,
-        }
+        extension_type
+    }
+}
+
+fn classify_extension(extension: Option<&str>) -> FileType {
+    match extension {
+        Some("txt") | Some("md") | Some("rs") | Some("toml") => FileType::Text,
+        Some("png") | Some("jpg") | Some("jpeg") | Some("gif") => FileType::Image,
+        _ => FileType::Other,
     }
 }
 
@@ -169,10 +178,8 @@ fn preview_directory(path: &Path) -> QuickViewMode {
 
 fn preview_image(path: &Path, wrap_width: u16) -> QuickViewMode {
     if let Some(raw_bytes) = raw_image::try_render_from_raw(path) {
-        crate::logger::log("Raw image rendered via jpgfromrawlib");
         return QuickViewMode::Image(raw_bytes);
     }
-    let now = Instant::now();
     let Ok(buf) = fs::read(path) else {
         return QuickViewMode::NotSupported;
     };
@@ -180,7 +187,6 @@ fn preview_image(path: &Path, wrap_width: u16) -> QuickViewMode {
     let pixels = thumb
         .map(|t| t.to_rgb8())
         .or_else(|| load_from_memory(&buf).ok().map(|i| i.to_rgb8()));
-    crate::logger::log(&format!("Image loading took: {:?}", now.elapsed()));
     if pixels.is_some() {
         let target = terminal_pixel_limit(wrap_width);
         let image_bytes = downscale_image_if_needed(&buf, target).unwrap_or(buf);

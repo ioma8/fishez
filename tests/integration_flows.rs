@@ -1,4 +1,4 @@
-use fishez::application::ports::{ClipboardPort, OpenPort, SearchPort};
+use fishez::application::ports::ClipboardPort;
 use fishez::application::use_cases::{file_ops, navigate, quick_view};
 use fishez::application::{PanelMode, PanelState, QuickViewMode};
 use fishez::domain::{EntryKind, FileEntry};
@@ -40,7 +40,7 @@ fn integration_search_fd_end_to_end() {
     fs::write(dir_path.join("nested.txt"), "alpha nested").unwrap();
     fs::write(&file_path, "alpha").unwrap();
 
-    let results = FdSearchAdapter::new().find("", &base);
+    let results = FdSearchAdapter.find("", &base);
     assert!(results.contains(&"alpha.txt".to_string()));
     assert!(results.contains(&format!("alpha_dir{}nested.txt", MAIN_SEPARATOR)));
 }
@@ -55,7 +55,7 @@ fn integration_search_rg_end_to_end() {
     let file_path = base.join("notes.txt");
     fs::write(&file_path, "needle in a haystack").unwrap();
 
-    let results = RipGrepAdapter::new().find("needle", &base);
+    let results = RipGrepAdapter.find("needle", &base);
     assert!(results.contains(&"notes.txt".to_string()));
 }
 
@@ -67,7 +67,7 @@ fn integration_navigation_refresh_entries() {
     fs::create_dir_all(&dir_path).unwrap();
     fs::write(&file_path, "hello").unwrap();
 
-    let fs_adapter = StdFileSystem::new();
+    let fs_adapter = StdFileSystem;
     let mut panel = PanelState::new();
     panel.current_path = base.clone();
     panel.mode = PanelMode::Normal;
@@ -186,7 +186,7 @@ fn integration_copy_to_clipboard() {
 fn integration_refresh_entries_filters_case_insensitive() {
     let base = create_temp_dir("navigate_filter_case");
     fs::write(base.join("Readme.MD"), "text").unwrap();
-    let fs_adapter = StdFileSystem::new();
+    let fs_adapter = StdFileSystem;
     let mut panel = PanelState::new();
     panel.current_path = base;
     panel.mode = PanelMode::Filter;
@@ -208,7 +208,7 @@ fn integration_open_adapter_spawns() {
     let file_path = base.join("open_me.txt");
     fs::write(&file_path, "open test").unwrap();
 
-    let adapter = SystemOpenAdapter::new();
+    let adapter = SystemOpenAdapter;
     adapter.open(&file_path);
 }
 
@@ -222,7 +222,7 @@ fn integration_trash_delete_selected() {
     let file_path = base.join("trash_me.txt");
     fs::write(&file_path, "delete test").unwrap();
 
-    let fs_adapter = StdFileSystem::new();
+    let fs_adapter = StdFileSystem;
     let mut panel = PanelState::new();
     panel.current_path = base.clone();
     panel.entries = vec![FileEntry::new(

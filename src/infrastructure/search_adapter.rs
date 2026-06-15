@@ -1,26 +1,14 @@
-//! Search adapter - implements SearchPort using fd/rg commands.
+//! Search adapters for fd and ripgrep.
 
-use crate::application::ports::SearchPort;
 use std::path::{MAIN_SEPARATOR, Path};
 use std::process::Command;
 
 /// Search adapter using fd command.
+#[derive(Default)]
 pub struct FdSearchAdapter;
 
-impl Default for FdSearchAdapter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl FdSearchAdapter {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl SearchPort for FdSearchAdapter {
-    fn find(&self, query: &str, path: &Path) -> Vec<String> {
+    pub fn find(&self, query: &str, path: &Path) -> Vec<String> {
         if cfg!(target_os = "windows") {
             find_windows(query, path)
         } else {
@@ -56,22 +44,11 @@ fn find_windows(filter: &str, dir: &Path) -> Vec<String> {
 }
 
 /// RipGrep search adapter.
+#[derive(Default)]
 pub struct RipGrepAdapter;
 
-impl Default for RipGrepAdapter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl RipGrepAdapter {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl SearchPort for RipGrepAdapter {
-    fn find(&self, query: &str, path: &Path) -> Vec<String> {
+    pub fn find(&self, query: &str, path: &Path) -> Vec<String> {
         let output = Command::new("rg")
             .args(["--files-with-matches", "-0", query])
             .current_dir(path)
@@ -90,14 +67,9 @@ impl SearchPort for RipGrepAdapter {
 fn parse_fd_output(output: &str, dir: &Path) -> Vec<String> {
     output
         .lines()
-        .map(|s| s.to_string())
-        .map(|rel| {
-            let abs = dir.join(&rel);
-            if abs.is_dir() {
-                format!("{}{}", rel, MAIN_SEPARATOR)
-            } else {
-                rel
-            }
+        .map(|s| {
+            let rel = s.to_string();
+            if dir.join(&rel).is_dir() { format!("{}{}", rel, MAIN_SEPARATOR) } else { rel }
         })
         .collect()
 }

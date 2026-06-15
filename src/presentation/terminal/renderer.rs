@@ -2,12 +2,22 @@
 
 use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode};
 use crate::domain::FileEntry;
+use base64::Engine;
 use crossterm::style::{Color, Print, StyledContent, Stylize};
 use crossterm::terminal::{ClearType, enable_raw_mode};
 use crossterm::{cursor, queue, terminal};
-use std::io::Write;
+use image::ImageFormat;
+use std::collections::hash_map::DefaultHasher;
+use std::fs::OpenOptions;
+use std::hash::{Hash, Hasher};
+use std::io::{Cursor, Read, Write};
+#[cfg(unix)]
+use std::os::fd::AsRawFd;
+use std::time::{Duration, Instant};
 
 const LOADING_FRAMES: [&str; 4] = ["|", "/", "-", "\\"];
+const KITTY_IMAGE_ID: u32 = 1;
+const KITTY_DELETE_ESCAPE: &str = "\x1b_Ga=d,d=I,i=1\x1b\\";
 
 #[cfg(test)]
 use std::cell::RefCell;
@@ -44,6 +54,13 @@ pub const FOOTER_ROWS: u16 = 3;
 /// Embedded SVG logo bytes (loaded at compile time)
 const LOGO_SVG: &[u8] = include_bytes!("../../../Fishez_logo.svg");
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ImageProtocol {
+    ITerm2,
+    Kitty,
+    None,
+}
+
 pub(crate) enum StdoutKind {
     Real(std::io::Stdout),
     #[cfg(test)]
@@ -72,8 +89,10 @@ pub struct TerminalRenderer {
     pub columns: u16,
     pub rows: u16,
     stdout: StdoutKind,
-    help_entries: Vec<(String, String)>,
+    help_entries: Vec<(&'static str, &'static str)>,
     logo_png: Option<Vec<u8>>,
+    image_protocol: ImageProtocol,
+    kitty_image_hash: Option<u64>,
     loading_frame: usize,
 }
 
@@ -97,6 +116,8 @@ impl TerminalRenderer {
             stdout: StdoutKind::Real(std::io::stdout()),
             help_entries: default_help_entries(),
             logo_png,
+            image_protocol: detect_image_protocol(),
+            kitty_image_hash: None,
             loading_frame: 0,
         }
     }
@@ -124,6 +145,7 @@ impl TerminalRenderer {
     pub fn draw(&mut self, state: &AppState) {
         let panel = state.active_panel();
         let _ = queue!(&mut self.stdout, cursor::DisableBlinking, cursor::Hide);
+        self.sync_kitty_image_visibility(&panel.mode);
         self.draw_header(panel);
         self.draw_system_header(panel);
         match &panel.mode {
@@ -140,6 +162,7 @@ impl TerminalRenderer {
 
     pub fn draw_two_panes(&mut self, state: &AppState) {
         let _ = queue!(&mut self.stdout, cursor::DisableBlinking, cursor::Hide);
+        self.sync_kitty_image_visibility(&state.active_panel().mode);
         if matches!(state.active_panel().mode, PanelMode::QuickView(_)) {
             self.draw(state);
             return;
@@ -312,6 +335,16 @@ impl TerminalRenderer {
         }
     }
 
+    fn sync_kitty_image_visibility(&mut self, mode: &PanelMode) {
+        if self.image_protocol == ImageProtocol::Kitty
+            && self.kitty_image_hash.is_some()
+            && !matches!(mode, PanelMode::QuickView(QuickViewMode::Image(_)))
+        {
+            let _ = queue!(&mut self.stdout, Print(KITTY_DELETE_ESCAPE));
+            self.kitty_image_hash = None;
+        }
+    }
+
     fn draw_quick_view(&mut self, qv: &QuickViewMode) {
         self.clear_quick_view_area();
         if let QuickViewMode::Loading { message } = qv {
@@ -321,24 +354,44 @@ impl TerminalRenderer {
         let rows = self.visible_rows();
         match qv {
             QuickViewMode::Text { lines, start, .. } => self.draw_text(lines, *start, rows),
-            QuickViewMode::Image(bytes) => {
-                let enc = iterm2img::from_bytes(bytes.to_vec())
-                    .width(self.columns as u64)
-                    .height(rows as u64)
-                    .width_auto()
-                    .preserve_aspect_ratio(true)
-                    .inline(true)
-                    .build();
-                let _ = queue!(
-                    &mut self.stdout,
-                    cursor::MoveTo(0, HEADER_ROWS),
-                    Print(enc),
-                    terminal::Clear(ClearType::UntilNewLine)
-                );
-            }
+            QuickViewMode::Image(bytes) => match self.image_protocol {
+                ImageProtocol::ITerm2 => {
+                    let enc = iterm2img::from_bytes(bytes.to_vec())
+                        .width(self.columns as u64)
+                        .height(rows as u64)
+                        .width_auto()
+                        .preserve_aspect_ratio(true)
+                        .inline(true)
+                        .build();
+                    let _ = queue!(
+                        &mut self.stdout,
+                        cursor::MoveTo(0, HEADER_ROWS),
+                        Print(enc)
+                    );
+                }
+                ImageProtocol::Kitty => {
+                    let image_hash = hash_bytes(bytes);
+                    if self.kitty_image_hash == Some(image_hash) {
+                        return;
+                    }
+                    if let Some(enc) = kitty_image_escape(bytes) {
+                        let _ = queue!(
+                            &mut self.stdout,
+                            cursor::MoveTo(0, HEADER_ROWS),
+                            Print(enc)
+                        );
+                        self.kitty_image_hash = Some(image_hash);
+                    }
+                }
+                ImageProtocol::None => self.draw_text(
+                    &["Image preview unsupported by this terminal.".to_string()],
+                    0,
+                    rows,
+                ),
+            },
             QuickViewMode::Directory { lines } => self.draw_text(lines, 0, rows),
             QuickViewMode::NotSupported => self.draw_text(&["".to_string()], 0, rows),
-            _ => {}
+            QuickViewMode::Loading { .. } => {} // handled above via early return
         }
     }
 
@@ -432,7 +485,7 @@ impl TerminalRenderer {
                 if i + 1 < actions.len() {
                     format!("{}{}", a, " ".repeat(space.max(1)))
                 } else {
-                    a.clone()
+                    a.to_string()
                 }
             })
             .collect();
@@ -452,7 +505,7 @@ impl TerminalRenderer {
 
     fn draw_help_overlay(&mut self) {
         let mut e = self.help_entries.clone();
-        e.sort_by_key(|(k, _)| k.clone());
+        e.sort_by_key(|(k, _)| *k);
         let (mk, md) = (
             e.iter().map(|(k, _)| k.len()).max().unwrap_or(0),
             e.iter().map(|(_, d)| d.len()).max().unwrap_or(0),
@@ -519,7 +572,7 @@ impl TerminalRenderer {
                 cursor::MoveTo(sc as u16, content_start + 2 + i as u16),
                 Print(format!("{:w$}", key, w = mk).with(Color::Yellow)),
                 cursor::MoveTo((sc + mk + 4) as u16, content_start + 2 + i as u16),
-                Print(desc.clone().with(Color::Green))
+                Print((*desc).with(Color::Green))
             );
         }
     }
@@ -528,12 +581,7 @@ impl TerminalRenderer {
         let _ = queue!(
             &mut self.stdout,
             cursor::MoveTo(0, row),
-            Print(
-                (0..self.columns)
-                    .map(|_| "─")
-                    .collect::<String>()
-                    .with(Color::Blue)
-            )
+            Print("─".repeat(self.columns as usize).with(Color::Blue))
         );
     }
 
@@ -555,6 +603,8 @@ impl TerminalRenderer {
                 stdout: StdoutKind::Test(writer),
                 help_entries: default_help_entries(),
                 logo_png: None,
+                image_protocol: ImageProtocol::ITerm2,
+                kitty_image_hash: None,
                 loading_frame: 0,
             },
             buffer,
@@ -565,7 +615,7 @@ impl TerminalRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::QuickViewMode;
+    use crate::application::{AppState, PanelMode, QuickViewMode};
 
     #[test]
     fn quick_view_image_clears_previous_content() {
@@ -577,6 +627,57 @@ mod tests {
             res.windows(CLEAR_SEQ.len())
                 .any(|window| window == CLEAR_SEQ),
             "expected clear command in quick view image output"
+        );
+    }
+
+    #[test]
+    fn quick_view_image_does_not_clear_the_image_line_after_printing() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(40, 20);
+        renderer.draw_quick_view(&QuickViewMode::Image(vec![0xFF]));
+        let res = buffer.borrow();
+        let tail = b"\x07\x1b[K";
+
+        assert!(
+            !res.windows(tail.len()).any(|window| window == tail),
+            "image output should not clear the line after the OSC payload"
+        );
+    }
+
+    #[test]
+    fn leaving_kitty_image_quick_view_emits_delete_sequence() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(40, 20);
+        renderer.image_protocol = ImageProtocol::Kitty;
+        let mut state = AppState::new(false);
+        state.left_panel.mode = PanelMode::QuickView(QuickViewMode::Image(tiny_png()));
+
+        renderer.draw(&state);
+        state.left_panel.mode = PanelMode::Normal;
+        renderer.draw(&state);
+
+        let res = buffer.borrow();
+        assert!(
+            res.windows(b"\x1b_Ga=d,d=I,i=1\x1b\\".len())
+                .any(|window| window == b"\x1b_Ga=d,d=I,i=1\x1b\\"),
+            "expected kitty delete sequence when leaving image quick view"
+        );
+    }
+
+    #[test]
+    fn redrawing_same_kitty_image_does_not_resend_payload() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(40, 20);
+        renderer.image_protocol = ImageProtocol::Kitty;
+        let image = tiny_png();
+
+        renderer.draw_quick_view(&QuickViewMode::Image(image.clone()));
+        renderer.draw_quick_view(&QuickViewMode::Image(image));
+
+        let res = buffer.borrow();
+        assert_eq!(
+            res.windows(b"\x1b_Ga=T,f=100,i=1,m=0;".len())
+                .filter(|window| *window == b"\x1b_Ga=T,f=100,i=1,m=0;")
+                .count(),
+            1,
+            "expected kitty image payload to be sent only once for the same image"
         );
     }
 
@@ -595,6 +696,35 @@ mod tests {
             "expected clear command in quick view text output"
         );
     }
+
+    #[test]
+    fn kitty_escape_uses_kitty_graphics_prefix() {
+        let png = tiny_png();
+        let esc = kitty_image_escape(&png).expect("expected kitty escape");
+        assert!(esc.starts_with("\x1b_Ga=T,f=100,i=1,m=0;"));
+        assert!(esc.ends_with("\x1b\\"));
+    }
+
+    #[test]
+    fn detects_kitty_probe_response() {
+        assert!(is_kitty_probe_response(b"\x1b_Gi=31;OK\x1b\\"));
+        assert!(!is_kitty_probe_response(b"\x1b[c"));
+    }
+
+    #[test]
+    fn detects_iterm_probe_response() {
+        assert!(is_iterm_probe_response(b"\x1b]1337;ReportCellSize=17.50;8.00;2.0\x07"));
+        assert!(!is_iterm_probe_response(b"\x1b]1337;CursorShape=1\x07"));
+    }
+
+    fn tiny_png() -> Vec<u8> {
+        let image = image::RgbImage::from_pixel(1, 1, image::Rgb([255, 0, 0]));
+        let mut bytes = Vec::new();
+        image
+            .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
+            .unwrap();
+        bytes
+    }
 }
 
 impl Drop for TerminalRenderer {
@@ -603,8 +733,8 @@ impl Drop for TerminalRenderer {
     }
 }
 
-fn default_help_entries() -> Vec<(String, String)> {
-    [
+fn default_help_entries() -> Vec<(&'static str, &'static str)> {
+    vec![
         ("F1", "Toggle help"),
         ("Arrows", "Navigate"),
         ("Enter", "Open dir/file"),
@@ -620,14 +750,11 @@ fn default_help_entries() -> Vec<(String, String)> {
         ("Space", "Toggle selection"),
         ("F4", "VS Code"),
     ]
-    .iter()
-    .map(|(k, v)| (k.to_string(), v.to_string()))
-    .collect()
 }
 
-fn footer_actions(mode: &PanelMode) -> Vec<String> {
+fn footer_actions(mode: &PanelMode) -> &'static [&'static str] {
     match mode {
-        PanelMode::Normal => vec![
+        PanelMode::Normal => &[
             "[f1]help",
             "[f3]view",
             "[f4]edit",
@@ -636,8 +763,8 @@ fn footer_actions(mode: &PanelMode) -> Vec<String> {
             "[ctrl+w]del",
             "[f10]quit",
         ],
-        PanelMode::Filter => vec!["[f1]help", "[esc]clear", "[f3]view", "[f10]quit"],
-        PanelMode::QuickView(_) => vec![
+        PanelMode::Filter => &["[f1]help", "[esc]clear", "[f3]view", "[f10]quit"],
+        PanelMode::QuickView(_) => &[
             "[f1]help",
             "[↑↓]scroll",
             "[pgup/dn]page",
@@ -645,9 +772,152 @@ fn footer_actions(mode: &PanelMode) -> Vec<String> {
             "[f3]close",
         ],
     }
-    .into_iter()
-    .map(String::from)
-    .collect()
+}
+
+fn kitty_image_escape(bytes: &[u8]) -> Option<String> {
+    let png = png_bytes(bytes)?;
+    let payload = base64::engine::general_purpose::STANDARD.encode(png);
+    Some(format!(
+        "\x1b_Ga=T,f=100,i={KITTY_IMAGE_ID},m=0;{payload}\x1b\\"
+    ))
+}
+
+fn png_bytes(bytes: &[u8]) -> Option<Vec<u8>> {
+    let image = image::load_from_memory(bytes).ok()?;
+    let mut png = Vec::new();
+    image
+        .write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
+        .ok()?;
+    Some(png)
+}
+
+fn hash_bytes(bytes: &[u8]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    bytes.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn kitty_probe_query() -> &'static [u8] {
+    b"\x1b_Gi=31,s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\\x1b[c"
+}
+
+fn is_kitty_probe_response(bytes: &[u8]) -> bool {
+    bytes.windows(b"\x1b_Gi=31;".len())
+        .any(|window| window == b"\x1b_Gi=31;")
+}
+
+fn iterm_probe_query() -> &'static [u8] {
+    b"\x1b]1337;ReportCellSize\x07"
+}
+
+fn is_iterm_probe_response(bytes: &[u8]) -> bool {
+    bytes.windows(b"\x1b]1337;ReportCellSize=".len())
+        .any(|window| window == b"\x1b]1337;ReportCellSize=")
+}
+
+fn detect_image_protocol() -> ImageProtocol {
+    #[cfg(unix)]
+    {
+        detect_image_protocol_unix()
+    }
+    #[cfg(not(unix))]
+    {
+        ImageProtocol::None
+    }
+}
+
+#[cfg(unix)]
+fn detect_image_protocol_unix() -> ImageProtocol {
+    let Ok(mut tty) = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/tty")
+    else {
+        return ImageProtocol::None;
+    };
+
+    drain_probe_replies(&mut tty);
+    if run_probe(&mut tty, kitty_probe_query(), is_kitty_probe_response) {
+        return ImageProtocol::Kitty;
+    }
+
+    drain_probe_replies(&mut tty);
+    if run_probe(&mut tty, iterm_probe_query(), is_iterm_probe_response) {
+        return ImageProtocol::ITerm2;
+    }
+
+    ImageProtocol::None
+}
+
+#[cfg(unix)]
+fn run_probe(
+    tty: &mut std::fs::File,
+    query: &[u8],
+    matches_response: fn(&[u8]) -> bool,
+) -> bool {
+    if tty.write_all(query).is_err() || tty.flush().is_err() {
+        return false;
+    }
+
+    let deadline = Instant::now() + Duration::from_millis(120);
+    let mut buf = [0u8; 1024];
+    let mut reply = Vec::new();
+
+    while wait_for_tty_input(tty, deadline) {
+        let Ok(read) = tty.read(&mut buf) else {
+            break;
+        };
+        if read == 0 {
+            break;
+        }
+        reply.extend_from_slice(&buf[..read]);
+        if matches_response(&reply) {
+            return true;
+        }
+    }
+
+    false
+}
+
+#[cfg(unix)]
+fn drain_probe_replies(tty: &mut std::fs::File) {
+    let deadline = Instant::now() + Duration::from_millis(10);
+    let mut buf = [0u8; 512];
+    while wait_for_tty_input(tty, deadline) {
+        if tty.read(&mut buf).ok().filter(|read| *read > 0).is_none() {
+            break;
+        }
+    }
+}
+
+#[cfg(unix)]
+fn wait_for_tty_input(tty: &std::fs::File, deadline: Instant) -> bool {
+    if Instant::now() >= deadline {
+        return false;
+    }
+
+    let remaining = deadline.saturating_duration_since(Instant::now());
+    let secs = remaining.as_secs().min(i64::from(i32::MAX) as u64) as libc::time_t;
+    let micros = remaining.subsec_micros() as libc::suseconds_t;
+    let fd = tty.as_raw_fd();
+
+    let mut readfds = unsafe { std::mem::zeroed::<libc::fd_set>() };
+    let mut timeout = libc::timeval {
+        tv_sec: secs,
+        tv_usec: micros,
+    };
+
+    unsafe {
+        libc::FD_ZERO(&mut readfds);
+        libc::FD_SET(fd, &mut readfds);
+        libc::select(
+            fd + 1,
+            &mut readfds,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut timeout,
+        ) > 0
+    }
 }
 
 fn style_entry(e: &FileEntry) -> StyledContent<String> {

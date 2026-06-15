@@ -162,60 +162,7 @@ pub fn replace_entries_from_search(panel: &mut PanelState, files: Vec<String>, b
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::ports::FileSystemPort;
-    use crate::domain::FileEntry;
-    use std::path::Path;
-
-    /// Mock file system for testing
-    struct MockFileSystem {
-        entries: Vec<FileEntry>,
-        error: bool,
-    }
-
-    impl MockFileSystem {
-        fn new() -> Self {
-            Self {
-                entries: vec![],
-                error: false,
-            }
-        }
-
-        fn with_entries(entries: Vec<FileEntry>) -> Self {
-            Self {
-                entries,
-                error: false,
-            }
-        }
-
-        fn with_error() -> Self {
-            Self {
-                entries: vec![],
-                error: true,
-            }
-        }
-    }
-
-    impl FileSystemPort for MockFileSystem {
-        fn list_dir(&self, _path: &Path) -> Result<Vec<FileEntry>, String> {
-            if self.error {
-                Err("Mock error".to_string())
-            } else {
-                Ok(self.entries.clone())
-            }
-        }
-
-        fn delete(&self, _path: &Path) -> Result<(), String> {
-            Ok(())
-        }
-
-        fn read_file(&self, _path: &Path) -> Result<String, String> {
-            Ok(String::new())
-        }
-
-        fn is_dir(&self, _path: &Path) -> bool {
-            true
-        }
-    }
+    use crate::test_support::MockFileSystem;
 
     fn create_test_entries() -> Vec<FileEntry> {
         vec![
