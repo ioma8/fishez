@@ -29,9 +29,35 @@ const MAX_REPEAT_RUN: usize = 16;
 
 enum QueryInputAction {
     None,
+    Edit,
     Cancel,
     Submit(String),
     Invalid(String),
+}
+
+#[derive(PartialEq)]
+struct PanelUiState {
+    current_path: PathBuf,
+    cursor: usize,
+    scroll: usize,
+    mode: PanelMode,
+    filter_string: String,
+    notification: Option<String>,
+    multi_selected_count: usize,
+}
+
+impl PanelUiState {
+    fn capture(panel: &PanelState) -> Self {
+        Self {
+            current_path: panel.current_path.clone(),
+            cursor: panel.cursor,
+            scroll: panel.scroll,
+            mode: panel.mode.clone(),
+            filter_string: panel.filter_string.clone(),
+            notification: panel.notification.clone(),
+            multi_selected_count: panel.multi_selected_count(),
+        }
+    }
 }
 
 pub fn is_quit(event: KeyEvent) -> bool {
@@ -47,10 +73,11 @@ pub fn handle_normal_mode(
     state: &mut AppState,
     renderer: &TerminalRenderer,
     sender: &Sender<Message>,
-) {
+) -> bool {
     let visible_rows = renderer.visible_rows();
     let pane = state.active_pane;
     let panel = state.active_panel_mut();
+    let before = PanelUiState::capture(panel);
     match event.code {
         KeyCode::Char(c) => {
             panel.mode = PanelMode::Filter;
@@ -70,6 +97,7 @@ pub fn handle_normal_mode(
             sender,
         ),
     }
+    PanelUiState::capture(panel) != before
 }
 
 pub fn handle_filter_mode(
@@ -80,10 +108,11 @@ pub fn handle_filter_mode(
     state: &mut AppState,
     renderer: &TerminalRenderer,
     sender: &Sender<Message>,
-) {
+) -> bool {
     let visible_rows = renderer.visible_rows();
     let pane = state.active_pane;
     let panel = state.active_panel_mut();
+    let before = PanelUiState::capture(panel);
     match event.code {
         KeyCode::Esc => {
             panel.mode = PanelMode::Normal;
@@ -110,6 +139,7 @@ pub fn handle_filter_mode(
             sender,
         ),
     }
+    PanelUiState::capture(panel) != before
 }
 
 fn handle_panel_navigation(
@@ -173,9 +203,14 @@ fn handle_enter(
     }
 }
 
-pub fn handle_quick_view_mode(event: KeyEvent, state: &mut AppState, renderer: &TerminalRenderer) {
+pub fn handle_quick_view_mode(
+    event: KeyEvent,
+    state: &mut AppState,
+    renderer: &TerminalRenderer,
+) -> bool {
     let panel = state.active_panel_mut();
     let visible_rows = renderer.visible_rows();
+    let before = PanelUiState::capture(panel);
     match event.code {
         KeyCode::Up => quick_view::scroll(panel, -1, renderer.rows, HEADER_ROWS, FOOTER_ROWS),
         KeyCode::Down => quick_view::scroll(panel, 1, renderer.rows, HEADER_ROWS, FOOTER_ROWS),
@@ -204,6 +239,7 @@ pub fn handle_quick_view_mode(event: KeyEvent, state: &mut AppState, renderer: &
         KeyCode::Esc | KeyCode::F(3) => panel.mode = PanelMode::Normal,
         _ => {}
     }
+    PanelUiState::capture(panel) != before
 }
 
 pub fn handle_delete_confirmation(
@@ -211,17 +247,27 @@ pub fn handle_delete_confirmation(
     delete_paths: &mut Option<Vec<PathBuf>>,
     fs: &StdFileSystem,
     state: &mut AppState,
-) {
+) -> bool {
     match event.code {
         KeyCode::Char('y') => {
             if let Some(paths) = delete_paths.take() {
                 let refs: Vec<&std::path::Path> = paths.iter().map(PathBuf::as_path).collect();
                 let panel = state.active_panel_mut();
                 let _ = file_ops::delete_selected(fs, panel, &refs);
+                true
+            } else {
+                false
             }
         }
-        KeyCode::Char('n') | KeyCode::Esc => *delete_paths = None,
-        _ => {}
+        KeyCode::Char('n') | KeyCode::Esc => {
+            if delete_paths.is_some() {
+                *delete_paths = None;
+                true
+            } else {
+                false
+            }
+        }
+        _ => false,
     }
 }
 
@@ -231,7 +277,7 @@ pub fn handle_find_input(
     sender: &Sender<Message>,
     fs: &StdFileSystem,
     state: &mut AppState,
-) {
+) -> bool {
     handle_query_submit(event, find_filter, fs, state, |query, state| {
         let sender = sender.clone();
         let pane = state.active_pane;
@@ -247,7 +293,7 @@ pub fn handle_find_input(
                 files: results,
             });
         });
-    });
+    })
 }
 
 pub fn handle_ripgrep_input(
@@ -255,24 +301,24 @@ pub fn handle_ripgrep_input(
     filter: &mut Option<String>,
     fs: &StdFileSystem,
     state: &mut AppState,
-) {
+) -> bool {
     handle_query_submit(event, filter, fs, state, |query, state| {
         let results = RipGrepAdapter.find(&query, &state.active_panel().current_path);
         let panel = state.active_panel_mut();
         let base = panel.current_path.clone();
         navigate::replace_entries_from_search(panel, results, &base);
-    });
+    })
 }
 
 fn handle_query_input_event(event: KeyEvent, input: &mut String) -> QueryInputAction {
     match event.code {
         KeyCode::Char(c) => {
             input.push(c);
-            QueryInputAction::None
+            QueryInputAction::Edit
         }
         KeyCode::Backspace => {
             input.pop();
-            QueryInputAction::None
+            QueryInputAction::Edit
         }
         KeyCode::Enter => match validate_query(input) {
             Ok(query) => QueryInputAction::Submit(query),
@@ -289,20 +335,26 @@ fn handle_query_submit(
     fs: &StdFileSystem,
     state: &mut AppState,
     mut on_submit: impl FnMut(String, &mut AppState),
-) {
+) -> bool {
     let Some(value) = input.as_mut() else {
-        return;
+        return false;
     };
     match handle_query_input_event(event, value) {
-        QueryInputAction::None => {}
-        QueryInputAction::Invalid(message) => state.active_panel_mut().set_notification(message),
+        QueryInputAction::None => false,
+        QueryInputAction::Edit => true,
+        QueryInputAction::Invalid(message) => {
+            state.active_panel_mut().set_notification(message);
+            true
+        }
         QueryInputAction::Submit(query) => {
             on_submit(query, state);
             *input = None;
+            true
         }
         QueryInputAction::Cancel => {
             *input = None;
             navigate::refresh_entries(fs, state.active_panel_mut());
+            true
         }
     }
 }
@@ -345,24 +397,45 @@ pub fn handle_favorites_input(
     selected: &mut usize,
     fs: &StdFileSystem,
     state: &mut AppState,
-) {
+) -> bool {
     match event.code {
-        KeyCode::Up => *selected = selected.saturating_sub(1),
-        KeyCode::Down => *selected = (*selected + 1).min(items.len().saturating_sub(1)),
+        KeyCode::Up => {
+            let next = selected.saturating_sub(1);
+            let changed = next != *selected;
+            *selected = next;
+            changed
+        }
+        KeyCode::Down => {
+            let next = (*selected + 1).min(items.len().saturating_sub(1));
+            let changed = next != *selected;
+            *selected = next;
+            changed
+        }
         KeyCode::Enter => {
             if let Some(item) = items.get(*selected) {
                 navigate::change_directory(fs, state.active_panel_mut(), PathBuf::from(item));
                 *active = false;
+                true
+            } else {
+                false
             }
         }
-        KeyCode::Esc => *active = false,
-        _ => {}
+        KeyCode::Esc => {
+            if *active {
+                *active = false;
+                true
+            } else {
+                false
+            }
+        }
+        _ => false,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crossterm::event::KeyEvent;
 
     #[test]
     fn test_validate_query_accepts_trimmed() {
@@ -399,5 +472,37 @@ mod tests {
     #[test]
     fn test_has_absurd_repeat_run_false() {
         assert!(!has_absurd_repeat_run("abcabc"));
+    }
+
+    #[test]
+    fn test_handle_favorites_input_ignored_key_is_not_dirty() {
+        let fs = StdFileSystem;
+        let mut state = AppState::new(false);
+        let mut active = true;
+        let items = vec!["/tmp".to_string()];
+        let mut selected = 0;
+
+        assert!(!handle_favorites_input(
+            KeyEvent::from(KeyCode::Char('x')),
+            &mut active,
+            &items,
+            &mut selected,
+            &fs,
+            &mut state
+        ));
+    }
+
+    #[test]
+    fn test_handle_delete_confirmation_ignored_key_is_not_dirty() {
+        let fs = StdFileSystem;
+        let mut state = AppState::new(false);
+        let mut delete_paths = Some(vec![PathBuf::from("/tmp/file.txt")]);
+
+        assert!(!handle_delete_confirmation(
+            KeyEvent::from(KeyCode::Char('x')),
+            &mut delete_paths,
+            &fs,
+            &mut state
+        ));
     }
 }

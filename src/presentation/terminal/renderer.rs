@@ -6,7 +6,7 @@ use base64::Engine;
 use crossterm::style::{Color, Print, StyledContent, Stylize};
 use crossterm::terminal::{ClearType, enable_raw_mode};
 use crossterm::{cursor, queue, terminal};
-use image::ImageFormat;
+use image::{GenericImageView, ImageFormat};
 use std::collections::hash_map::DefaultHasher;
 use std::fs::OpenOptions;
 use std::hash::{Hash, Hasher};
@@ -374,7 +374,7 @@ impl TerminalRenderer {
                     if self.kitty_image_hash == Some(image_hash) {
                         return;
                     }
-                    if let Some(enc) = kitty_image_escape(bytes) {
+                    if let Some(enc) = kitty_image_escape(bytes, self.columns, rows) {
                         let _ = queue!(
                             &mut self.stdout,
                             cursor::MoveTo(0, HEADER_ROWS),
@@ -673,8 +673,8 @@ mod tests {
 
         let res = buffer.borrow();
         assert_eq!(
-            res.windows(b"\x1b_Ga=T,f=100,i=1,m=0;".len())
-                .filter(|window| *window == b"\x1b_Ga=T,f=100,i=1,m=0;")
+            res.windows(b"\x1b_Ga=T,f=100,i=1,".len())
+                .filter(|window| *window == b"\x1b_Ga=T,f=100,i=1,")
                 .count(),
             1,
             "expected kitty image payload to be sent only once for the same image"
@@ -700,9 +700,25 @@ mod tests {
     #[test]
     fn kitty_escape_uses_kitty_graphics_prefix() {
         let png = tiny_png();
-        let esc = kitty_image_escape(&png).expect("expected kitty escape");
-        assert!(esc.starts_with("\x1b_Ga=T,f=100,i=1,m=0;"));
+        let esc = kitty_image_escape(&png, 40, 18).expect("expected kitty escape");
+        assert!(esc.starts_with("\x1b_Ga=T,f=100,i=1,"));
         assert!(esc.ends_with("\x1b\\"));
+    }
+
+    #[test]
+    fn kitty_escape_uses_width_only_for_wide_images() {
+        let png = test_png(400, 100);
+        let esc = kitty_image_escape(&png, 40, 18).expect("expected kitty escape");
+        assert!(esc.contains(",c=40"));
+        assert!(!esc.contains(",r=18"));
+    }
+
+    #[test]
+    fn kitty_escape_uses_height_only_for_tall_images() {
+        let png = test_png(100, 200);
+        let esc = kitty_image_escape(&png, 40, 18).expect("expected kitty escape");
+        assert!(esc.contains(",r=18"));
+        assert!(!esc.contains(",c=40"));
     }
 
     #[test]
@@ -718,7 +734,11 @@ mod tests {
     }
 
     fn tiny_png() -> Vec<u8> {
-        let image = image::RgbImage::from_pixel(1, 1, image::Rgb([255, 0, 0]));
+        test_png(1, 1)
+    }
+
+    fn test_png(width: u32, height: u32) -> Vec<u8> {
+        let image = image::RgbImage::from_pixel(width, height, image::Rgb([255, 0, 0]));
         let mut bytes = Vec::new();
         image
             .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
@@ -774,21 +794,28 @@ fn footer_actions(mode: &PanelMode) -> &'static [&'static str] {
     }
 }
 
-fn kitty_image_escape(bytes: &[u8]) -> Option<String> {
-    let png = png_bytes(bytes)?;
-    let payload = base64::engine::general_purpose::STANDARD.encode(png);
-    Some(format!(
-        "\x1b_Ga=T,f=100,i={KITTY_IMAGE_ID},m=0;{payload}\x1b\\"
-    ))
-}
-
-fn png_bytes(bytes: &[u8]) -> Option<Vec<u8>> {
+fn kitty_image_escape(bytes: &[u8], columns: u16, rows: u16) -> Option<String> {
     let image = image::load_from_memory(bytes).ok()?;
+    let (width, height) = image.dimensions();
     let mut png = Vec::new();
     image
         .write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
         .ok()?;
-    Some(png)
+    let payload = base64::engine::general_purpose::STANDARD.encode(png);
+    let control = kitty_size_control(width, height, columns, rows);
+    Some(format!(
+        "\x1b_Ga=T,f=100,i={KITTY_IMAGE_ID},{control},m=0;{payload}\x1b\\"
+    ))
+}
+
+fn kitty_size_control(width: u32, height: u32, columns: u16, rows: u16) -> String {
+    let box_aspect = columns as f32 / rows.max(1) as f32;
+    let image_aspect = width as f32 / height.max(1) as f32;
+    if image_aspect >= box_aspect {
+        format!("c={columns}")
+    } else {
+        format!("r={rows}")
+    }
 }
 
 fn hash_bytes(bytes: &[u8]) -> u64 {

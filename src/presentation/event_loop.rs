@@ -61,15 +61,33 @@ pub fn run(
                 }
                 Event::Resize(cols, rows) => {
                     renderer.update_size(cols, rows);
-                    overlays::draw(renderer, app_state);
+                    redraw_current_view(
+                        renderer,
+                        app_state,
+                        delete_paths,
+                        find_filter,
+                        ripgrep_filter,
+                        *favorites_active,
+                        favorites_items,
+                        *favorites_selected,
+                    );
                 }
                 _ => {}
             }
         }
         handle_async_messages(receiver, app_state, renderer);
-        app_state
-            .active_panel_mut()
-            .clear_notification_if_expired(3000);
+        if clear_expired_notification(app_state, 3000) {
+            redraw_current_view(
+                renderer,
+                app_state,
+                delete_paths,
+                find_filter,
+                ripgrep_filter,
+                *favorites_active,
+                favorites_items,
+                *favorites_selected,
+            );
+        }
     }
 }
 
@@ -91,13 +109,24 @@ fn route_input(
     favorites_selected: &mut usize,
     two_pane: bool,
 ) {
-    if handle_help(event, app_state, renderer) {
+    if let Some(needs_redraw) = handle_help(event, app_state) {
+        if needs_redraw {
+            redraw_current_view(
+                renderer,
+                app_state,
+                delete_paths,
+                find_filter,
+                ripgrep_filter,
+                *favorites_active,
+                favorites_items,
+                *favorites_selected,
+            );
+        }
         return;
     }
-    if handle_modal_overlays(
+    if let Some(needs_redraw) = handle_modal_overlays(
         event,
         app_state,
-        renderer,
         fs_adapter,
         sender,
         delete_paths,
@@ -107,17 +136,37 @@ fn route_input(
         favorites_items,
         favorites_selected,
     ) {
+        if needs_redraw {
+            redraw_current_view(
+                renderer,
+                app_state,
+                delete_paths,
+                find_filter,
+                ripgrep_filter,
+                *favorites_active,
+                favorites_items,
+                *favorites_selected,
+            );
+        }
         return;
     }
     if two_pane && event.code == KeyCode::Tab {
         app_state.switch_pane();
-        overlays::draw(renderer, app_state);
+        redraw_current_view(
+            renderer,
+            app_state,
+            delete_paths,
+            find_filter,
+            ripgrep_filter,
+            *favorites_active,
+            favorites_items,
+            *favorites_selected,
+        );
         return;
     }
-    if shortcuts::handle(
+    if let Some(needs_redraw) = shortcuts::handle(
         event,
         app_state,
-        renderer,
         vscode_adapter,
         delete_paths,
         find_filter,
@@ -126,9 +175,21 @@ fn route_input(
         favorites_items,
         favorites_selected,
     ) {
+        if needs_redraw {
+            redraw_current_view(
+                renderer,
+                app_state,
+                delete_paths,
+                find_filter,
+                ripgrep_filter,
+                *favorites_active,
+                favorites_items,
+                *favorites_selected,
+            );
+        }
         return;
     }
-    handle_mode_input(
+    if handle_mode_input(
         event,
         app_state,
         renderer,
@@ -136,31 +197,39 @@ fn route_input(
         open_adapter,
         clipboard_adapter,
         sender,
-    );
-    overlays::draw(renderer, app_state);
+    ) {
+        redraw_current_view(
+            renderer,
+            app_state,
+            delete_paths,
+            find_filter,
+            ripgrep_filter,
+            *favorites_active,
+            favorites_items,
+            *favorites_selected,
+        );
+    }
 }
 
-fn handle_help(event: KeyEvent, app_state: &mut AppState, renderer: &mut TerminalRenderer) -> bool {
+fn handle_help(event: KeyEvent, app_state: &mut AppState) -> Option<bool> {
     if app_state.show_help {
         if matches!(event.code, KeyCode::F(1) | KeyCode::Esc) {
             app_state.show_help = false;
+            return Some(true);
         }
-        overlays::draw(renderer, app_state);
-        return true;
+        return Some(false);
     }
     if event.code == KeyCode::F(1) {
         app_state.show_help = !app_state.show_help;
-        overlays::draw(renderer, app_state);
-        return true;
+        return Some(true);
     }
-    false
+    None
 }
 
 #[allow(clippy::too_many_arguments)]
 fn handle_modal_overlays(
     event: KeyEvent,
     app_state: &mut AppState,
-    renderer: &mut TerminalRenderer,
     fs_adapter: &StdFileSystem,
     sender: &Sender<Message>,
     delete_paths: &mut Option<Vec<PathBuf>>,
@@ -169,41 +238,43 @@ fn handle_modal_overlays(
     favorites_active: &mut bool,
     favorites_items: &[String],
     favorites_selected: &mut usize,
-) -> bool {
+) -> Option<bool> {
     if *favorites_active {
-        handle_favorites_input(
+        return Some(handle_favorites_input(
             event,
             favorites_active,
             favorites_items,
             favorites_selected,
             fs_adapter,
             app_state,
-        );
-        overlays::draw_with_favorites(
-            renderer,
-            app_state,
-            *favorites_active,
-            favorites_items,
-            *favorites_selected,
-        );
-        return true;
+        ));
     }
     if delete_paths.is_some() {
-        handle_delete_confirmation(event, delete_paths, fs_adapter, app_state);
-        overlays::draw_with_delete(renderer, app_state, delete_paths.as_ref());
-        return true;
+        return Some(handle_delete_confirmation(
+            event,
+            delete_paths,
+            fs_adapter,
+            app_state,
+        ));
     }
     if find_filter.is_some() {
-        handle_find_input(event, find_filter, sender, fs_adapter, app_state);
-        overlays::draw_with_find(renderer, app_state, find_filter.as_ref());
-        return true;
+        return Some(handle_find_input(
+            event,
+            find_filter,
+            sender,
+            fs_adapter,
+            app_state,
+        ));
     }
     if ripgrep_filter.is_some() {
-        handle_ripgrep_input(event, ripgrep_filter, fs_adapter, app_state);
-        overlays::draw_with_ripgrep(renderer, app_state, ripgrep_filter.as_ref());
-        return true;
+        return Some(handle_ripgrep_input(
+            event,
+            ripgrep_filter,
+            fs_adapter,
+            app_state,
+        ));
     }
-    false
+    None
 }
 
 fn handle_mode_input(
@@ -214,7 +285,7 @@ fn handle_mode_input(
     open_adapter: &SystemOpenAdapter,
     clipboard_adapter: &mut SystemClipboard,
     sender: &Sender<Message>,
-) {
+) -> bool {
     let panel = app_state.active_panel_mut();
     match &panel.mode {
         PanelMode::Normal => handle_normal_mode(
@@ -237,6 +308,37 @@ fn handle_mode_input(
         ),
         PanelMode::QuickView(_) => handle_quick_view_mode(event, app_state, renderer),
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn redraw_current_view(
+    renderer: &mut TerminalRenderer,
+    app_state: &AppState,
+    delete_paths: &Option<Vec<PathBuf>>,
+    find_filter: &Option<String>,
+    ripgrep_filter: &Option<String>,
+    favorites_active: bool,
+    favorites_items: &[String],
+    favorites_selected: usize,
+) {
+    if favorites_active {
+        overlays::draw_with_favorites(renderer, app_state, true, favorites_items, favorites_selected);
+    } else if delete_paths.is_some() {
+        overlays::draw_with_delete(renderer, app_state, delete_paths.as_ref());
+    } else if find_filter.is_some() {
+        overlays::draw_with_find(renderer, app_state, find_filter.as_ref());
+    } else if ripgrep_filter.is_some() {
+        overlays::draw_with_ripgrep(renderer, app_state, ripgrep_filter.as_ref());
+    } else {
+        overlays::draw(renderer, app_state);
+    }
+}
+
+fn clear_expired_notification(app_state: &mut AppState, timeout_ms: u64) -> bool {
+    let panel = app_state.active_panel_mut();
+    let had_notification = panel.notification.is_some();
+    panel.clear_notification_if_expired(timeout_ms);
+    had_notification && panel.notification.is_none()
 }
 
 fn handle_async_messages(
@@ -268,5 +370,38 @@ fn handle_async_messages(
                 overlays::draw(renderer, app_state);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::KeyEvent;
+
+    #[test]
+    fn help_overlay_ignores_unmapped_keys_without_redraw() {
+        let mut state = AppState::new(false);
+        state.show_help = true;
+
+        assert_eq!(
+            handle_help(KeyEvent::from(KeyCode::Char('x')), &mut state),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn help_toggle_requests_redraw() {
+        let mut state = AppState::new(false);
+
+        assert_eq!(handle_help(KeyEvent::from(KeyCode::F(1)), &mut state), Some(true));
+    }
+
+    #[test]
+    fn clearing_expired_notification_marks_dirty() {
+        let mut state = AppState::new(false);
+        state.active_panel_mut().set_notification("Test".to_string());
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        assert!(clear_expired_notification(&mut state, 1));
     }
 }

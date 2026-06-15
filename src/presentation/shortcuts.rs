@@ -2,8 +2,6 @@
 
 use crate::application::{AppState, PanelMode};
 use crate::infrastructure::{VsCodeAdapter, add_favorite};
-use crate::presentation::TerminalRenderer;
-use crate::presentation::terminal::overlays;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::path::PathBuf;
 
@@ -13,7 +11,6 @@ use std::path::PathBuf;
 pub fn handle(
     event: KeyEvent,
     app_state: &mut AppState,
-    renderer: &mut TerminalRenderer,
     vscode_adapter: &VsCodeAdapter,
     delete_paths: &mut Option<Vec<PathBuf>>,
     find_filter: &mut Option<String>,
@@ -21,35 +18,33 @@ pub fn handle(
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
     favorites_selected: &mut usize,
-) -> bool {
-    if handle_delete(event, app_state, renderer, delete_paths) {
-        return true;
+) -> Option<bool> {
+    if let Some(needs_redraw) = handle_delete(event, app_state, delete_paths) {
+        return Some(needs_redraw);
     }
-    if handle_search(event, renderer, app_state, find_filter, ripgrep_filter) {
-        return true;
+    if let Some(needs_redraw) = handle_search(event, find_filter, ripgrep_filter) {
+        return Some(needs_redraw);
     }
-    if handle_favorites(
+    if let Some(needs_redraw) = handle_favorites(
         event,
         app_state,
-        renderer,
         favorites_active,
         favorites_items,
         favorites_selected,
     ) {
-        return true;
+        return Some(needs_redraw);
     }
-    if handle_vscode(event, app_state, renderer, vscode_adapter) {
-        return true;
+    if let Some(needs_redraw) = handle_vscode(event, app_state, vscode_adapter) {
+        return Some(needs_redraw);
     }
-    handle_selection(event, app_state, renderer)
+    handle_selection(event, app_state)
 }
 
 fn handle_delete(
     event: KeyEvent,
     app_state: &mut AppState,
-    renderer: &mut TerminalRenderer,
     delete_paths: &mut Option<Vec<PathBuf>>,
-) -> bool {
+) -> Option<bool> {
     if event.code == KeyCode::Char('w') && event.modifiers.contains(KeyModifiers::CONTROL) {
         let panel = app_state.active_panel_mut();
         let targets = if panel.multi_selected_count() > 0 {
@@ -59,88 +54,70 @@ fn handle_delete(
         };
         if !targets.is_empty() {
             *delete_paths = Some(targets);
+            return Some(true);
         }
-        overlays::draw_with_delete(renderer, app_state, delete_paths.as_ref());
-        return true;
+        return Some(false);
     }
-    false
+    None
 }
 
 fn handle_search(
     event: KeyEvent,
-    renderer: &mut TerminalRenderer,
-    app_state: &AppState,
     find_filter: &mut Option<String>,
     ripgrep_filter: &mut Option<String>,
-) -> bool {
+) -> Option<bool> {
     if event.code == KeyCode::F(6) {
         *find_filter = Some(String::new());
-        overlays::draw_with_find(renderer, app_state, find_filter.as_ref());
-        return true;
+        return Some(true);
     }
     if event.code == KeyCode::F(7) {
         *ripgrep_filter = Some(String::new());
-        overlays::draw_with_ripgrep(renderer, app_state, ripgrep_filter.as_ref());
-        return true;
+        return Some(true);
     }
-    false
+    None
 }
 
 fn handle_favorites(
     event: KeyEvent,
     app_state: &mut AppState,
-    renderer: &mut TerminalRenderer,
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
-    favorites_selected: &mut usize,
-) -> bool {
+    _favorites_selected: &mut usize,
+) -> Option<bool> {
     if event.code == KeyCode::Char('d') && event.modifiers.contains(KeyModifiers::CONTROL) {
         let panel = app_state.active_panel_mut();
         if event.modifiers.contains(KeyModifiers::SHIFT) {
             add_favorite(favorites_items, &panel.current_path);
         }
         *favorites_active = true;
-        overlays::draw_with_favorites(
-            renderer,
-            app_state,
-            *favorites_active,
-            favorites_items,
-            *favorites_selected,
-        );
-        return true;
+        return Some(true);
     }
-    false
+    None
 }
 
 fn handle_vscode(
     event: KeyEvent,
     app_state: &mut AppState,
-    renderer: &mut TerminalRenderer,
     vscode_adapter: &VsCodeAdapter,
-) -> bool {
+) -> Option<bool> {
     if event.code == KeyCode::F(4) {
         let panel = app_state.active_panel_mut();
         if let Some(entry) = panel.selected_entry() {
             vscode_adapter.open(&entry.path);
         }
-        overlays::draw(renderer, app_state);
-        return true;
+        return Some(false);
     }
-    false
+    None
 }
 
-fn handle_selection(
-    event: KeyEvent,
-    app_state: &mut AppState,
-    renderer: &mut TerminalRenderer,
-) -> bool {
+fn handle_selection(event: KeyEvent, app_state: &mut AppState) -> Option<bool> {
     let panel = app_state.active_panel_mut();
 
     // Multi-select (Space)
     if event.code == KeyCode::Char(' ') && !matches!(panel.mode, PanelMode::QuickView(_)) {
+        let before = panel.multi_selected_count();
         panel.toggle_multi_selection(panel.cursor);
-        overlays::draw(renderer, app_state);
-        return true;
+        return Some(panel.multi_selected_count() != before);
     }
 
     // Clear multi-selection (Esc)
@@ -149,9 +126,8 @@ fn handle_selection(
         && !matches!(panel.mode, PanelMode::QuickView(_))
     {
         panel.clear_multi_selection();
-        overlays::draw(renderer, app_state);
-        return true;
+        return Some(true);
     }
 
-    false
+    None
 }
