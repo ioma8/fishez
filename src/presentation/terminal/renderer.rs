@@ -151,15 +151,15 @@ impl TerminalRenderer {
         self.sync_kitty_image_visibility(&panel.mode);
         self.draw_header(panel);
         self.draw_system_header(panel);
-        if state.show_onboarding {
-            self.draw_onboarding_banner();
-        }
         match &panel.mode {
             PanelMode::Normal | PanelMode::Filter => self.draw_files_list(panel),
             PanelMode::QuickView(qv) => self.draw_quick_view(qv),
         }
         self.draw_footer(panel);
         self.draw_footer_actions(&panel.mode);
+        if state.show_onboarding {
+            self.draw_onboarding_banner();
+        }
         if state.show_help {
             self.draw_help_overlay();
         }
@@ -175,12 +175,12 @@ impl TerminalRenderer {
         }
         self.draw_dual_header(&state.left_panel, &state.right_panel, state.active_pane);
         self.draw_system_header(state.active_panel());
-        if state.show_onboarding {
-            self.draw_onboarding_banner();
-        }
         self.draw_files_two_panes(&state.left_panel, &state.right_panel, state.active_pane);
         self.draw_footer(state.active_panel());
         self.draw_footer_actions(&state.active_panel().mode);
+        if state.show_onboarding {
+            self.draw_onboarding_banner();
+        }
         if state.show_help {
             self.draw_help_overlay();
         }
@@ -580,14 +580,104 @@ impl TerminalRenderer {
     }
 
     fn draw_onboarding_banner(&mut self) {
-        let banner = "↑↓ nav  Enter open  F3 view  F4 code  F5 copy  F6 move  Shift+F6 rename  F7 mkdir  F8 del  F1 help  F10 quit";
-        let styled = banner.with(Color::Green).on(Color::DarkBlue);
-        let _ = queue!(
-            &mut self.stdout,
-            cursor::MoveTo(0, 1),
-            terminal::Clear(ClearType::UntilNewLine),
-            Print(styled)
+        // Inner width (excluding │ borders).
+        const IW: usize = 52;
+        const BW: u16 = IW as u16 + 2; // total width with borders
+        const BH: u16 = 12; // total height
+
+        if self.columns < BW + 2 || self.rows < BH + 2 {
+            return;
+        }
+
+        let col = (self.columns - BW) / 2;
+        let row = (self.rows - BH) / 2;
+
+        let border = Color::Cyan;
+        let key_col = Color::Yellow;
+        let desc_col = Color::Reset;
+        let dim_col = Color::DarkGrey;
+        let bg = Color::Black;
+
+        let center = |s: &str| -> String {
+            let pad = IW.saturating_sub(s.len());
+            let l = pad / 2;
+            let r = pad - l;
+            format!("{}{}{}", " ".repeat(l), s, " ".repeat(r))
+        };
+
+        let top = format!("╭{}╮", "─".repeat(IW));
+        let sep = format!("╞{}╡", "═".repeat(IW));
+        let bot = format!("╰{}╯", "─".repeat(IW));
+
+        macro_rules! mv {
+            ($r:expr) => { cursor::MoveTo(col, row + $r) };
+        }
+
+        // Top border
+        let _ = queue!(&mut self.stdout, mv!(0), Print(top.with(border).on(bg)));
+
+        // Title
+        let title = center("  f i s h e z  ");
+        let _ = queue!(&mut self.stdout, mv!(1),
+            Print("│".with(border).on(bg)),
+            Print(title.bold().white().on(bg)),
+            Print("│".with(border).on(bg))
         );
+
+        // Subtitle
+        let sub = center("Total Commander for the terminal");
+        let _ = queue!(&mut self.stdout, mv!(2),
+            Print("│".with(border).on(bg)),
+            Print(sub.with(dim_col).on(bg)),
+            Print("│".with(border).on(bg))
+        );
+
+        // Separator
+        let _ = queue!(&mut self.stdout, mv!(3), Print(sep.clone().with(border).on(bg)));
+
+        // 4 viral shortcut rows: 2+key(10)+desc(16)+key(10)+desc(12)+2 = 52
+        let shortcuts: &[(&str, &str, &str, &str)] = &[
+            ("type a-z", "instantly filter",  "F3",  "quick view"),
+            ("Enter",    "open",               "F4",  "VS Code"),
+            ("Ctrl+T",   "two-pane mode",      "F8",  "delete"),
+            ("!",        "shell command",       "F1",  "all shortcuts"),
+        ];
+
+        for (i, (k1, d1, k2, d2)) in shortcuts.iter().enumerate() {
+            let _ = queue!(&mut self.stdout, mv!(4 + i as u16),
+                Print("│".with(border).on(bg)),
+                Print("  ".on(bg)),
+                Print(format!("{:<10}", k1).with(key_col).on(bg)),
+                Print(format!("{:<16}", d1).with(desc_col).on(bg)),
+                Print(format!("{:<8}", k2).with(key_col).on(bg)),
+                Print(format!("{:<14}", d2).with(desc_col).on(bg)),
+                Print("  ".on(bg)),
+                Print("│".with(border).on(bg))
+            );
+        }
+
+        // Separator
+        let _ = queue!(&mut self.stdout, mv!(8), Print(sep.clone().with(border).on(bg)));
+
+        // F1 hint
+        let hint = center("F10 to quit");
+        let _ = queue!(&mut self.stdout, mv!(9),
+            Print("│".with(border).on(bg)),
+            Print(hint.with(dim_col).on(bg)),
+            Print("│".with(border).on(bg))
+        );
+
+        // Dismiss row
+        let dismiss = center("— press any key to continue —");
+        let _ = queue!(&mut self.stdout, mv!(10),
+            Print("│".with(border).on(bg)),
+            Print(dismiss.with(dim_col).italic().on(bg)),
+            Print("│".with(border).on(bg))
+        );
+
+        let _ = queue!(&mut self.stdout, mv!(11), Print(bot.with(border).on(bg)));
+
+        let _ = self.stdout.flush();
     }
 
     fn draw_line(&mut self, row: u16) {
@@ -791,6 +881,7 @@ fn default_help_entries() -> Vec<(&'static str, &'static str)> {
         ("Ctrl+D", "Favorites"),
         ("Space", "Toggle selection"),
         ("F4", "VS Code"),
+        ("a-z / 0-9", "Type to filter files"),
     ]
 }
 
