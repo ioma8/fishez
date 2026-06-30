@@ -800,6 +800,12 @@ fn mouse_right_click(
     if let Some(pane) = new_pane {
         app_state.active_pane = pane;
     }
+
+    // Don't show context menu in quick view mode.
+    if matches!(app_state.active_panel().mode, PanelMode::QuickView(_)) {
+        return false;
+    }
+
     app_state.active_panel_mut().cursor = idx;
 
     // Collect entry info before building the menu (releases panel borrow).
