@@ -1,6 +1,7 @@
 //! Terminal overlays - modal prompts and dialogs.
 
 use crate::application::AppState;
+use crate::presentation::input_handler::ContextMenuState;
 use crate::presentation::{FOOTER_ROWS, HEADER_ROWS, TerminalRenderer};
 use crossterm::style::{Color, Print, Stylize};
 use crossterm::terminal::ClearType;
@@ -157,6 +158,39 @@ fn draw_input_prompt(renderer: &mut TerminalRenderer, label: &str, input: &str) 
         terminal::Clear(ClearType::UntilNewLine),
         Print(format!("{}: {} [enter/esc]", label, input).cyan().bold()),
     );
+    let _ = std::io::stdout().flush();
+}
+
+/// Draw a floating context menu on top of the current view.
+pub fn draw_context_menu(renderer: &mut TerminalRenderer, ctx: &ContextMenuState) {
+    let labels: Vec<&str> = ctx.actions.iter().map(|(l, _)| *l).collect();
+    let width = labels.iter().map(|l| l.len()).max().unwrap_or(8) as u16 + 4;
+    let height = labels.len() as u16 + 2;
+
+    // Clamp so the menu stays on screen.
+    let col = ctx.col.min(renderer.columns.saturating_sub(width));
+    let row = ctx.row.min(renderer.rows.saturating_sub(height));
+
+    let top = format!("┌{}┐", "─".repeat(width as usize - 2));
+    let bot = format!("└{}┘", "─".repeat(width as usize - 2));
+
+    let _ = queue!(renderer.writer(), cursor::MoveTo(col, row), Print(top.clone().white()));
+
+    for (i, label) in labels.iter().enumerate() {
+        let content = format!(" {:<width$} ", label, width = width as usize - 4);
+        let styled = if i == ctx.selected {
+            format!("│{}│", content).black().on_white()
+        } else {
+            format!("│{}│", content).white()
+        };
+        let _ = queue!(
+            renderer.writer(),
+            cursor::MoveTo(col, row + 1 + i as u16),
+            Print(styled)
+        );
+    }
+
+    let _ = queue!(renderer.writer(), cursor::MoveTo(col, row + height - 1), Print(bot.white()));
     let _ = std::io::stdout().flush();
 }
 

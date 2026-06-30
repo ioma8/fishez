@@ -14,7 +14,7 @@ use application::use_cases::navigate;
 use infrastructure::{
     StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, load_favorites,
 };
-use presentation::input_handler::{CopyMoveState, Message};
+use presentation::input_handler::{CopyMoveState, ContextMenuState, Message};
 use presentation::{TerminalRenderer, overlays, run};
 use std::env;
 use std::path::PathBuf;
@@ -53,6 +53,7 @@ fn main() {
     let mut new_folder_input: Option<String> = None;
     let mut copy_dest: Option<CopyMoveState> = None;
     let mut move_dest: Option<CopyMoveState> = None;
+    let mut context_menu: Option<ContextMenuState> = None;
     let mut favorites_active = false;
     let mut favorites_items = load_favorites();
     let mut favorites_selected: usize = 0;
@@ -78,6 +79,7 @@ fn main() {
         &mut new_folder_input,
         &mut copy_dest,
         &mut move_dest,
+        &mut context_menu,
         &mut favorites_active,
         &mut favorites_items,
         &mut favorites_selected,

@@ -7,10 +7,35 @@ use crate::infrastructure::{
     FdSearchAdapter, RipGrepAdapter, StdFileSystem, SystemClipboard, SystemOpenAdapter,
 };
 use crate::presentation::{FOOTER_ROWS, HEADER_ROWS, TerminalRenderer};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::thread;
+
+pub struct ContextMenuState {
+    pub actions: Vec<(&'static str, ContextMenuAction)>,
+    pub selected: usize,
+    pub row: u16,
+    pub col: u16,
+    pub target: PathBuf,
+    pub target_name: String,
+}
+
+#[derive(Clone)]
+pub enum ContextMenuAction {
+    Open,
+    QuickView,
+    Rename,
+    Delete,
+    CopyPath,
+    OpenVsCode,
+}
+
+pub enum ContextMenuResponse {
+    Handled,
+    Close,
+    Execute { action: ContextMenuAction, target: PathBuf, name: String },
+}
 
 pub struct CopyMoveState {
     pub sources: Vec<PathBuf>,
@@ -170,7 +195,7 @@ fn handle_panel_navigation(
     }
 }
 
-fn schedule_quick_view(
+pub fn schedule_quick_view(
     panel: &mut PanelState,
     pane: ActivePane,
     columns: u16,
@@ -598,6 +623,211 @@ pub fn handle_favorites_input(
             }
         }
         _ => false,
+    }
+}
+
+pub fn handle_mouse_event(
+    event: MouseEvent,
+    app_state: &mut AppState,
+    renderer_rows: u16,
+    renderer_cols: u16,
+    context_menu: &mut Option<ContextMenuState>,
+    sender: &Sender<Message>,
+) -> bool {
+    use crate::presentation::{FOOTER_ROWS, HEADER_ROWS};
+
+    // Any left-click dismisses an open context menu (then also handles the click).
+    if context_menu.is_some() {
+        if matches!(event.kind, MouseEventKind::Down(MouseButton::Left)) {
+            *context_menu = None;
+            // fall through to handle as normal click
+        } else {
+            return false;
+        }
+    }
+
+    match event.kind {
+        MouseEventKind::Down(MouseButton::Left) => {
+            mouse_click(event.row, event.column, app_state, renderer_rows, renderer_cols)
+        }
+        MouseEventKind::Down(MouseButton::Right) => {
+            mouse_right_click(event.row, event.column, app_state, renderer_rows, renderer_cols, context_menu, sender)
+        }
+        MouseEventKind::ScrollUp => mouse_scroll(app_state, -3, renderer_rows, sender),
+        MouseEventKind::ScrollDown => mouse_scroll(app_state, 3, renderer_rows, sender),
+        _ => false,
+    }
+}
+
+fn mouse_click(
+    row: u16,
+    col: u16,
+    app_state: &mut AppState,
+    renderer_rows: u16,
+    renderer_cols: u16,
+) -> bool {
+    use crate::presentation::{FOOTER_ROWS, HEADER_ROWS};
+    use crate::application::ActivePane;
+
+    if row < HEADER_ROWS || row >= renderer_rows.saturating_sub(FOOTER_ROWS) {
+        return false;
+    }
+    let list_row = (row - HEADER_ROWS) as usize;
+
+    if app_state.two_pane_mode {
+        let pw = renderer_cols.saturating_sub(1) / 2;
+        if col == pw {
+            return false; // separator
+        }
+        let pane = if col < pw { ActivePane::Left } else { ActivePane::Right };
+        let (scroll, len) = match pane {
+            ActivePane::Left => (app_state.left_panel.scroll, app_state.left_panel.entries.len()),
+            ActivePane::Right => (app_state.right_panel.scroll, app_state.right_panel.entries.len()),
+        };
+        app_state.active_pane = pane;
+        let idx = scroll + list_row;
+        if idx < len {
+            match pane {
+                ActivePane::Left => app_state.left_panel.cursor = idx,
+                ActivePane::Right => app_state.right_panel.cursor = idx,
+            }
+        }
+    } else {
+        let scroll = app_state.active_panel().scroll;
+        let len = app_state.active_panel().entries.len();
+        let idx = scroll + list_row;
+        if idx >= len {
+            return false;
+        }
+        app_state.active_panel_mut().cursor = idx;
+    }
+    true
+}
+
+fn mouse_right_click(
+    row: u16,
+    col: u16,
+    app_state: &mut AppState,
+    renderer_rows: u16,
+    renderer_cols: u16,
+    context_menu: &mut Option<ContextMenuState>,
+    _sender: &Sender<Message>,
+) -> bool {
+    use crate::presentation::{FOOTER_ROWS, HEADER_ROWS};
+    use crate::application::ActivePane;
+
+    if row < HEADER_ROWS || row >= renderer_rows.saturating_sub(FOOTER_ROWS) {
+        return false;
+    }
+    let list_row = (row - HEADER_ROWS) as usize;
+
+    // Determine pane + index, avoiding long-lived borrows across the pane switch.
+    let (new_pane, scroll, len) = if app_state.two_pane_mode {
+        let pw = renderer_cols.saturating_sub(1) / 2;
+        if col == pw {
+            return false;
+        }
+        let pane = if col < pw { ActivePane::Left } else { ActivePane::Right };
+        let (s, l) = match pane {
+            ActivePane::Left => (app_state.left_panel.scroll, app_state.left_panel.entries.len()),
+            ActivePane::Right => (app_state.right_panel.scroll, app_state.right_panel.entries.len()),
+        };
+        (Some(pane), s, l)
+    } else {
+        (None, app_state.active_panel().scroll, app_state.active_panel().entries.len())
+    };
+
+    let idx = scroll + list_row;
+    if idx >= len {
+        return false;
+    }
+
+    if let Some(pane) = new_pane {
+        app_state.active_pane = pane;
+    }
+    app_state.active_panel_mut().cursor = idx;
+
+    // Collect entry info before building the menu (releases panel borrow).
+    let (target, target_name, is_file) = {
+        let entry = &app_state.active_panel().entries[idx];
+        (entry.path.clone(), entry.name.clone(), entry.is_file())
+    };
+
+    let mut actions: Vec<(&'static str, ContextMenuAction)> = vec![
+        ("Open", ContextMenuAction::Open),
+        ("Quick View", ContextMenuAction::QuickView),
+        ("Rename", ContextMenuAction::Rename),
+        ("Delete", ContextMenuAction::Delete),
+        ("Copy Path", ContextMenuAction::CopyPath),
+    ];
+    if is_file {
+        actions.push(("Open in VS Code", ContextMenuAction::OpenVsCode));
+    }
+
+    *context_menu = Some(ContextMenuState {
+        actions,
+        selected: 0,
+        row,
+        col,
+        target,
+        target_name,
+    });
+    true
+}
+
+fn mouse_scroll(
+    app_state: &mut AppState,
+    delta: isize,
+    renderer_rows: u16,
+    sender: &Sender<Message>,
+) -> bool {
+    use crate::presentation::{FOOTER_ROWS as FR, HEADER_ROWS as HR};
+    let visible_rows = renderer_rows.saturating_sub(HR + FR);
+    let is_quick_view = matches!(app_state.active_panel().mode, PanelMode::QuickView(_));
+    let pane = app_state.active_pane;
+    let panel = app_state.active_panel_mut();
+    if is_quick_view {
+        quick_view::scroll(panel, delta, renderer_rows, HR, FR);
+        // In quick view, scroll also schedules the next item preview if navigating
+    } else {
+        navigate::move_cursor(panel, delta, visible_rows);
+    }
+    // Reschedule quick view if it was already open (e.g. scroll through files)
+    if !is_quick_view {
+        if let PanelMode::QuickView(_) = panel.mode.clone() {
+            // panel just entered quick view from scroll — shouldn't happen via move_cursor, skip
+        }
+    }
+    let _ = (sender, pane); // suppress unused warnings
+    true
+}
+
+pub fn handle_context_menu_input(
+    event: KeyEvent,
+    ctx: &mut Option<ContextMenuState>,
+) -> ContextMenuResponse {
+    let menu = ctx.as_mut().expect("context menu must be Some");
+    match event.code {
+        KeyCode::Up => {
+            menu.selected = menu.selected.saturating_sub(1);
+            ContextMenuResponse::Handled
+        }
+        KeyCode::Down => {
+            menu.selected = (menu.selected + 1).min(menu.actions.len().saturating_sub(1));
+            ContextMenuResponse::Handled
+        }
+        KeyCode::Enter => {
+            let (_, action) = menu.actions[menu.selected].clone();
+            let target = menu.target.clone();
+            let name = menu.target_name.clone();
+            *ctx = None;
+            ContextMenuResponse::Execute { action, target, name }
+        }
+        KeyCode::Esc | KeyCode::F(10) => {
+            *ctx = None;
+            ContextMenuResponse::Close
+        }
+        _ => ContextMenuResponse::Handled,
     }
 }
 

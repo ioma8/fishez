@@ -1,14 +1,16 @@
 //! Event loop - main application loop.
 
+use crate::application::ports::ClipboardPort;
 use crate::application::use_cases::navigate;
 use crate::application::{ActivePane, AppState, PanelMode};
 use crate::infrastructure::{StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter};
 use crate::presentation::TerminalRenderer;
 use crate::presentation::input_handler::{
-    CopyMoveState, Message, handle_copy_dest_input, handle_delete_confirmation,
-    handle_favorites_input, handle_filter_mode, handle_find_input, handle_move_dest_input,
-    handle_new_folder_input, handle_normal_mode, handle_quick_view_mode, handle_rename_input,
-    handle_ripgrep_input, handle_shell_input, is_quit,
+    ContextMenuAction, ContextMenuResponse, ContextMenuState, CopyMoveState, Message,
+    handle_context_menu_input, handle_copy_dest_input, handle_delete_confirmation,
+    handle_favorites_input, handle_filter_mode, handle_find_input, handle_mouse_event,
+    handle_move_dest_input, handle_new_folder_input, handle_normal_mode, handle_quick_view_mode,
+    handle_rename_input, handle_ripgrep_input, handle_shell_input, is_quit, schedule_quick_view,
 };
 use crate::presentation::shortcuts;
 use crate::presentation::terminal::overlays;
@@ -38,6 +40,7 @@ pub fn run(
     new_folder_input: &mut Option<String>,
     copy_dest: &mut Option<CopyMoveState>,
     move_dest: &mut Option<CopyMoveState>,
+    context_menu: &mut Option<ContextMenuState>,
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
     favorites_selected: &mut usize,
@@ -74,10 +77,38 @@ pub fn run(
                         new_folder_input,
                         copy_dest,
                         move_dest,
+                        context_menu,
                         favorites_active,
                         favorites_items,
                         favorites_selected,
                     );
+                }
+                Event::Mouse(ev) => {
+                    if handle_mouse_event(
+                        ev,
+                        app_state,
+                        renderer.rows,
+                        renderer.columns,
+                        context_menu,
+                        sender,
+                    ) {
+                        redraw_current_view(
+                            renderer,
+                            app_state,
+                            delete_paths,
+                            find_filter,
+                            ripgrep_filter,
+                            shell_command,
+                            rename_input,
+                            new_folder_input,
+                            copy_dest,
+                            move_dest,
+                            context_menu,
+                            *favorites_active,
+                            favorites_items,
+                            *favorites_selected,
+                        );
+                    }
                 }
                 Event::Resize(cols, rows) => {
                     renderer.update_size(cols, rows);
@@ -92,6 +123,7 @@ pub fn run(
                         new_folder_input,
                         copy_dest,
                         move_dest,
+                        context_menu,
                         *favorites_active,
                         favorites_items,
                         *favorites_selected,
@@ -113,6 +145,7 @@ pub fn run(
                 new_folder_input,
                 copy_dest,
                 move_dest,
+                context_menu,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -141,10 +174,51 @@ fn route_input(
     new_folder_input: &mut Option<String>,
     copy_dest: &mut Option<CopyMoveState>,
     move_dest: &mut Option<CopyMoveState>,
+    context_menu: &mut Option<ContextMenuState>,
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
     favorites_selected: &mut usize,
 ) {
+    // Context menu takes absolute priority when open.
+    if context_menu.is_some() {
+        match handle_context_menu_input(event, context_menu) {
+            ContextMenuResponse::Handled | ContextMenuResponse::Close => {}
+            ContextMenuResponse::Execute { action, target, name } => {
+                execute_context_action(
+                    action,
+                    target,
+                    name,
+                    app_state,
+                    fs_adapter,
+                    open_adapter,
+                    vscode_adapter,
+                    clipboard_adapter,
+                    sender,
+                    renderer.columns,
+                    rename_input,
+                    delete_paths,
+                );
+            }
+        }
+        redraw_current_view(
+            renderer,
+            app_state,
+            delete_paths,
+            find_filter,
+            ripgrep_filter,
+            shell_command,
+            rename_input,
+            new_folder_input,
+            copy_dest,
+            move_dest,
+            context_menu,
+            *favorites_active,
+            favorites_items,
+            *favorites_selected,
+        );
+        return;
+    }
+
     if let Some(needs_redraw) = handle_help(event, app_state) {
         if needs_redraw {
             redraw_current_view(
@@ -158,6 +232,7 @@ fn route_input(
                 new_folder_input,
                 copy_dest,
                 move_dest,
+                context_menu,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -196,6 +271,7 @@ fn route_input(
                 new_folder_input,
                 copy_dest,
                 move_dest,
+                context_menu,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -216,6 +292,7 @@ fn route_input(
             new_folder_input,
             copy_dest,
             move_dest,
+            context_menu,
             *favorites_active,
             favorites_items,
             *favorites_selected,
@@ -250,6 +327,7 @@ fn route_input(
                 new_folder_input,
                 copy_dest,
                 move_dest,
+                context_menu,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -277,10 +355,59 @@ fn route_input(
             new_folder_input,
             copy_dest,
             move_dest,
+            context_menu,
             *favorites_active,
             favorites_items,
             *favorites_selected,
         );
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_context_action(
+    action: ContextMenuAction,
+    target: PathBuf,
+    name: String,
+    app_state: &mut AppState,
+    fs_adapter: &StdFileSystem,
+    open_adapter: &SystemOpenAdapter,
+    vscode_adapter: &VsCodeAdapter,
+    clipboard_adapter: &mut SystemClipboard,
+    sender: &Sender<Message>,
+    renderer_columns: u16,
+    rename_input: &mut Option<String>,
+    delete_paths: &mut Option<Vec<PathBuf>>,
+) {
+    match action {
+        ContextMenuAction::Open => {
+            if target.is_dir() {
+                navigate::change_directory(fs_adapter, app_state.active_panel_mut(), target);
+            } else {
+                open_adapter.open(&target);
+            }
+        }
+        ContextMenuAction::QuickView => {
+            let pane = app_state.active_pane;
+            let panel = app_state.active_panel_mut();
+            schedule_quick_view(panel, pane, renderer_columns, sender);
+        }
+        ContextMenuAction::Rename => {
+            *rename_input = Some(name);
+        }
+        ContextMenuAction::Delete => {
+            *delete_paths = Some(vec![target]);
+        }
+        ContextMenuAction::CopyPath => {
+            let path_str = target.to_string_lossy().to_string();
+            if clipboard_adapter.copy(&path_str).is_ok() {
+                app_state
+                    .active_panel_mut()
+                    .set_notification("Path copied".to_string());
+            }
+        }
+        ContextMenuAction::OpenVsCode => {
+            vscode_adapter.open(&target);
+        }
     }
 }
 
@@ -424,6 +551,7 @@ fn redraw_current_view(
     new_folder_input: &Option<String>,
     copy_dest: &Option<CopyMoveState>,
     move_dest: &Option<CopyMoveState>,
+    context_menu: &Option<ContextMenuState>,
     favorites_active: bool,
     favorites_items: &[String],
     favorites_selected: usize,
@@ -454,6 +582,10 @@ fn redraw_current_view(
         overlays::draw_with_move_dest(renderer, app_state, &state.dest);
     } else {
         overlays::draw(renderer, app_state);
+    }
+    // Context menu floats on top of whatever was already drawn.
+    if let Some(ctx) = context_menu.as_ref() {
+        overlays::draw_context_menu(renderer, ctx);
     }
 }
 

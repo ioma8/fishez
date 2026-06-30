@@ -4,8 +4,9 @@ use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewM
 use crate::domain::FileEntry;
 use base64::Engine;
 use crossterm::style::{Color, Print, StyledContent, Stylize};
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::terminal::{ClearType, enable_raw_mode};
-use crossterm::{cursor, queue, terminal};
+use crossterm::{cursor, execute, queue, terminal};
 use image::{GenericImageView, ImageFormat};
 use std::collections::hash_map::DefaultHasher;
 use std::fs::OpenOptions;
@@ -106,6 +107,7 @@ impl TerminalRenderer {
     pub fn new() -> Self {
         let (columns, rows) = terminal::size().expect("Error getting terminal size");
         enable_raw_mode().expect("Failed to enable raw mode");
+        let _ = execute!(std::io::stdout(), EnableMouseCapture);
 
         // Pre-render SVG logo to PNG bytes
         let logo_png = render_svg_to_png(LOGO_SVG);
@@ -139,6 +141,7 @@ impl TerminalRenderer {
             terminal::Clear(ClearType::All)
         );
         let _ = terminal::disable_raw_mode();
+        let _ = execute!(std::io::stdout(), DisableMouseCapture);
         let _ = self.stdout.flush();
     }
 
