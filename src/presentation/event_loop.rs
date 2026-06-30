@@ -7,7 +7,7 @@ use crate::infrastructure::{StdFileSystem, SystemClipboard, SystemOpenAdapter, V
 use crate::presentation::TerminalRenderer;
 use crate::presentation::input_handler::{
     ContextMenuAction, ContextMenuResponse, ContextMenuState, CopyMoveState, Message,
-    handle_context_menu_input, handle_copy_dest_input, handle_delete_confirmation,
+    MouseOutcome, handle_context_menu_input, handle_copy_dest_input, handle_delete_confirmation,
     handle_favorites_input, handle_filter_mode, handle_find_input, handle_mouse_event,
     handle_move_dest_input, handle_new_folder_input, handle_normal_mode, handle_quick_view_mode,
     handle_rename_input, handle_ripgrep_input, handle_shell_input, is_quit, schedule_quick_view,
@@ -84,30 +84,37 @@ pub fn run(
                     );
                 }
                 Event::Mouse(ev) => {
-                    if handle_mouse_event(
+                    let outcome = handle_mouse_event(
                         ev,
                         app_state,
                         renderer.rows,
                         renderer.columns,
                         context_menu,
                         sender,
-                    ) {
-                        redraw_current_view(
-                            renderer,
-                            app_state,
-                            delete_paths,
-                            find_filter,
-                            ripgrep_filter,
-                            shell_command,
-                            rename_input,
-                            new_folder_input,
-                            copy_dest,
-                            move_dest,
-                            context_menu,
-                            *favorites_active,
-                            favorites_items,
-                            *favorites_selected,
-                        );
+                    );
+                    match outcome {
+                        MouseOutcome::Nothing => {}
+                        MouseOutcome::Redraw => {
+                            redraw_current_view(
+                                renderer, app_state, delete_paths, find_filter, ripgrep_filter,
+                                shell_command, rename_input, new_folder_input, copy_dest,
+                                move_dest, context_menu, *favorites_active, favorites_items,
+                                *favorites_selected,
+                            );
+                        }
+                        MouseOutcome::ExecuteContext { action, target, name } => {
+                            execute_context_action(
+                                action, target, name, app_state, fs_adapter, open_adapter,
+                                vscode_adapter, clipboard_adapter, sender, renderer.columns,
+                                rename_input, delete_paths,
+                            );
+                            redraw_current_view(
+                                renderer, app_state, delete_paths, find_filter, ripgrep_filter,
+                                shell_command, rename_input, new_folder_input, copy_dest,
+                                move_dest, context_menu, *favorites_active, favorites_items,
+                                *favorites_selected,
+                            );
+                        }
                     }
                 }
                 Event::Resize(cols, rows) => {

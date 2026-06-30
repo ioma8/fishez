@@ -37,6 +37,12 @@ pub enum ContextMenuResponse {
     Execute { action: ContextMenuAction, target: PathBuf, name: String },
 }
 
+pub enum MouseOutcome {
+    Nothing,
+    Redraw,
+    ExecuteContext { action: ContextMenuAction, target: PathBuf, name: String },
+}
+
 pub struct CopyMoveState {
     pub sources: Vec<PathBuf>,
     pub dest: String,
@@ -633,30 +639,79 @@ pub fn handle_mouse_event(
     renderer_cols: u16,
     context_menu: &mut Option<ContextMenuState>,
     sender: &Sender<Message>,
-) -> bool {
-    use crate::presentation::{FOOTER_ROWS, HEADER_ROWS};
-
-    // Any left-click dismisses an open context menu (then also handles the click).
-    if context_menu.is_some() {
+) -> MouseOutcome {
+    if let Some(ctx) = context_menu.as_ref() {
         if matches!(event.kind, MouseEventKind::Down(MouseButton::Left)) {
+            // Check if click lands on a menu item.
+            if let Some(outcome) = menu_click_hit(event.row, event.column, ctx, renderer_rows, renderer_cols) {
+                *context_menu = None;
+                return outcome;
+            }
+            // Click outside menu: close it and handle as normal file-list click.
             *context_menu = None;
-            // fall through to handle as normal click
+            return if mouse_click(event.row, event.column, app_state, renderer_rows, renderer_cols) {
+                MouseOutcome::Redraw
+            } else {
+                MouseOutcome::Redraw // redraw to remove menu even if cursor didn't move
+            };
+        } else if matches!(event.kind, MouseEventKind::ScrollUp | MouseEventKind::ScrollDown) {
+            // Scroll while menu open: close menu and scroll.
+            *context_menu = None;
         } else {
-            return false;
+            return MouseOutcome::Nothing;
         }
     }
 
     match event.kind {
         MouseEventKind::Down(MouseButton::Left) => {
-            mouse_click(event.row, event.column, app_state, renderer_rows, renderer_cols)
+            if mouse_click(event.row, event.column, app_state, renderer_rows, renderer_cols) {
+                MouseOutcome::Redraw
+            } else {
+                MouseOutcome::Nothing
+            }
         }
         MouseEventKind::Down(MouseButton::Right) => {
-            mouse_right_click(event.row, event.column, app_state, renderer_rows, renderer_cols, context_menu, sender)
+            if mouse_right_click(event.row, event.column, app_state, renderer_rows, renderer_cols, context_menu, sender) {
+                MouseOutcome::Redraw
+            } else {
+                MouseOutcome::Nothing
+            }
         }
-        MouseEventKind::ScrollUp => mouse_scroll(app_state, -3, renderer_rows, sender),
-        MouseEventKind::ScrollDown => mouse_scroll(app_state, 3, renderer_rows, sender),
-        _ => false,
+        MouseEventKind::ScrollUp => {
+            if mouse_scroll(app_state, -3, renderer_rows, sender) { MouseOutcome::Redraw } else { MouseOutcome::Nothing }
+        }
+        MouseEventKind::ScrollDown => {
+            if mouse_scroll(app_state, 3, renderer_rows, sender) { MouseOutcome::Redraw } else { MouseOutcome::Nothing }
+        }
+        _ => MouseOutcome::Nothing,
     }
+}
+
+fn menu_click_hit(
+    click_row: u16,
+    click_col: u16,
+    ctx: &ContextMenuState,
+    renderer_rows: u16,
+    renderer_cols: u16,
+) -> Option<MouseOutcome> {
+    let width = ctx.actions.iter().map(|(l, _)| l.len()).max().unwrap_or(8) as u16 + 4;
+    let height = ctx.actions.len() as u16 + 2;
+    let menu_col = ctx.col.min(renderer_cols.saturating_sub(width));
+    let menu_row = ctx.row.min(renderer_rows.saturating_sub(height));
+
+    if click_col < menu_col || click_col >= menu_col + width {
+        return None;
+    }
+    if click_row <= menu_row || click_row >= menu_row + height - 1 {
+        return None; // border rows
+    }
+    let item_idx = (click_row - menu_row - 1) as usize;
+    let (_, action) = ctx.actions.get(item_idx)?.clone();
+    Some(MouseOutcome::ExecuteContext {
+        action,
+        target: ctx.target.clone(),
+        name: ctx.target_name.clone(),
+    })
 }
 
 fn mouse_click(
