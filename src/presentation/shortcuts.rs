@@ -156,11 +156,11 @@ fn handle_search(
         *shell_command = Some(String::new());
         return Some(true);
     }
-    if event.code == KeyCode::F(7) && event.modifiers.contains(KeyModifiers::ALT) {
+    if event.code == KeyCode::Char('f') && event.modifiers.contains(KeyModifiers::CONTROL) {
         *find_filter = Some(String::new());
         return Some(true);
     }
-    if event.code == KeyCode::Char('g') && event.modifiers.contains(KeyModifiers::CONTROL) {
+    if event.code == KeyCode::Char('r') && event.modifiers.contains(KeyModifiers::CONTROL) {
         *ripgrep_filter = Some(String::new());
         return Some(true);
     }
