@@ -586,10 +586,26 @@ impl TerminalRenderer {
     }
 
     fn draw_onboarding_banner(&mut self) {
-        // Inner width (excluding │ borders).
-        const IW: usize = 52;
-        const BW: u16 = IW as u16 + 2; // total width with borders
-        const BH: u16 = 12; // total height
+        // Inner width (excluding │ borders). Row layout:
+        //  0  ╭──╮
+        //  1  │  │  blank
+        //  2  │  │  title
+        //  3  │  │  subtitle
+        //  4  │  │  blank
+        //  5  ╞══╡
+        //  6  │  │  blank
+        //  7  │  │  shortcut
+        //  8  │  │  shortcut
+        //  9  │  │  shortcut
+        // 10  │  │  shortcut
+        // 11  │  │  blank
+        // 12  ╞══╡
+        // 13  │  │  dismiss
+        // 14  │  │  blank
+        // 15  ╰──╯
+        const IW: usize = 56;
+        const BW: u16 = IW as u16 + 2;
+        const BH: u16 = 16;
 
         if self.columns < BW + 2 || self.rows < BH + 2 {
             return;
@@ -607,8 +623,14 @@ impl TerminalRenderer {
         let center = |s: &str| -> String {
             let pad = IW.saturating_sub(s.len());
             let l = pad / 2;
-            let r = pad - l;
-            format!("{}{}{}", " ".repeat(l), s, " ".repeat(r))
+            format!("{}{}{}", " ".repeat(l), s, " ".repeat(pad - l))
+        };
+        let blank = |s: &mut Self, r: u16| {
+            let _ = queue!(s.stdout, cursor::MoveTo(col, row + r),
+                Print("│".with(border).on(bg)),
+                Print(" ".repeat(IW).on(bg)),
+                Print("│".with(border).on(bg))
+            );
         };
 
         let top = format!("╭{}╮", "─".repeat(IW));
@@ -619,42 +641,41 @@ impl TerminalRenderer {
             ($r:expr) => { cursor::MoveTo(col, row + $r) };
         }
 
-        // Top border
         let _ = queue!(&mut self.stdout, mv!(0), Print(top.with(border).on(bg)));
+        blank(self, 1);
 
-        // Title
-        let title = center("  f i s h e z  ");
-        let _ = queue!(&mut self.stdout, mv!(1),
+        let title = center("f i s h e z");
+        let _ = queue!(&mut self.stdout, mv!(2),
             Print("│".with(border).on(bg)),
-            Print(title.bold().white().on(bg)),
+            Print(title.bold().with(Color::White).on(bg)),
             Print("│".with(border).on(bg))
         );
 
-        // Subtitle
-        let sub = center("Total Commander for the terminal");
-        let _ = queue!(&mut self.stdout, mv!(2),
+        let sub = center("a fast terminal file manager");
+        let _ = queue!(&mut self.stdout, mv!(3),
             Print("│".with(border).on(bg)),
             Print(sub.with(dim_col).on(bg)),
             Print("│".with(border).on(bg))
         );
 
-        // Separator
-        let _ = queue!(&mut self.stdout, mv!(3), Print(sep.clone().with(border).on(bg)));
+        blank(self, 4);
+        let _ = queue!(&mut self.stdout, mv!(5), Print(sep.clone().with(border).on(bg)));
+        blank(self, 6);
 
-        // 4 viral shortcut rows: 2+key(10)+desc(16)+key(10)+desc(12)+2 = 52
+        // shortcut rows: 3 + key(11) + desc(18) + key(8) + desc(14) + 2 = 56
         let shortcuts: &[(&str, &str, &str, &str)] = &[
-            ("type a-z", "instantly filter",  "F3",  "quick view"),
-            ("Enter",    "open",               "F4",  "VS Code"),
-            ("Ctrl+T",   "two-pane mode",      "F8",  "delete"),
-            ("!",        "shell command",       "F1",  "all shortcuts"),
+            ("type a-z",  "filter instantly",  "F3",  "quick view"),
+            ("Enter",     "open",               "F4",  "VS Code"),
+            ("Ctrl+T",    "two-pane mode",      "F8",  "delete"),
+            ("!",         "shell command",      "F1",  "all shortcuts"),
         ];
 
         for (i, (k1, d1, k2, d2)) in shortcuts.iter().enumerate() {
-            let _ = queue!(&mut self.stdout, mv!(4 + i as u16),
+            let _ = queue!(&mut self.stdout, mv!(7 + i as u16),
                 Print("│".with(border).on(bg)),
-                Print("  ".on(bg)),
-                Print(format!("{:<10}", k1).with(key_col).on(bg)),
-                Print(format!("{:<16}", d1).with(desc_col).on(bg)),
+                Print("   ".on(bg)),
+                Print(format!("{:<11}", k1).with(key_col).on(bg)),
+                Print(format!("{:<18}", d1).with(desc_col).on(bg)),
                 Print(format!("{:<8}", k2).with(key_col).on(bg)),
                 Print(format!("{:<14}", d2).with(desc_col).on(bg)),
                 Print("  ".on(bg)),
@@ -662,26 +683,18 @@ impl TerminalRenderer {
             );
         }
 
-        // Separator
-        let _ = queue!(&mut self.stdout, mv!(8), Print(sep.clone().with(border).on(bg)));
+        blank(self, 11);
+        let _ = queue!(&mut self.stdout, mv!(12), Print(sep.clone().with(border).on(bg)));
 
-        // F1 hint
-        let hint = center("F10 to quit");
-        let _ = queue!(&mut self.stdout, mv!(9),
+        let dismiss = center("press any key to start  ·  F10 quit");
+        let _ = queue!(&mut self.stdout, mv!(13),
             Print("│".with(border).on(bg)),
-            Print(hint.with(dim_col).on(bg)),
+            Print(dismiss.with(dim_col).on(bg)),
             Print("│".with(border).on(bg))
         );
 
-        // Dismiss row
-        let dismiss = center("— press any key to continue —");
-        let _ = queue!(&mut self.stdout, mv!(10),
-            Print("│".with(border).on(bg)),
-            Print(dismiss.with(dim_col).italic().on(bg)),
-            Print("│".with(border).on(bg))
-        );
-
-        let _ = queue!(&mut self.stdout, mv!(11), Print(bot.with(border).on(bg)));
+        blank(self, 14);
+        let _ = queue!(&mut self.stdout, mv!(15), Print(bot.with(border).on(bg)));
 
         let _ = self.stdout.flush();
     }
