@@ -1,6 +1,7 @@
 //! Input handler - keyboard event processing.
 
-use crate::application::use_cases::{file_ops, navigate, quick_view};
+use crate::application::ports::FileSystemPort;
+use crate::application::use_cases::{file_copy, file_move, file_ops, navigate, new_folder, quick_view};
 use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode};
 use crate::infrastructure::{
     FdSearchAdapter, RipGrepAdapter, StdFileSystem, SystemClipboard, SystemOpenAdapter,
@@ -10,6 +11,11 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::thread;
+
+pub struct CopyMoveState {
+    pub sources: Vec<PathBuf>,
+    pub dest: String,
+}
 
 #[derive(Debug)]
 pub enum Message {
@@ -590,6 +596,196 @@ pub fn handle_favorites_input(
             } else {
                 false
             }
+        }
+        _ => false,
+    }
+}
+
+pub fn handle_rename_input(
+    event: KeyEvent,
+    rename_input: &mut Option<String>,
+    fs: &StdFileSystem,
+    state: &mut AppState,
+) -> bool {
+    let Some(value) = rename_input.as_mut() else {
+        return false;
+    };
+    match event.code {
+        KeyCode::Char(c) => {
+            value.push(c);
+            true
+        }
+        KeyCode::Backspace => {
+            value.pop();
+            true
+        }
+        KeyCode::Enter => {
+            let new_name = value.trim().to_string();
+            *rename_input = None;
+            if new_name.is_empty() {
+                return true;
+            }
+            let panel = state.active_panel_mut();
+            if let Some(from) = panel.get_selected_path() {
+                let to = from
+                    .parent()
+                    .unwrap_or_else(|| std::path::Path::new("/"))
+                    .join(&new_name);
+                match fs.rename(&from, &to) {
+                    Ok(()) => {
+                        navigate::refresh_entries(fs, panel);
+                        if let Some(pos) = panel.entries.iter().position(|e| e.name == new_name) {
+                            panel.cursor = pos;
+                        }
+                    }
+                    Err(e) => panel.set_notification(format!("Rename failed: {}", e)),
+                }
+            }
+            true
+        }
+        KeyCode::Esc => {
+            *rename_input = None;
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn handle_new_folder_input(
+    event: KeyEvent,
+    new_folder_input: &mut Option<String>,
+    fs: &StdFileSystem,
+    state: &mut AppState,
+) -> bool {
+    let Some(value) = new_folder_input.as_mut() else {
+        return false;
+    };
+    match event.code {
+        KeyCode::Char(c) => {
+            value.push(c);
+            true
+        }
+        KeyCode::Backspace => {
+            value.pop();
+            true
+        }
+        KeyCode::Enter => {
+            let name = value.trim().to_string();
+            *new_folder_input = None;
+            if name.is_empty() {
+                return true;
+            }
+            let panel = state.active_panel_mut();
+            let parent = panel.current_path.clone();
+            match new_folder::create_folder(&name, &parent, fs) {
+                Ok(()) => {
+                    navigate::refresh_entries(fs, panel);
+                    if let Some(pos) = panel.entries.iter().position(|e| e.name == name) {
+                        panel.cursor = pos;
+                    }
+                }
+                Err(e) => panel.set_notification(format!("New folder failed: {}", e)),
+            }
+            true
+        }
+        KeyCode::Esc => {
+            *new_folder_input = None;
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn handle_copy_dest_input(
+    event: KeyEvent,
+    copy_dest: &mut Option<CopyMoveState>,
+    fs: &StdFileSystem,
+    state: &mut AppState,
+) -> bool {
+    let Some(cms) = copy_dest.as_mut() else {
+        return false;
+    };
+    match event.code {
+        KeyCode::Char(c) => {
+            cms.dest.push(c);
+            true
+        }
+        KeyCode::Backspace => {
+            cms.dest.pop();
+            true
+        }
+        KeyCode::Enter => {
+            let sources = cms.sources.clone();
+            let dest = PathBuf::from(cms.dest.trim());
+            *copy_dest = None;
+            if dest.as_os_str().is_empty() {
+                return true;
+            }
+            match file_copy::copy_items(&sources, &dest, fs) {
+                Ok(()) => {
+                    navigate::refresh_entries(fs, &mut state.left_panel);
+                    navigate::refresh_entries(fs, &mut state.right_panel);
+                    state
+                        .active_panel_mut()
+                        .set_notification("Copied".to_string());
+                }
+                Err(e) => state
+                    .active_panel_mut()
+                    .set_notification(format!("Copy failed: {}", e)),
+            }
+            true
+        }
+        KeyCode::Esc => {
+            *copy_dest = None;
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn handle_move_dest_input(
+    event: KeyEvent,
+    move_dest: &mut Option<CopyMoveState>,
+    fs: &StdFileSystem,
+    state: &mut AppState,
+) -> bool {
+    let Some(cms) = move_dest.as_mut() else {
+        return false;
+    };
+    match event.code {
+        KeyCode::Char(c) => {
+            cms.dest.push(c);
+            true
+        }
+        KeyCode::Backspace => {
+            cms.dest.pop();
+            true
+        }
+        KeyCode::Enter => {
+            let sources = cms.sources.clone();
+            let dest = PathBuf::from(cms.dest.trim());
+            *move_dest = None;
+            if dest.as_os_str().is_empty() {
+                return true;
+            }
+            match file_move::move_items(&sources, &dest, fs) {
+                Ok(()) => {
+                    state.active_panel_mut().clear_multi_selection();
+                    navigate::refresh_entries(fs, &mut state.left_panel);
+                    navigate::refresh_entries(fs, &mut state.right_panel);
+                    state
+                        .active_panel_mut()
+                        .set_notification("Moved".to_string());
+                }
+                Err(e) => state
+                    .active_panel_mut()
+                    .set_notification(format!("Move failed: {}", e)),
+            }
+            true
+        }
+        KeyCode::Esc => {
+            *move_dest = None;
+            true
         }
         _ => false,
     }

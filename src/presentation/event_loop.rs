@@ -5,9 +5,10 @@ use crate::application::{ActivePane, AppState, PanelMode};
 use crate::infrastructure::{StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter};
 use crate::presentation::TerminalRenderer;
 use crate::presentation::input_handler::{
-    Message, handle_delete_confirmation, handle_favorites_input, handle_filter_mode,
-    handle_find_input, handle_normal_mode, handle_quick_view_mode, handle_ripgrep_input,
-    handle_shell_input, is_quit,
+    CopyMoveState, Message, handle_copy_dest_input, handle_delete_confirmation,
+    handle_favorites_input, handle_filter_mode, handle_find_input, handle_move_dest_input,
+    handle_new_folder_input, handle_normal_mode, handle_quick_view_mode, handle_rename_input,
+    handle_ripgrep_input, handle_shell_input, is_quit,
 };
 use crate::presentation::shortcuts;
 use crate::presentation::terminal::overlays;
@@ -33,10 +34,13 @@ pub fn run(
     shell_command: &mut Option<String>,
     shell_history: &mut Vec<String>,
     shell_history_idx: &mut Option<usize>,
+    rename_input: &mut Option<String>,
+    new_folder_input: &mut Option<String>,
+    copy_dest: &mut Option<CopyMoveState>,
+    move_dest: &mut Option<CopyMoveState>,
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
     favorites_selected: &mut usize,
-    two_pane: bool,
 ) {
     let onboarding_start = Instant::now();
     loop {
@@ -66,10 +70,13 @@ pub fn run(
                         shell_command,
                         shell_history,
                         shell_history_idx,
+                        rename_input,
+                        new_folder_input,
+                        copy_dest,
+                        move_dest,
                         favorites_active,
                         favorites_items,
                         favorites_selected,
-                        two_pane,
                     );
                 }
                 Event::Resize(cols, rows) => {
@@ -81,6 +88,10 @@ pub fn run(
                         find_filter,
                         ripgrep_filter,
                         shell_command,
+                        rename_input,
+                        new_folder_input,
+                        copy_dest,
+                        move_dest,
                         *favorites_active,
                         favorites_items,
                         *favorites_selected,
@@ -98,6 +109,10 @@ pub fn run(
                 find_filter,
                 ripgrep_filter,
                 shell_command,
+                rename_input,
+                new_folder_input,
+                copy_dest,
+                move_dest,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -122,10 +137,13 @@ fn route_input(
     shell_command: &mut Option<String>,
     shell_history: &mut Vec<String>,
     shell_history_idx: &mut Option<usize>,
+    rename_input: &mut Option<String>,
+    new_folder_input: &mut Option<String>,
+    copy_dest: &mut Option<CopyMoveState>,
+    move_dest: &mut Option<CopyMoveState>,
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
     favorites_selected: &mut usize,
-    two_pane: bool,
 ) {
     if let Some(needs_redraw) = handle_help(event, app_state) {
         if needs_redraw {
@@ -136,6 +154,10 @@ fn route_input(
                 find_filter,
                 ripgrep_filter,
                 shell_command,
+                rename_input,
+                new_folder_input,
+                copy_dest,
+                move_dest,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -154,6 +176,10 @@ fn route_input(
         shell_command,
         shell_history,
         shell_history_idx,
+        rename_input,
+        new_folder_input,
+        copy_dest,
+        move_dest,
         favorites_active,
         favorites_items,
         favorites_selected,
@@ -166,6 +192,10 @@ fn route_input(
                 find_filter,
                 ripgrep_filter,
                 shell_command,
+                rename_input,
+                new_folder_input,
+                copy_dest,
+                move_dest,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -173,7 +203,7 @@ fn route_input(
         }
         return;
     }
-    if two_pane && event.code == KeyCode::Tab {
+    if app_state.two_pane_mode && event.code == KeyCode::Tab {
         app_state.switch_pane();
         redraw_current_view(
             renderer,
@@ -182,6 +212,10 @@ fn route_input(
             find_filter,
             ripgrep_filter,
             shell_command,
+            rename_input,
+            new_folder_input,
+            copy_dest,
+            move_dest,
             *favorites_active,
             favorites_items,
             *favorites_selected,
@@ -196,6 +230,10 @@ fn route_input(
         find_filter,
         ripgrep_filter,
         shell_command,
+        rename_input,
+        new_folder_input,
+        copy_dest,
+        move_dest,
         favorites_active,
         favorites_items,
         favorites_selected,
@@ -208,6 +246,10 @@ fn route_input(
                 find_filter,
                 ripgrep_filter,
                 shell_command,
+                rename_input,
+                new_folder_input,
+                copy_dest,
+                move_dest,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -231,6 +273,10 @@ fn route_input(
             find_filter,
             ripgrep_filter,
             shell_command,
+            rename_input,
+            new_folder_input,
+            copy_dest,
+            move_dest,
             *favorites_active,
             favorites_items,
             *favorites_selected,
@@ -265,6 +311,10 @@ fn handle_modal_overlays(
     shell_command: &mut Option<String>,
     shell_history: &mut Vec<String>,
     shell_history_idx: &mut Option<usize>,
+    rename_input: &mut Option<String>,
+    new_folder_input: &mut Option<String>,
+    copy_dest: &mut Option<CopyMoveState>,
+    move_dest: &mut Option<CopyMoveState>,
     favorites_active: &mut bool,
     favorites_items: &[String],
     favorites_selected: &mut usize,
@@ -314,6 +364,18 @@ fn handle_modal_overlays(
             app_state,
         ));
     }
+    if rename_input.is_some() {
+        return Some(handle_rename_input(event, rename_input, fs_adapter, app_state));
+    }
+    if new_folder_input.is_some() {
+        return Some(handle_new_folder_input(event, new_folder_input, fs_adapter, app_state));
+    }
+    if copy_dest.is_some() {
+        return Some(handle_copy_dest_input(event, copy_dest, fs_adapter, app_state));
+    }
+    if move_dest.is_some() {
+        return Some(handle_move_dest_input(event, move_dest, fs_adapter, app_state));
+    }
     None
 }
 
@@ -358,6 +420,10 @@ fn redraw_current_view(
     find_filter: &Option<String>,
     ripgrep_filter: &Option<String>,
     shell_command: &Option<String>,
+    rename_input: &Option<String>,
+    new_folder_input: &Option<String>,
+    copy_dest: &Option<CopyMoveState>,
+    move_dest: &Option<CopyMoveState>,
     favorites_active: bool,
     favorites_items: &[String],
     favorites_selected: usize,
@@ -378,6 +444,14 @@ fn redraw_current_view(
         overlays::draw_with_ripgrep(renderer, app_state, ripgrep_filter.as_ref());
     } else if shell_command.is_some() {
         overlays::draw_with_shell(renderer, app_state, shell_command.as_ref());
+    } else if rename_input.is_some() {
+        overlays::draw_with_rename(renderer, app_state, rename_input.as_deref());
+    } else if new_folder_input.is_some() {
+        overlays::draw_with_new_folder(renderer, app_state, new_folder_input.as_deref());
+    } else if let Some(state) = copy_dest.as_ref() {
+        overlays::draw_with_copy_dest(renderer, app_state, &state.dest);
+    } else if let Some(state) = move_dest.as_ref() {
+        overlays::draw_with_move_dest(renderer, app_state, &state.dest);
     } else {
         overlays::draw(renderer, app_state);
     }

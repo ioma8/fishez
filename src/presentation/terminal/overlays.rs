@@ -117,6 +117,49 @@ fn draw_shell_prompt(renderer: &mut TerminalRenderer, command: &str) {
     let _ = std::io::stdout().flush();
 }
 
+/// Draw with rename prompt overlay.
+pub fn draw_with_rename(renderer: &mut TerminalRenderer, state: &AppState, input: Option<&str>) {
+    draw(renderer, state);
+    if let Some(name) = input {
+        draw_input_prompt(renderer, "Rename", name);
+    }
+}
+
+/// Draw with new folder prompt overlay.
+pub fn draw_with_new_folder(
+    renderer: &mut TerminalRenderer,
+    state: &AppState,
+    input: Option<&str>,
+) {
+    draw(renderer, state);
+    if let Some(name) = input {
+        draw_input_prompt(renderer, "New folder", name);
+    }
+}
+
+/// Draw with copy destination prompt overlay.
+pub fn draw_with_copy_dest(renderer: &mut TerminalRenderer, state: &AppState, dest: &str) {
+    draw(renderer, state);
+    draw_input_prompt(renderer, "Copy to", dest);
+}
+
+/// Draw with move destination prompt overlay.
+pub fn draw_with_move_dest(renderer: &mut TerminalRenderer, state: &AppState, dest: &str) {
+    draw(renderer, state);
+    draw_input_prompt(renderer, "Move to", dest);
+}
+
+fn draw_input_prompt(renderer: &mut TerminalRenderer, label: &str, input: &str) {
+    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
+    let _ = queue!(
+        renderer.writer(),
+        cursor::MoveTo(0, prompt_row),
+        terminal::Clear(ClearType::UntilNewLine),
+        Print(format!("{}: {} [enter/esc]", label, input).cyan().bold()),
+    );
+    let _ = std::io::stdout().flush();
+}
+
 /// Draw favorites overlay or main UI.
 pub fn draw_with_favorites(
     renderer: &mut TerminalRenderer,

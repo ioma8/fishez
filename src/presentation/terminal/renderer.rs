@@ -577,7 +577,7 @@ impl TerminalRenderer {
     }
 
     fn draw_onboarding_banner(&mut self) {
-        let banner = "↑↓ nav  Enter open  F3 view  F4 code  F6 find  F7 rg  F1 help  F10 quit";
+        let banner = "↑↓ nav  Enter open  F3 view  F4 code  F5 copy  F6 move  Shift+F6 rename  F7 mkdir  F8 del  F1 help  F10 quit";
         let styled = banner.with(Color::Green).on(Color::DarkBlue);
         let _ = queue!(
             &mut self.stdout,
@@ -773,11 +773,17 @@ fn default_help_entries() -> Vec<(&'static str, &'static str)> {
         ("Backspace", "Go up"),
         ("F3", "Quick view"),
         ("Tab", "Switch pane"),
+        ("Ctrl+T", "Toggle two-pane"),
         ("Esc", "Cancel/close"),
         ("F10/Ctrl+C", "Quit"),
-        ("Ctrl+W", "Delete"),
-        ("F6", "Find (fd)"),
-        ("F7", "RipGrep"),
+        ("F5", "Copy to"),
+        ("F6", "Move to"),
+        ("Shift+F6", "Rename"),
+        ("F7", "New folder"),
+        ("F8", "Delete"),
+        ("Ctrl+W", "Delete (alias)"),
+        ("Alt+F7", "Find (fd)"),
+        ("Ctrl+G", "RipGrep"),
         ("!", "Shell command"),
         ("Ctrl+D", "Favorites"),
         ("Space", "Toggle selection"),
@@ -791,9 +797,10 @@ fn footer_actions(mode: &PanelMode) -> &'static [&'static str] {
             "[f1]help",
             "[f3]view",
             "[f4]edit",
-            "[f6]find",
-            "[f7]rg",
-            "[ctrl+w]del",
+            "[f5]copy",
+            "[f6]move",
+            "[f7]mkdir",
+            "[f8]del",
             "[f10]quit",
         ],
         PanelMode::Filter => &["[f1]help", "[esc]clear", "[f3]view", "[f10]quit"],

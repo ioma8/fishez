@@ -2,6 +2,7 @@
 
 use crate::application::{AppState, PanelMode};
 use crate::infrastructure::{VsCodeAdapter, add_favorite};
+use crate::presentation::input_handler::CopyMoveState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::path::PathBuf;
 
@@ -15,11 +16,18 @@ pub fn handle(
     find_filter: &mut Option<String>,
     ripgrep_filter: &mut Option<String>,
     shell_command: &mut Option<String>,
+    rename_input: &mut Option<String>,
+    new_folder_input: &mut Option<String>,
+    copy_dest: &mut Option<CopyMoveState>,
+    move_dest: &mut Option<CopyMoveState>,
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
     favorites_selected: &mut usize,
 ) -> Option<bool> {
     if let Some(needs_redraw) = handle_delete(event, app_state, delete_paths) {
+        return Some(needs_redraw);
+    }
+    if let Some(needs_redraw) = handle_file_ops(event, app_state, rename_input, new_folder_input, copy_dest, move_dest) {
         return Some(needs_redraw);
     }
     if let Some(needs_redraw) = handle_search(event, find_filter, ripgrep_filter, shell_command) {
@@ -34,6 +42,9 @@ pub fn handle(
     ) {
         return Some(needs_redraw);
     }
+    if let Some(needs_redraw) = handle_two_pane_toggle(event, app_state) {
+        return Some(needs_redraw);
+    }
     if let Some(needs_redraw) = handle_vscode(event, app_state, vscode_adapter) {
         return Some(needs_redraw);
     }
@@ -45,7 +56,10 @@ fn handle_delete(
     app_state: &mut AppState,
     delete_paths: &mut Option<Vec<PathBuf>>,
 ) -> Option<bool> {
-    if event.code == KeyCode::Char('w') && event.modifiers.contains(KeyModifiers::CONTROL) {
+    let is_delete = (event.code == KeyCode::Char('w')
+        && event.modifiers.contains(KeyModifiers::CONTROL))
+        || event.code == KeyCode::F(8);
+    if is_delete {
         let panel = app_state.active_panel_mut();
         let targets = if panel.multi_selected_count() > 0 {
             panel.multi_selected_paths()
@@ -59,6 +73,73 @@ fn handle_delete(
         return Some(false);
     }
     None
+}
+
+#[allow(clippy::too_many_arguments)]
+fn handle_file_ops(
+    event: KeyEvent,
+    app_state: &mut AppState,
+    rename_input: &mut Option<String>,
+    new_folder_input: &mut Option<String>,
+    copy_dest: &mut Option<CopyMoveState>,
+    move_dest: &mut Option<CopyMoveState>,
+) -> Option<bool> {
+    // Shift+F6 must come BEFORE plain F6.
+    if event.code == KeyCode::F(6) && event.modifiers.contains(KeyModifiers::SHIFT) {
+        let panel = app_state.active_panel_mut();
+        let name = panel
+            .selected_entry()
+            .map(|e| e.name.clone())
+            .unwrap_or_default();
+        *rename_input = Some(name);
+        return Some(true);
+    }
+    if event.code == KeyCode::F(5) {
+        let panel = app_state.active_panel();
+        let sources = if panel.multi_selected_count() > 0 {
+            panel.multi_selected_paths()
+        } else {
+            panel.get_selected_path().into_iter().collect()
+        };
+        if sources.is_empty() {
+            return Some(false);
+        }
+        let dest = opposite_pane_path(app_state);
+        *copy_dest = Some(CopyMoveState { sources, dest });
+        return Some(true);
+    }
+    if event.code == KeyCode::F(6) {
+        let panel = app_state.active_panel();
+        let sources = if panel.multi_selected_count() > 0 {
+            panel.multi_selected_paths()
+        } else {
+            panel.get_selected_path().into_iter().collect()
+        };
+        if sources.is_empty() {
+            return Some(false);
+        }
+        let dest = opposite_pane_path(app_state);
+        *move_dest = Some(CopyMoveState { sources, dest });
+        return Some(true);
+    }
+    if event.code == KeyCode::F(7) {
+        *new_folder_input = Some(String::new());
+        return Some(true);
+    }
+    None
+}
+
+fn opposite_pane_path(app_state: &AppState) -> String {
+    if app_state.two_pane_mode {
+        use crate::application::ActivePane;
+        let other = match app_state.active_pane {
+            ActivePane::Left => &app_state.right_panel,
+            ActivePane::Right => &app_state.left_panel,
+        };
+        other.current_path.to_string_lossy().into_owned()
+    } else {
+        String::new()
+    }
 }
 
 fn handle_search(
@@ -75,11 +156,11 @@ fn handle_search(
         *shell_command = Some(String::new());
         return Some(true);
     }
-    if event.code == KeyCode::F(6) {
+    if event.code == KeyCode::F(7) && event.modifiers.contains(KeyModifiers::ALT) {
         *find_filter = Some(String::new());
         return Some(true);
     }
-    if event.code == KeyCode::F(7) {
+    if event.code == KeyCode::Char('g') && event.modifiers.contains(KeyModifiers::CONTROL) {
         *ripgrep_filter = Some(String::new());
         return Some(true);
     }
@@ -99,6 +180,14 @@ fn handle_favorites(
             add_favorite(favorites_items, &panel.current_path);
         }
         *favorites_active = true;
+        return Some(true);
+    }
+    None
+}
+
+fn handle_two_pane_toggle(event: KeyEvent, app_state: &mut AppState) -> Option<bool> {
+    if event.code == KeyCode::Char('t') && event.modifiers.contains(KeyModifiers::CONTROL) {
+        app_state.two_pane_mode = !app_state.two_pane_mode;
         return Some(true);
     }
     None

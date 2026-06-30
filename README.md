@@ -47,10 +47,14 @@ fishez --two-pane
 | **Navigate** | `↑↓` / `Enter` / `Backspace` | Move through directories instantly |
 | **Quick View** | `F3` | Preview files with syntax highlighting |
 | **Multi-select** | `Space` | Batch operations on multiple files |
-| **Delete** | `Ctrl+W` | Move to trash (safe delete) |
+| **Copy** | `F5` | Copy selected file(s) to opposite pane or prompted destination |
+| **Move** | `F6` | Move selected file(s) to opposite pane or prompted destination |
+| **Rename** | `Shift+F6` | Inline rename of file or directory under cursor |
+| **New Folder** | `F7` | Create a new directory in current pane |
+| **Delete** | `F8` / `Ctrl+W` | Move to trash (safe delete) |
 | **Open in VS Code** | `F4` | Jump straight into your editor |
-| **Fuzzy Search** | `F6` | Find files with `fd` |
-| **Content Search** | `F7` | Search file contents with `ripgrep` |
+| **Fuzzy Search** | `Alt+F7` | Find files with `fd` |
+| **Content Search** | `Ctrl+G` | Search file contents with `ripgrep` |
 | **Shell Command** | `!` | Run a shell command; use `{1}` for selected file, `{@}` for all selected |
 | **Favorites** | `Ctrl+D` | Quick-jump to pinned directories |
 | **Filter** | *Start typing* | Instantly filter current directory |
@@ -121,24 +125,30 @@ sudo pacman -S fd ripgrep
 ## ⌨️ All Shortcuts
 
 ```
-Navigation                    Actions
+Navigation                    File Operations
 ─────────────────────────     ─────────────────────────
-↑/↓         Move cursor       Enter       Open / Enter dir
-Home/End    Jump to start/end Backspace   Go up one level
-Tab         Switch pane       Space       Toggle selection
-                              Ctrl+W      Delete selected
-Quick View (F3)               Ctrl+Enter  Copy path
+↑/↓         Move cursor       F5          Copy selected
+Home/End    Jump to start/end F6          Move selected
+Tab         Switch pane       Shift+F6    Rename
+                              F7          New folder
+Quick View (F3)               F8/Ctrl+W   Delete selected
+─────────────────────────
+↑/↓         Scroll content    Actions
+←/→         Prev/next file    ─────────────────────────
+PgUp/PgDn   Page scroll       Enter       Open / Enter dir
+Esc         Close preview     Backspace   Go up one level
+                              Space       Toggle selection
+Favorites (Ctrl+D)            Ctrl+Enter  Copy path
 ─────────────────────────     Ctrl+Shift+Enter  Copy absolute path
-↑/↓         Scroll content
-←/→         Prev/next file    Search & Tools
-PgUp/PgDn   Page scroll       ─────────────────────────
-Esc         Close preview     F4          Open in VS Code
-                              F6          fd file search
-Favorites (Ctrl+D)            F7          ripgrep search
-─────────────────────────     !           Shell command
-↑/↓         Navigate          F1          Show help
-Enter       Jump to favorite   F10/Ctrl+C  Quit
-Ctrl+Shift+D  Add current dir
+↑/↓         Navigate
+Enter       Jump to favorite  Search & Tools
+Ctrl+Shift+D  Add current dir ─────────────────────────
+                              F4          Open in VS Code
+                              Alt+F7      fd file search
+                              Ctrl+G      ripgrep search
+                              !           Shell command
+                              F1          Show help
+                              F10/Ctrl+C  Quit
 ```
 
 ## 🤝 Contributing

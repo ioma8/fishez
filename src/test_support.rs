@@ -73,4 +73,16 @@ impl FileSystemPort for MockFileSystem {
     fn delete(&self, _path: &Path) -> Result<(), String> {
         Ok(())
     }
+
+    fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+        fs::rename(from, to)
+    }
+
+    fn copy_file(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+        fs::copy(from, to).map(|_| ())
+    }
+
+    fn create_dir(&self, path: &Path) -> std::io::Result<()> {
+        fs::create_dir(path)
+    }
 }

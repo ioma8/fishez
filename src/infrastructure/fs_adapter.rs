@@ -45,6 +45,18 @@ impl FileSystemPort for StdFileSystem {
     fn delete(&self, path: &Path) -> Result<(), String> {
         trash::delete(path).map_err(|e| format!("Error moving to trash: {}", e))
     }
+
+    fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+        fs::rename(from, to)
+    }
+
+    fn copy_file(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+        fs::copy(from, to).map(|_| ())
+    }
+
+    fn create_dir(&self, path: &Path) -> std::io::Result<()> {
+        fs::create_dir(path)
+    }
 }
 
 #[cfg(test)]

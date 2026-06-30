@@ -94,6 +94,18 @@ mod tests {
                 Ok(())
             }
         }
+
+        fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+            std::fs::rename(from, to)
+        }
+
+        fn copy_file(&self, from: &Path, to: &Path) -> std::io::Result<()> {
+            std::fs::copy(from, to).map(|_| ())
+        }
+
+        fn create_dir(&self, path: &Path) -> std::io::Result<()> {
+            std::fs::create_dir(path)
+        }
     }
 
     /// Mock clipboard for testing

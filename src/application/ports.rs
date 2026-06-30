@@ -10,6 +10,15 @@ pub trait FileSystemPort {
 
     /// Deletes the specified path (moves to trash).
     fn delete(&self, path: &Path) -> Result<(), String>;
+
+    /// Renames (or moves within the same filesystem) a path.
+    fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()>;
+
+    /// Copies a single file; caller handles directories recursively.
+    fn copy_file(&self, from: &Path, to: &Path) -> std::io::Result<()>;
+
+    /// Creates a directory (non-recursive).
+    fn create_dir(&self, path: &Path) -> std::io::Result<()>;
 }
 
 /// Port for clipboard operations.

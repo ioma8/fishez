@@ -14,7 +14,7 @@ use application::use_cases::navigate;
 use infrastructure::{
     StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, load_favorites,
 };
-use presentation::input_handler::Message;
+use presentation::input_handler::{CopyMoveState, Message};
 use presentation::{TerminalRenderer, overlays, run};
 use std::env;
 use std::path::PathBuf;
@@ -49,6 +49,10 @@ fn main() {
     let mut shell_command: Option<String> = None;
     let mut shell_history: Vec<String> = Vec::new();
     let mut shell_history_idx: Option<usize> = None;
+    let mut rename_input: Option<String> = None;
+    let mut new_folder_input: Option<String> = None;
+    let mut copy_dest: Option<CopyMoveState> = None;
+    let mut move_dest: Option<CopyMoveState> = None;
     let mut favorites_active = false;
     let mut favorites_items = load_favorites();
     let mut favorites_selected: usize = 0;
@@ -70,10 +74,13 @@ fn main() {
         &mut shell_command,
         &mut shell_history,
         &mut shell_history_idx,
+        &mut rename_input,
+        &mut new_folder_input,
+        &mut copy_dest,
+        &mut move_dest,
         &mut favorites_active,
         &mut favorites_items,
         &mut favorites_selected,
-        two_pane,
     );
 }
 
