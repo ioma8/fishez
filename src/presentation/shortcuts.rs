@@ -5,7 +5,6 @@ use crate::infrastructure::{VsCodeAdapter, add_favorite};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::path::PathBuf;
 
-
 /// Handle feature shortcuts.
 #[allow(clippy::too_many_arguments)]
 pub fn handle(
@@ -15,6 +14,7 @@ pub fn handle(
     delete_paths: &mut Option<Vec<PathBuf>>,
     find_filter: &mut Option<String>,
     ripgrep_filter: &mut Option<String>,
+    shell_command: &mut Option<String>,
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
     favorites_selected: &mut usize,
@@ -22,7 +22,7 @@ pub fn handle(
     if let Some(needs_redraw) = handle_delete(event, app_state, delete_paths) {
         return Some(needs_redraw);
     }
-    if let Some(needs_redraw) = handle_search(event, find_filter, ripgrep_filter) {
+    if let Some(needs_redraw) = handle_search(event, find_filter, ripgrep_filter, shell_command) {
         return Some(needs_redraw);
     }
     if let Some(needs_redraw) = handle_favorites(
@@ -65,7 +65,16 @@ fn handle_search(
     event: KeyEvent,
     find_filter: &mut Option<String>,
     ripgrep_filter: &mut Option<String>,
+    shell_command: &mut Option<String>,
 ) -> Option<bool> {
+    if event.code == KeyCode::Char('!')
+        && !event
+            .modifiers
+            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+    {
+        *shell_command = Some(String::new());
+        return Some(true);
+    }
     if event.code == KeyCode::F(6) {
         *find_filter = Some(String::new());
         return Some(true);

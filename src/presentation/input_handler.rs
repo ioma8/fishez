@@ -7,7 +7,7 @@ use crate::infrastructure::{
 };
 use crate::presentation::{FOOTER_ROWS, HEADER_ROWS, TerminalRenderer};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::thread;
 
@@ -310,6 +310,164 @@ pub fn handle_ripgrep_input(
     })
 }
 
+pub fn handle_shell_input(
+    event: KeyEvent,
+    command: &mut Option<String>,
+    history: &mut Vec<String>,
+    history_idx: &mut Option<usize>,
+    sender: &Sender<Message>,
+    state: &mut AppState,
+) -> bool {
+    let Some(value) = command.as_mut() else {
+        return false;
+    };
+    match event.code {
+        KeyCode::Char(c) => {
+            value.push(c);
+            *history_idx = None;
+            true
+        }
+        KeyCode::Backspace => {
+            value.pop();
+            *history_idx = None;
+            true
+        }
+        KeyCode::Enter => {
+            let raw = value.trim().to_string();
+            *command = None;
+            *history_idx = None;
+            if raw.is_empty() {
+                return true;
+            }
+            history.push(raw.clone());
+            let expanded = expand_shell_variables(&raw, state.active_panel());
+            let cwd = state.active_panel().current_path.clone();
+            let pane = state.active_pane;
+            let panel = state.active_panel_mut();
+            panel.mode = PanelMode::QuickView(QuickViewMode::Loading { message: raw.clone() });
+            let tx = sender.clone();
+            thread::spawn(move || {
+                let lines = run_shell_command(&expanded, &cwd);
+                let _ = tx.send(Message::QuickViewResult {
+                    pane,
+                    mode: QuickViewMode::Text { lines, start: 0 },
+                });
+            });
+            true
+        }
+        KeyCode::Esc => {
+            *command = None;
+            *history_idx = None;
+            true
+        }
+        KeyCode::Up => {
+            if !history.is_empty() {
+                let new_idx = match *history_idx {
+                    None => history.len() - 1,
+                    Some(i) => i.saturating_sub(1),
+                };
+                *history_idx = Some(new_idx);
+                *value = history[new_idx].clone();
+            }
+            true
+        }
+        KeyCode::Down => {
+            match *history_idx {
+                None => {}
+                Some(i) if i + 1 >= history.len() => {
+                    *history_idx = None;
+                    value.clear();
+                }
+                Some(i) => {
+                    let new_idx = i + 1;
+                    *history_idx = Some(new_idx);
+                    *value = history[new_idx].clone();
+                }
+            }
+            true
+        }
+        _ => false,
+    }
+}
+
+fn shell_quote(s: &str) -> String {
+    // Single-quote escaping: ' → '\'' prevents all shell expansion inside paths.
+    format!("'{}'", s.replace('\'', r"'\''"))
+}
+
+fn expand_shell_variables(cmd: &str, panel: &PanelState) -> String {
+    let paths: Vec<String> = if panel.multi_selected_count() > 0 {
+        panel
+            .multi_selected_paths()
+            .iter()
+            .map(|p| shell_quote(&p.display().to_string()))
+            .collect()
+    } else if let Some(path) = panel.get_selected_path() {
+        vec![shell_quote(&path.display().to_string())]
+    } else {
+        vec![String::new()]
+    };
+    let first = paths.first().map(|s| s.as_str()).unwrap_or("''");
+    let all = paths.join(" ");
+    // ponytail: {1}/{@} tokens avoid colliding with $1/$@ in awk/sed/perl programs.
+    // Single-pass scan applies both substitutions to the original cmd with no chaining.
+    let mut result = String::with_capacity(cmd.len() + all.len());
+    let mut remaining = cmd;
+    while !remaining.is_empty() {
+        if remaining.starts_with("{1}") {
+            result.push_str(first);
+            remaining = &remaining[3..];
+        } else if remaining.starts_with("{@}") {
+            result.push_str(&all);
+            remaining = &remaining[3..];
+        } else {
+            let c = remaining.chars().next().unwrap();
+            result.push(c);
+            remaining = &remaining[c.len_utf8()..];
+        }
+    }
+    result
+}
+
+fn run_shell_command(cmd: &str, cwd: &Path) -> Vec<String> {
+    let output = std::process::Command::new("sh")
+        .args(["-c", cmd])
+        .current_dir(cwd)
+        .output();
+    match output {
+        Ok(out) => {
+            let mut lines: Vec<String> = String::from_utf8_lossy(&out.stdout)
+                .lines()
+                .map(String::from)
+                .collect();
+            if !out.stderr.is_empty() {
+                if !lines.is_empty() {
+                    lines.push(String::new());
+                }
+                lines.push("── stderr ──".into());
+                lines.extend(
+                    String::from_utf8_lossy(&out.stderr)
+                        .lines()
+                        .map(String::from),
+                );
+            }
+            if !out.status.success() {
+                let code = out.status.code().map_or("?".to_string(), |c| c.to_string());
+                if !lines.is_empty() {
+                    lines.push(String::new());
+                }
+                lines.push(format!("── exit {} ──", code));
+            }
+            if lines.is_empty() {
+                vec!["(no output)".into()]
+            } else {
+                lines
+            }
+        }
+        Err(e) => vec![format!("Error: {}", e)],
+    }
+}
+
 fn handle_query_input_event(event: KeyEvent, input: &mut String) -> QueryInputAction {
     match event.code {
         KeyCode::Char(c) => {
@@ -370,7 +528,12 @@ fn validate_query(raw: &str) -> Result<String, String> {
         return Err(format!("Query too long (max {})", MAX_QUERY_LEN));
     }
 
-    if query.chars().any(|c| matches!(c, '*'|'+'|'?'|'|'|'{'|'}'|'('|')'|'['|']'|'\\'|'^'|'$')) {
+    if query.chars().any(|c| {
+        matches!(
+            c,
+            '*' | '+' | '?' | '|' | '{' | '}' | '(' | ')' | '[' | ']' | '\\' | '^' | '$'
+        )
+    }) {
         return Err("Query contains unsupported regex tokens".to_string());
     }
 

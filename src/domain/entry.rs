@@ -22,7 +22,12 @@ pub struct FileEntry {
 impl FileEntry {
     /// Creates a new FileEntry.
     pub fn new(path: PathBuf, name: String, kind: EntryKind, size: u64) -> Self {
-        Self { path, name, kind, size }
+        Self {
+            path,
+            name,
+            kind,
+            size,
+        }
     }
 
     pub fn is_dir(&self) -> bool {

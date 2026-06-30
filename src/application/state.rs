@@ -141,6 +141,7 @@ pub struct AppState {
     pub right_panel: PanelState,
     pub active_pane: ActivePane,
     pub show_help: bool,
+    pub show_onboarding: bool,
     pub two_pane_mode: bool,
 }
 
@@ -158,6 +159,7 @@ impl AppState {
             right_panel: PanelState::new(),
             active_pane: ActivePane::Left,
             show_help: false,
+            show_onboarding: true,
             two_pane_mode,
         }
     }

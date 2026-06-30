@@ -46,6 +46,9 @@ fn main() {
     let mut delete_paths: Option<Vec<PathBuf>> = None;
     let mut find_filter: Option<String> = None;
     let mut ripgrep_filter: Option<String> = None;
+    let mut shell_command: Option<String> = None;
+    let mut shell_history: Vec<String> = Vec::new();
+    let mut shell_history_idx: Option<usize> = None;
     let mut favorites_active = false;
     let mut favorites_items = load_favorites();
     let mut favorites_selected: usize = 0;
@@ -64,6 +67,9 @@ fn main() {
         &mut delete_paths,
         &mut find_filter,
         &mut ripgrep_filter,
+        &mut shell_command,
+        &mut shell_history,
+        &mut shell_history_idx,
         &mut favorites_active,
         &mut favorites_items,
         &mut favorites_selected,

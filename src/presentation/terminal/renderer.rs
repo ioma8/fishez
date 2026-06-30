@@ -148,6 +148,9 @@ impl TerminalRenderer {
         self.sync_kitty_image_visibility(&panel.mode);
         self.draw_header(panel);
         self.draw_system_header(panel);
+        if state.show_onboarding {
+            self.draw_onboarding_banner();
+        }
         match &panel.mode {
             PanelMode::Normal | PanelMode::Filter => self.draw_files_list(panel),
             PanelMode::QuickView(qv) => self.draw_quick_view(qv),
@@ -169,6 +172,9 @@ impl TerminalRenderer {
         }
         self.draw_dual_header(&state.left_panel, &state.right_panel, state.active_pane);
         self.draw_system_header(state.active_panel());
+        if state.show_onboarding {
+            self.draw_onboarding_banner();
+        }
         self.draw_files_two_panes(&state.left_panel, &state.right_panel, state.active_pane);
         self.draw_footer(state.active_panel());
         self.draw_footer_actions(&state.active_panel().mode);
@@ -363,11 +369,7 @@ impl TerminalRenderer {
                         .preserve_aspect_ratio(true)
                         .inline(true)
                         .build();
-                    let _ = queue!(
-                        &mut self.stdout,
-                        cursor::MoveTo(0, HEADER_ROWS),
-                        Print(enc)
-                    );
+                    let _ = queue!(&mut self.stdout, cursor::MoveTo(0, HEADER_ROWS), Print(enc));
                 }
                 ImageProtocol::Kitty => {
                     let image_hash = hash_bytes(bytes);
@@ -375,11 +377,8 @@ impl TerminalRenderer {
                         return;
                     }
                     if let Some(enc) = kitty_image_escape(bytes, self.columns, rows) {
-                        let _ = queue!(
-                            &mut self.stdout,
-                            cursor::MoveTo(0, HEADER_ROWS),
-                            Print(enc)
-                        );
+                        let _ =
+                            queue!(&mut self.stdout, cursor::MoveTo(0, HEADER_ROWS), Print(enc));
                         self.kitty_image_hash = Some(image_hash);
                     }
                 }
@@ -577,6 +576,17 @@ impl TerminalRenderer {
         }
     }
 
+    fn draw_onboarding_banner(&mut self) {
+        let banner = "↑↓ nav  Enter open  F3 view  F4 code  F6 find  F7 rg  F1 help  F10 quit";
+        let styled = banner.with(Color::Green).on(Color::DarkBlue);
+        let _ = queue!(
+            &mut self.stdout,
+            cursor::MoveTo(0, 1),
+            terminal::Clear(ClearType::UntilNewLine),
+            Print(styled)
+        );
+    }
+
     fn draw_line(&mut self, row: u16) {
         let _ = queue!(
             &mut self.stdout,
@@ -729,7 +739,9 @@ mod tests {
 
     #[test]
     fn detects_iterm_probe_response() {
-        assert!(is_iterm_probe_response(b"\x1b]1337;ReportCellSize=17.50;8.00;2.0\x07"));
+        assert!(is_iterm_probe_response(
+            b"\x1b]1337;ReportCellSize=17.50;8.00;2.0\x07"
+        ));
         assert!(!is_iterm_probe_response(b"\x1b]1337;CursorShape=1\x07"));
     }
 
@@ -766,6 +778,7 @@ fn default_help_entries() -> Vec<(&'static str, &'static str)> {
         ("Ctrl+W", "Delete"),
         ("F6", "Find (fd)"),
         ("F7", "RipGrep"),
+        ("!", "Shell command"),
         ("Ctrl+D", "Favorites"),
         ("Space", "Toggle selection"),
         ("F4", "VS Code"),
@@ -829,7 +842,8 @@ fn kitty_probe_query() -> &'static [u8] {
 }
 
 fn is_kitty_probe_response(bytes: &[u8]) -> bool {
-    bytes.windows(b"\x1b_Gi=31;".len())
+    bytes
+        .windows(b"\x1b_Gi=31;".len())
         .any(|window| window == b"\x1b_Gi=31;")
 }
 
@@ -838,7 +852,8 @@ fn iterm_probe_query() -> &'static [u8] {
 }
 
 fn is_iterm_probe_response(bytes: &[u8]) -> bool {
-    bytes.windows(b"\x1b]1337;ReportCellSize=".len())
+    bytes
+        .windows(b"\x1b]1337;ReportCellSize=".len())
         .any(|window| window == b"\x1b]1337;ReportCellSize=")
 }
 
@@ -855,11 +870,7 @@ fn detect_image_protocol() -> ImageProtocol {
 
 #[cfg(unix)]
 fn detect_image_protocol_unix() -> ImageProtocol {
-    let Ok(mut tty) = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open("/dev/tty")
-    else {
+    let Ok(mut tty) = OpenOptions::new().read(true).write(true).open("/dev/tty") else {
         return ImageProtocol::None;
     };
 
@@ -877,11 +888,7 @@ fn detect_image_protocol_unix() -> ImageProtocol {
 }
 
 #[cfg(unix)]
-fn run_probe(
-    tty: &mut std::fs::File,
-    query: &[u8],
-    matches_response: fn(&[u8]) -> bool,
-) -> bool {
+fn run_probe(tty: &mut std::fs::File, query: &[u8], matches_response: fn(&[u8]) -> bool) -> bool {
     if tty.write_all(query).is_err() || tty.flush().is_err() {
         return false;
     }

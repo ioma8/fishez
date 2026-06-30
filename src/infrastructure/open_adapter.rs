@@ -11,7 +11,9 @@ impl SystemOpenAdapter {
     pub fn open(&self, path: &Path) {
         let path_str = path.to_string_lossy();
         if cfg!(target_os = "windows") {
-            let _ = Command::new("cmd").args(["/C", "start", "", &path_str]).spawn();
+            let _ = Command::new("cmd")
+                .args(["/C", "start", "", &path_str])
+                .spawn();
         } else if cfg!(target_os = "macos") {
             let _ = Command::new("open").arg(&*path_str).spawn();
         } else {
@@ -28,9 +30,15 @@ impl VsCodeAdapter {
     pub fn open(&self, path: &Path) {
         let path_str = path.to_string_lossy();
         if cfg!(target_os = "windows") {
-            let _ = Command::new("cmd").args(["/C", "start", "code", &path_str]).spawn();
+            let _ = Command::new("cmd")
+                .args(["/C", "start", "code", &path_str])
+                .spawn();
         } else if cfg!(target_os = "macos") {
-            let _ = Command::new("open").arg("-a").arg("Visual Studio Code").arg(&*path_str).spawn();
+            let _ = Command::new("open")
+                .arg("-a")
+                .arg("Visual Studio Code")
+                .arg(&*path_str)
+                .spawn();
         } else {
             let _ = Command::new("code").arg(&*path_str).spawn();
         }

@@ -1,8 +1,8 @@
 //! Helper for rendering RAW/raster inputs via `jpgfromrawlib` so quick-view stays on the existing image path.
 
 use jpgfromrawlib::{FindJpegType, SUPPORTED_EXTENSIONS, process_file_bytes};
-use std::sync::OnceLock;
 use std::path::Path;
+use std::sync::OnceLock;
 use tokio::runtime::{Builder, Runtime};
 
 const FIND_TYPE: FindJpegType = FindJpegType::Largest;

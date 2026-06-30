@@ -94,6 +94,29 @@ fn draw_ripgrep_prompt(renderer: &mut TerminalRenderer, filter: &str) {
     let _ = std::io::stdout().flush();
 }
 
+/// Draw with shell command prompt overlay.
+pub fn draw_with_shell(
+    renderer: &mut TerminalRenderer,
+    state: &AppState,
+    command: Option<&String>,
+) {
+    draw(renderer, state);
+    if let Some(c) = command {
+        draw_shell_prompt(renderer, c);
+    }
+}
+
+fn draw_shell_prompt(renderer: &mut TerminalRenderer, command: &str) {
+    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
+    let _ = queue!(
+        renderer.writer(),
+        cursor::MoveTo(0, prompt_row),
+        terminal::Clear(ClearType::UntilNewLine),
+        Print(format!("! {} [enter/esc]", command).yellow().bold()),
+    );
+    let _ = std::io::stdout().flush();
+}
+
 /// Draw favorites overlay or main UI.
 pub fn draw_with_favorites(
     renderer: &mut TerminalRenderer,

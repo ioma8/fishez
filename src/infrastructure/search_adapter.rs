@@ -69,7 +69,11 @@ fn parse_fd_output(output: &str, dir: &Path) -> Vec<String> {
         .lines()
         .map(|s| {
             let rel = s.to_string();
-            if dir.join(&rel).is_dir() { format!("{}{}", rel, MAIN_SEPARATOR) } else { rel }
+            if dir.join(&rel).is_dir() {
+                format!("{}{}", rel, MAIN_SEPARATOR)
+            } else {
+                rel
+            }
         })
         .collect()
 }

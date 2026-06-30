@@ -25,13 +25,19 @@ fishez is a keyboard-driven terminal file manager designed for developers who li
 ## 🚀 Quick Start
 
 ```bash
-# Clone and run
-git clone https://github.com/ioma8/fishez.git
-cd fishez
-cargo run
+# One-line install (macOS / Linux)
+curl -sfL https://raw.githubusercontent.com/ioma8/fishez/main/install.sh | sh
 
-# Or with dual-pane mode
-cargo run -- -2
+# Or via Cargo
+cargo install fishez
+
+# Or build from source
+# git clone https://github.com/ioma8/fishez.git
+# cd fishez
+# cargo run
+
+# Start with dual-pane mode
+fishez --two-pane
 ```
 
 ## 🎯 Core Features
@@ -45,6 +51,7 @@ cargo run -- -2
 | **Open in VS Code** | `F4` | Jump straight into your editor |
 | **Fuzzy Search** | `F6` | Find files with `fd` |
 | **Content Search** | `F7` | Search file contents with `ripgrep` |
+| **Shell Command** | `!` | Run a shell command; use `{1}` for selected file, `{@}` for all selected |
 | **Favorites** | `Ctrl+D` | Quick-jump to pinned directories |
 | **Filter** | *Start typing* | Instantly filter current directory |
 | **Help** | `F1` | Show all shortcuts |
@@ -128,9 +135,9 @@ PgUp/PgDn   Page scroll       ────────────────�
 Esc         Close preview     F4          Open in VS Code
                               F6          fd file search
 Favorites (Ctrl+D)            F7          ripgrep search
-─────────────────────────     F1          Show help
-↑/↓         Navigate          F10/Ctrl+C  Quit
-Enter       Jump to favorite
+─────────────────────────     !           Shell command
+↑/↓         Navigate          F1          Show help
+Enter       Jump to favorite   F10/Ctrl+C  Quit
 Ctrl+Shift+D  Add current dir
 ```
 

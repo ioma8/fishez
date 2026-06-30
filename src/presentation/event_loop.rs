@@ -6,7 +6,8 @@ use crate::infrastructure::{StdFileSystem, SystemClipboard, SystemOpenAdapter, V
 use crate::presentation::TerminalRenderer;
 use crate::presentation::input_handler::{
     Message, handle_delete_confirmation, handle_favorites_input, handle_filter_mode,
-    handle_find_input, handle_normal_mode, handle_quick_view_mode, handle_ripgrep_input, is_quit,
+    handle_find_input, handle_normal_mode, handle_quick_view_mode, handle_ripgrep_input,
+    handle_shell_input, is_quit,
 };
 use crate::presentation::shortcuts;
 use crate::presentation::terminal::overlays;
@@ -14,6 +15,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use std::path::PathBuf;
 use std::process::exit;
 use std::sync::mpsc::{Receiver, Sender};
+use std::time::{Duration, Instant};
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -28,15 +30,23 @@ pub fn run(
     delete_paths: &mut Option<Vec<PathBuf>>,
     find_filter: &mut Option<String>,
     ripgrep_filter: &mut Option<String>,
+    shell_command: &mut Option<String>,
+    shell_history: &mut Vec<String>,
+    shell_history_idx: &mut Option<usize>,
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
     favorites_selected: &mut usize,
     two_pane: bool,
 ) {
+    let onboarding_start = Instant::now();
     loop {
+        if app_state.show_onboarding && onboarding_start.elapsed() > Duration::from_secs(2) {
+            app_state.show_onboarding = false;
+        }
         if event::poll(std::time::Duration::from_millis(100)).unwrap() {
             match event::read().unwrap() {
                 Event::Key(ev) if ev.kind == event::KeyEventKind::Press => {
+                    app_state.show_onboarding = false;
                     if is_quit(ev) {
                         renderer.reset_terminal();
                         exit(0);
@@ -53,6 +63,9 @@ pub fn run(
                         delete_paths,
                         find_filter,
                         ripgrep_filter,
+                        shell_command,
+                        shell_history,
+                        shell_history_idx,
                         favorites_active,
                         favorites_items,
                         favorites_selected,
@@ -67,6 +80,7 @@ pub fn run(
                         delete_paths,
                         find_filter,
                         ripgrep_filter,
+                        shell_command,
                         *favorites_active,
                         favorites_items,
                         *favorites_selected,
@@ -83,6 +97,7 @@ pub fn run(
                 delete_paths,
                 find_filter,
                 ripgrep_filter,
+                shell_command,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -104,6 +119,9 @@ fn route_input(
     delete_paths: &mut Option<Vec<PathBuf>>,
     find_filter: &mut Option<String>,
     ripgrep_filter: &mut Option<String>,
+    shell_command: &mut Option<String>,
+    shell_history: &mut Vec<String>,
+    shell_history_idx: &mut Option<usize>,
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
     favorites_selected: &mut usize,
@@ -117,6 +135,7 @@ fn route_input(
                 delete_paths,
                 find_filter,
                 ripgrep_filter,
+                shell_command,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -132,6 +151,9 @@ fn route_input(
         delete_paths,
         find_filter,
         ripgrep_filter,
+        shell_command,
+        shell_history,
+        shell_history_idx,
         favorites_active,
         favorites_items,
         favorites_selected,
@@ -143,6 +165,7 @@ fn route_input(
                 delete_paths,
                 find_filter,
                 ripgrep_filter,
+                shell_command,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -158,6 +181,7 @@ fn route_input(
             delete_paths,
             find_filter,
             ripgrep_filter,
+            shell_command,
             *favorites_active,
             favorites_items,
             *favorites_selected,
@@ -171,6 +195,7 @@ fn route_input(
         delete_paths,
         find_filter,
         ripgrep_filter,
+        shell_command,
         favorites_active,
         favorites_items,
         favorites_selected,
@@ -182,6 +207,7 @@ fn route_input(
                 delete_paths,
                 find_filter,
                 ripgrep_filter,
+                shell_command,
                 *favorites_active,
                 favorites_items,
                 *favorites_selected,
@@ -204,6 +230,7 @@ fn route_input(
             delete_paths,
             find_filter,
             ripgrep_filter,
+            shell_command,
             *favorites_active,
             favorites_items,
             *favorites_selected,
@@ -235,6 +262,9 @@ fn handle_modal_overlays(
     delete_paths: &mut Option<Vec<PathBuf>>,
     find_filter: &mut Option<String>,
     ripgrep_filter: &mut Option<String>,
+    shell_command: &mut Option<String>,
+    shell_history: &mut Vec<String>,
+    shell_history_idx: &mut Option<usize>,
     favorites_active: &mut bool,
     favorites_items: &[String],
     favorites_selected: &mut usize,
@@ -271,6 +301,16 @@ fn handle_modal_overlays(
             event,
             ripgrep_filter,
             fs_adapter,
+            app_state,
+        ));
+    }
+    if shell_command.is_some() {
+        return Some(handle_shell_input(
+            event,
+            shell_command,
+            shell_history,
+            shell_history_idx,
+            sender,
             app_state,
         ));
     }
@@ -317,18 +357,27 @@ fn redraw_current_view(
     delete_paths: &Option<Vec<PathBuf>>,
     find_filter: &Option<String>,
     ripgrep_filter: &Option<String>,
+    shell_command: &Option<String>,
     favorites_active: bool,
     favorites_items: &[String],
     favorites_selected: usize,
 ) {
     if favorites_active {
-        overlays::draw_with_favorites(renderer, app_state, true, favorites_items, favorites_selected);
+        overlays::draw_with_favorites(
+            renderer,
+            app_state,
+            true,
+            favorites_items,
+            favorites_selected,
+        );
     } else if delete_paths.is_some() {
         overlays::draw_with_delete(renderer, app_state, delete_paths.as_ref());
     } else if find_filter.is_some() {
         overlays::draw_with_find(renderer, app_state, find_filter.as_ref());
     } else if ripgrep_filter.is_some() {
         overlays::draw_with_ripgrep(renderer, app_state, ripgrep_filter.as_ref());
+    } else if shell_command.is_some() {
+        overlays::draw_with_shell(renderer, app_state, shell_command.as_ref());
     } else {
         overlays::draw(renderer, app_state);
     }
@@ -393,13 +442,18 @@ mod tests {
     fn help_toggle_requests_redraw() {
         let mut state = AppState::new(false);
 
-        assert_eq!(handle_help(KeyEvent::from(KeyCode::F(1)), &mut state), Some(true));
+        assert_eq!(
+            handle_help(KeyEvent::from(KeyCode::F(1)), &mut state),
+            Some(true)
+        );
     }
 
     #[test]
     fn clearing_expired_notification_marks_dirty() {
         let mut state = AppState::new(false);
-        state.active_panel_mut().set_notification("Test".to_string());
+        state
+            .active_panel_mut()
+            .set_notification("Test".to_string());
         std::thread::sleep(std::time::Duration::from_millis(10));
 
         assert!(clear_expired_notification(&mut state, 1));

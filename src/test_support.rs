@@ -40,15 +40,24 @@ pub struct MockFileSystem {
 
 impl MockFileSystem {
     pub fn new() -> Self {
-        Self { entries: vec![], error: false }
+        Self {
+            entries: vec![],
+            error: false,
+        }
     }
 
     pub fn with_entries(entries: Vec<FileEntry>) -> Self {
-        Self { entries, error: false }
+        Self {
+            entries,
+            error: false,
+        }
     }
 
     pub fn with_error() -> Self {
-        Self { entries: vec![], error: true }
+        Self {
+            entries: vec![],
+            error: true,
+        }
     }
 }
 

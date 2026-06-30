@@ -24,7 +24,11 @@ impl FileSystemPort for StdFileSystem {
                 entry.metadata().map(|m| m.len()).unwrap_or(0)
             };
 
-            let kind = if is_dir { EntryKind::Dir } else { EntryKind::File };
+            let kind = if is_dir {
+                EntryKind::Dir
+            } else {
+                EntryKind::File
+            };
 
             let display_name = if is_dir {
                 format!("{}{}", file_name, std::path::MAIN_SEPARATOR)
