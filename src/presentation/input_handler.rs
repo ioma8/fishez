@@ -7,10 +7,12 @@ use crate::infrastructure::{
     FdSearchAdapter, RipGrepAdapter, StdFileSystem, SystemClipboard, SystemOpenAdapter,
 };
 use crate::presentation::{FOOTER_ROWS, HEADER_ROWS, TerminalRenderer};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::thread;
+use tui_input::Input;
+use tui_input::backend::crossterm::EventHandler;
 
 pub struct ContextMenuState {
     pub actions: Vec<(&'static str, ContextMenuAction)>,
@@ -45,7 +47,7 @@ pub enum MouseOutcome {
 
 pub struct CopyMoveState {
     pub sources: Vec<PathBuf>,
-    pub dest: String,
+    pub dest: Input,
 }
 
 #[derive(Debug)]
@@ -64,13 +66,6 @@ pub enum Message {
 const MAX_QUERY_LEN: usize = 64;
 const MAX_REPEAT_RUN: usize = 16;
 
-enum QueryInputAction {
-    None,
-    Edit,
-    Cancel,
-    Submit(String),
-    Invalid(String),
-}
 
 #[derive(PartialEq)]
 struct PanelUiState {
@@ -310,7 +305,7 @@ pub fn handle_delete_confirmation(
 
 pub fn handle_find_input(
     event: KeyEvent,
-    find_filter: &mut Option<String>,
+    find_filter: &mut Option<Input>,
     sender: &Sender<Message>,
     fs: &StdFileSystem,
     state: &mut AppState,
@@ -335,7 +330,7 @@ pub fn handle_find_input(
 
 pub fn handle_ripgrep_input(
     event: KeyEvent,
-    filter: &mut Option<String>,
+    filter: &mut Option<Input>,
     fs: &StdFileSystem,
     state: &mut AppState,
 ) -> bool {
@@ -349,28 +344,18 @@ pub fn handle_ripgrep_input(
 
 pub fn handle_shell_input(
     event: KeyEvent,
-    command: &mut Option<String>,
+    command: &mut Option<Input>,
     history: &mut Vec<String>,
     history_idx: &mut Option<usize>,
     sender: &Sender<Message>,
     state: &mut AppState,
 ) -> bool {
-    let Some(value) = command.as_mut() else {
+    let Some(inp) = command.as_mut() else {
         return false;
     };
     match event.code {
-        KeyCode::Char(c) => {
-            value.push(c);
-            *history_idx = None;
-            true
-        }
-        KeyCode::Backspace => {
-            value.pop();
-            *history_idx = None;
-            true
-        }
         KeyCode::Enter => {
-            let raw = value.trim().to_string();
+            let raw = inp.value().trim().to_string();
             *command = None;
             *history_idx = None;
             if raw.is_empty() {
@@ -404,7 +389,7 @@ pub fn handle_shell_input(
                     Some(i) => i.saturating_sub(1),
                 };
                 *history_idx = Some(new_idx);
-                *value = history[new_idx].clone();
+                *inp = Input::new(history[new_idx].clone());
             }
             true
         }
@@ -413,17 +398,23 @@ pub fn handle_shell_input(
                 None => {}
                 Some(i) if i + 1 >= history.len() => {
                     *history_idx = None;
-                    value.clear();
+                    *inp = Input::default();
                 }
                 Some(i) => {
                     let new_idx = i + 1;
                     *history_idx = Some(new_idx);
-                    *value = history[new_idx].clone();
+                    *inp = Input::new(history[new_idx].clone());
                 }
             }
             true
         }
-        _ => false,
+        _ => {
+            if event.code == KeyCode::Char('c') && event.modifiers.contains(KeyModifiers::CONTROL) {
+                *history_idx = None;
+            }
+            inp.handle_event(&Event::Key(event));
+            true
+        }
     }
 }
 
@@ -505,50 +496,34 @@ fn run_shell_command(cmd: &str, cwd: &Path) -> Vec<String> {
     }
 }
 
-fn handle_query_input_event(event: KeyEvent, input: &mut String) -> QueryInputAction {
-    match event.code {
-        KeyCode::Char(c) => {
-            input.push(c);
-            QueryInputAction::Edit
-        }
-        KeyCode::Backspace => {
-            input.pop();
-            QueryInputAction::Edit
-        }
-        KeyCode::Enter => match validate_query(input) {
-            Ok(query) => QueryInputAction::Submit(query),
-            Err(message) => QueryInputAction::Invalid(message),
-        },
-        KeyCode::Esc => QueryInputAction::Cancel,
-        _ => QueryInputAction::None,
-    }
-}
-
 fn handle_query_submit(
     event: KeyEvent,
-    input: &mut Option<String>,
+    input: &mut Option<Input>,
     fs: &StdFileSystem,
     state: &mut AppState,
     mut on_submit: impl FnMut(String, &mut AppState),
 ) -> bool {
-    let Some(value) = input.as_mut() else {
+    let Some(inp) = input.as_mut() else {
         return false;
     };
-    match handle_query_input_event(event, value) {
-        QueryInputAction::None => false,
-        QueryInputAction::Edit => true,
-        QueryInputAction::Invalid(message) => {
-            state.active_panel_mut().set_notification(message);
+    match event.code {
+        KeyCode::Enter => {
+            match validate_query(inp.value()) {
+                Ok(query) => {
+                    on_submit(query, state);
+                    *input = None;
+                }
+                Err(message) => state.active_panel_mut().set_notification(message),
+            }
             true
         }
-        QueryInputAction::Submit(query) => {
-            on_submit(query, state);
-            *input = None;
-            true
-        }
-        QueryInputAction::Cancel => {
+        KeyCode::Esc => {
             *input = None;
             navigate::refresh_entries(fs, state.active_panel_mut());
+            true
+        }
+        _ => {
+            inp.handle_event(&Event::Key(event));
             true
         }
     }
@@ -894,24 +869,16 @@ pub fn handle_context_menu_input(
 
 pub fn handle_rename_input(
     event: KeyEvent,
-    rename_input: &mut Option<String>,
+    rename_input: &mut Option<Input>,
     fs: &StdFileSystem,
     state: &mut AppState,
 ) -> bool {
-    let Some(value) = rename_input.as_mut() else {
+    let Some(inp) = rename_input.as_mut() else {
         return false;
     };
     match event.code {
-        KeyCode::Char(c) => {
-            value.push(c);
-            true
-        }
-        KeyCode::Backspace => {
-            value.pop();
-            true
-        }
         KeyCode::Enter => {
-            let new_name = value.trim().to_string();
+            let new_name = inp.value().trim().to_string();
             *rename_input = None;
             if new_name.is_empty() {
                 return true;
@@ -938,30 +905,22 @@ pub fn handle_rename_input(
             *rename_input = None;
             true
         }
-        _ => false,
+        _ => { inp.handle_event(&Event::Key(event)); true }
     }
 }
 
 pub fn handle_new_folder_input(
     event: KeyEvent,
-    new_folder_input: &mut Option<String>,
+    new_folder_input: &mut Option<Input>,
     fs: &StdFileSystem,
     state: &mut AppState,
 ) -> bool {
-    let Some(value) = new_folder_input.as_mut() else {
+    let Some(inp) = new_folder_input.as_mut() else {
         return false;
     };
     match event.code {
-        KeyCode::Char(c) => {
-            value.push(c);
-            true
-        }
-        KeyCode::Backspace => {
-            value.pop();
-            true
-        }
         KeyCode::Enter => {
-            let name = value.trim().to_string();
+            let name = inp.value().trim().to_string();
             *new_folder_input = None;
             if name.is_empty() {
                 return true;
@@ -983,7 +942,7 @@ pub fn handle_new_folder_input(
             *new_folder_input = None;
             true
         }
-        _ => false,
+        _ => { inp.handle_event(&Event::Key(event)); true }
     }
 }
 
@@ -997,17 +956,9 @@ pub fn handle_copy_dest_input(
         return false;
     };
     match event.code {
-        KeyCode::Char(c) => {
-            cms.dest.push(c);
-            true
-        }
-        KeyCode::Backspace => {
-            cms.dest.pop();
-            true
-        }
         KeyCode::Enter => {
             let sources = cms.sources.clone();
-            let dest = PathBuf::from(cms.dest.trim());
+            let dest = PathBuf::from(cms.dest.value().trim());
             *copy_dest = None;
             if dest.as_os_str().is_empty() {
                 return true;
@@ -1016,13 +967,9 @@ pub fn handle_copy_dest_input(
                 Ok(()) => {
                     navigate::refresh_entries(fs, &mut state.left_panel);
                     navigate::refresh_entries(fs, &mut state.right_panel);
-                    state
-                        .active_panel_mut()
-                        .set_notification("Copied".to_string());
+                    state.active_panel_mut().set_notification("Copied".to_string());
                 }
-                Err(e) => state
-                    .active_panel_mut()
-                    .set_notification(format!("Copy failed: {}", e)),
+                Err(e) => state.active_panel_mut().set_notification(format!("Copy failed: {}", e)),
             }
             true
         }
@@ -1030,7 +977,7 @@ pub fn handle_copy_dest_input(
             *copy_dest = None;
             true
         }
-        _ => false,
+        _ => { cms.dest.handle_event(&Event::Key(event)); true }
     }
 }
 
@@ -1044,17 +991,9 @@ pub fn handle_move_dest_input(
         return false;
     };
     match event.code {
-        KeyCode::Char(c) => {
-            cms.dest.push(c);
-            true
-        }
-        KeyCode::Backspace => {
-            cms.dest.pop();
-            true
-        }
         KeyCode::Enter => {
             let sources = cms.sources.clone();
-            let dest = PathBuf::from(cms.dest.trim());
+            let dest = PathBuf::from(cms.dest.value().trim());
             *move_dest = None;
             if dest.as_os_str().is_empty() {
                 return true;
@@ -1064,13 +1003,9 @@ pub fn handle_move_dest_input(
                     state.active_panel_mut().clear_multi_selection();
                     navigate::refresh_entries(fs, &mut state.left_panel);
                     navigate::refresh_entries(fs, &mut state.right_panel);
-                    state
-                        .active_panel_mut()
-                        .set_notification("Moved".to_string());
+                    state.active_panel_mut().set_notification("Moved".to_string());
                 }
-                Err(e) => state
-                    .active_panel_mut()
-                    .set_notification(format!("Move failed: {}", e)),
+                Err(e) => state.active_panel_mut().set_notification(format!("Move failed: {}", e)),
             }
             true
         }
@@ -1078,7 +1013,7 @@ pub fn handle_move_dest_input(
             *move_dest = None;
             true
         }
-        _ => false,
+        _ => { cms.dest.handle_event(&Event::Key(event)); true }
     }
 }
 

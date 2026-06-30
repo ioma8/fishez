@@ -8,6 +8,7 @@ use crossterm::terminal::ClearType;
 use crossterm::{cursor, queue, terminal};
 use std::io::Write;
 use std::path::PathBuf;
+use tui_input::Input;
 
 /// Draw the main UI based on state.
 pub fn draw(renderer: &mut TerminalRenderer, state: &AppState) {
@@ -54,75 +55,42 @@ fn draw_delete_prompt(renderer: &mut TerminalRenderer, paths: &[PathBuf]) {
 }
 
 /// Draw with find prompt overlay.
-pub fn draw_with_find(renderer: &mut TerminalRenderer, state: &AppState, filter: Option<&String>) {
+pub fn draw_with_find(renderer: &mut TerminalRenderer, state: &AppState, filter: Option<&Input>) {
     draw(renderer, state);
     if let Some(f) = filter {
-        draw_find_prompt(renderer, f);
+        draw_input_prompt(renderer, "Find", f);
     }
-}
-
-fn draw_find_prompt(renderer: &mut TerminalRenderer, filter: &str) {
-    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
-    let _ = queue!(
-        renderer.writer(),
-        cursor::MoveTo(0, prompt_row),
-        terminal::Clear(ClearType::UntilNewLine),
-        Print(format!("Find: {} [enter/esc]", filter).magenta().bold()),
-    );
-    let _ = std::io::stdout().flush();
 }
 
 /// Draw with ripgrep prompt overlay.
 pub fn draw_with_ripgrep(
     renderer: &mut TerminalRenderer,
     state: &AppState,
-    filter: Option<&String>,
+    filter: Option<&Input>,
 ) {
     draw(renderer, state);
     if let Some(f) = filter {
-        draw_ripgrep_prompt(renderer, f);
+        draw_input_prompt(renderer, "RipGrep", f);
     }
-}
-
-fn draw_ripgrep_prompt(renderer: &mut TerminalRenderer, filter: &str) {
-    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
-    let _ = queue!(
-        renderer.writer(),
-        cursor::MoveTo(0, prompt_row),
-        terminal::Clear(ClearType::UntilNewLine),
-        Print(format!("RipGrep: {} [enter/esc]", filter).magenta().bold()),
-    );
-    let _ = std::io::stdout().flush();
 }
 
 /// Draw with shell command prompt overlay.
 pub fn draw_with_shell(
     renderer: &mut TerminalRenderer,
     state: &AppState,
-    command: Option<&String>,
+    command: Option<&Input>,
 ) {
     draw(renderer, state);
     if let Some(c) = command {
-        draw_shell_prompt(renderer, c);
+        draw_input_prompt(renderer, "!", c);
     }
 }
 
-fn draw_shell_prompt(renderer: &mut TerminalRenderer, command: &str) {
-    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
-    let _ = queue!(
-        renderer.writer(),
-        cursor::MoveTo(0, prompt_row),
-        terminal::Clear(ClearType::UntilNewLine),
-        Print(format!("! {} [enter/esc]", command).yellow().bold()),
-    );
-    let _ = std::io::stdout().flush();
-}
-
 /// Draw with rename prompt overlay.
-pub fn draw_with_rename(renderer: &mut TerminalRenderer, state: &AppState, input: Option<&str>) {
+pub fn draw_with_rename(renderer: &mut TerminalRenderer, state: &AppState, input: Option<&Input>) {
     draw(renderer, state);
-    if let Some(name) = input {
-        draw_input_prompt(renderer, "Rename", name);
+    if let Some(inp) = input {
+        draw_input_prompt(renderer, "Rename", inp);
     }
 }
 
@@ -130,34 +98,56 @@ pub fn draw_with_rename(renderer: &mut TerminalRenderer, state: &AppState, input
 pub fn draw_with_new_folder(
     renderer: &mut TerminalRenderer,
     state: &AppState,
-    input: Option<&str>,
+    input: Option<&Input>,
 ) {
     draw(renderer, state);
-    if let Some(name) = input {
-        draw_input_prompt(renderer, "New folder", name);
+    if let Some(inp) = input {
+        draw_input_prompt(renderer, "New folder", inp);
     }
 }
 
 /// Draw with copy destination prompt overlay.
-pub fn draw_with_copy_dest(renderer: &mut TerminalRenderer, state: &AppState, dest: &str) {
+pub fn draw_with_copy_dest(renderer: &mut TerminalRenderer, state: &AppState, dest: &Input) {
     draw(renderer, state);
     draw_input_prompt(renderer, "Copy to", dest);
 }
 
 /// Draw with move destination prompt overlay.
-pub fn draw_with_move_dest(renderer: &mut TerminalRenderer, state: &AppState, dest: &str) {
+pub fn draw_with_move_dest(renderer: &mut TerminalRenderer, state: &AppState, dest: &Input) {
     draw(renderer, state);
     draw_input_prompt(renderer, "Move to", dest);
 }
 
-fn draw_input_prompt(renderer: &mut TerminalRenderer, label: &str, input: &str) {
+fn draw_input_prompt(renderer: &mut TerminalRenderer, label: &str, input: &Input) {
     let prompt_row = renderer.rows - FOOTER_ROWS + 1;
+    let value = input.value();
+    let cursor = input.cursor();
+
+    let before = &value[..cursor];
+    let after = &value[cursor..];
+    let mut after_chars = after.chars();
+    let cur_ch = after_chars.next();
+    let rest = after_chars.as_str();
+
     let _ = queue!(
         renderer.writer(),
         cursor::MoveTo(0, prompt_row),
         terminal::Clear(ClearType::UntilNewLine),
-        Print(format!("{}: {} [enter/esc]", label, input).cyan().bold()),
+        Print(format!("{}: ", label).cyan().bold()),
+        Print(before.cyan().bold()),
     );
+    match cur_ch {
+        Some(ch) => {
+            let _ = queue!(renderer.writer(),
+                Print(ch.to_string().black().on_cyan()),
+                Print(rest.cyan().bold()),
+            );
+        }
+        None => {
+            let _ = queue!(renderer.writer(), Print(" ".black().on_cyan()));
+        }
+    }
+    let _ = queue!(renderer.writer(), Print("  [esc]".dark_grey()));
     let _ = std::io::stdout().flush();
 }
 

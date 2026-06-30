@@ -15,6 +15,7 @@ use infrastructure::{
     StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, load_favorites,
 };
 use presentation::input_handler::{CopyMoveState, ContextMenuState, Message};
+use tui_input::Input;
 use presentation::{TerminalRenderer, overlays, run};
 use std::env;
 use std::path::PathBuf;
@@ -44,13 +45,13 @@ fn main() {
 
     // Feature state
     let mut delete_paths: Option<Vec<PathBuf>> = None;
-    let mut find_filter: Option<String> = None;
-    let mut ripgrep_filter: Option<String> = None;
-    let mut shell_command: Option<String> = None;
+    let mut find_filter: Option<Input> = None;
+    let mut ripgrep_filter: Option<Input> = None;
+    let mut shell_command: Option<Input> = None;
     let mut shell_history: Vec<String> = Vec::new();
     let mut shell_history_idx: Option<usize> = None;
-    let mut rename_input: Option<String> = None;
-    let mut new_folder_input: Option<String> = None;
+    let mut rename_input: Option<Input> = None;
+    let mut new_folder_input: Option<Input> = None;
     let mut copy_dest: Option<CopyMoveState> = None;
     let mut move_dest: Option<CopyMoveState> = None;
     let mut context_menu: Option<ContextMenuState> = None;

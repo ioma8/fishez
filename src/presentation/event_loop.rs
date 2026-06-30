@@ -16,6 +16,7 @@ use crate::presentation::shortcuts;
 use crate::presentation::terminal::overlays;
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use std::path::PathBuf;
+use tui_input::Input;
 use std::process::exit;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant};
@@ -31,13 +32,13 @@ pub fn run(
     sender: &Sender<Message>,
     receiver: &Receiver<Message>,
     delete_paths: &mut Option<Vec<PathBuf>>,
-    find_filter: &mut Option<String>,
-    ripgrep_filter: &mut Option<String>,
-    shell_command: &mut Option<String>,
+    find_filter: &mut Option<Input>,
+    ripgrep_filter: &mut Option<Input>,
+    shell_command: &mut Option<Input>,
     shell_history: &mut Vec<String>,
     shell_history_idx: &mut Option<usize>,
-    rename_input: &mut Option<String>,
-    new_folder_input: &mut Option<String>,
+    rename_input: &mut Option<Input>,
+    new_folder_input: &mut Option<Input>,
     copy_dest: &mut Option<CopyMoveState>,
     move_dest: &mut Option<CopyMoveState>,
     context_menu: &mut Option<ContextMenuState>,
@@ -172,13 +173,13 @@ fn route_input(
     clipboard_adapter: &mut SystemClipboard,
     sender: &Sender<Message>,
     delete_paths: &mut Option<Vec<PathBuf>>,
-    find_filter: &mut Option<String>,
-    ripgrep_filter: &mut Option<String>,
-    shell_command: &mut Option<String>,
+    find_filter: &mut Option<Input>,
+    ripgrep_filter: &mut Option<Input>,
+    shell_command: &mut Option<Input>,
     shell_history: &mut Vec<String>,
     shell_history_idx: &mut Option<usize>,
-    rename_input: &mut Option<String>,
-    new_folder_input: &mut Option<String>,
+    rename_input: &mut Option<Input>,
+    new_folder_input: &mut Option<Input>,
     copy_dest: &mut Option<CopyMoveState>,
     move_dest: &mut Option<CopyMoveState>,
     context_menu: &mut Option<ContextMenuState>,
@@ -382,7 +383,7 @@ fn execute_context_action(
     clipboard_adapter: &mut SystemClipboard,
     sender: &Sender<Message>,
     renderer_columns: u16,
-    rename_input: &mut Option<String>,
+    rename_input: &mut Option<Input>,
     delete_paths: &mut Option<Vec<PathBuf>>,
 ) {
     match action {
@@ -399,7 +400,7 @@ fn execute_context_action(
             schedule_quick_view(panel, pane, renderer_columns, sender);
         }
         ContextMenuAction::Rename => {
-            *rename_input = Some(name);
+            *rename_input = Some(Input::new(name));
         }
         ContextMenuAction::Delete => {
             *delete_paths = Some(vec![target]);
@@ -440,13 +441,13 @@ fn handle_modal_overlays(
     fs_adapter: &StdFileSystem,
     sender: &Sender<Message>,
     delete_paths: &mut Option<Vec<PathBuf>>,
-    find_filter: &mut Option<String>,
-    ripgrep_filter: &mut Option<String>,
-    shell_command: &mut Option<String>,
+    find_filter: &mut Option<Input>,
+    ripgrep_filter: &mut Option<Input>,
+    shell_command: &mut Option<Input>,
     shell_history: &mut Vec<String>,
     shell_history_idx: &mut Option<usize>,
-    rename_input: &mut Option<String>,
-    new_folder_input: &mut Option<String>,
+    rename_input: &mut Option<Input>,
+    new_folder_input: &mut Option<Input>,
     copy_dest: &mut Option<CopyMoveState>,
     move_dest: &mut Option<CopyMoveState>,
     favorites_active: &mut bool,
@@ -551,11 +552,11 @@ fn redraw_current_view(
     renderer: &mut TerminalRenderer,
     app_state: &AppState,
     delete_paths: &Option<Vec<PathBuf>>,
-    find_filter: &Option<String>,
-    ripgrep_filter: &Option<String>,
-    shell_command: &Option<String>,
-    rename_input: &Option<String>,
-    new_folder_input: &Option<String>,
+    find_filter: &Option<Input>,
+    ripgrep_filter: &Option<Input>,
+    shell_command: &Option<Input>,
+    rename_input: &Option<Input>,
+    new_folder_input: &Option<Input>,
     copy_dest: &Option<CopyMoveState>,
     move_dest: &Option<CopyMoveState>,
     context_menu: &Option<ContextMenuState>,
@@ -580,9 +581,9 @@ fn redraw_current_view(
     } else if shell_command.is_some() {
         overlays::draw_with_shell(renderer, app_state, shell_command.as_ref());
     } else if rename_input.is_some() {
-        overlays::draw_with_rename(renderer, app_state, rename_input.as_deref());
+        overlays::draw_with_rename(renderer, app_state, rename_input.as_ref());
     } else if new_folder_input.is_some() {
-        overlays::draw_with_new_folder(renderer, app_state, new_folder_input.as_deref());
+        overlays::draw_with_new_folder(renderer, app_state, new_folder_input.as_ref());
     } else if let Some(state) = copy_dest.as_ref() {
         overlays::draw_with_copy_dest(renderer, app_state, &state.dest);
     } else if let Some(state) = move_dest.as_ref() {

@@ -4,6 +4,7 @@ use crate::application::{AppState, PanelMode};
 use crate::infrastructure::{VsCodeAdapter, add_favorite};
 use crate::presentation::input_handler::CopyMoveState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use tui_input::Input;
 use std::path::PathBuf;
 
 /// Handle feature shortcuts.
@@ -13,11 +14,11 @@ pub fn handle(
     app_state: &mut AppState,
     vscode_adapter: &VsCodeAdapter,
     delete_paths: &mut Option<Vec<PathBuf>>,
-    find_filter: &mut Option<String>,
-    ripgrep_filter: &mut Option<String>,
-    shell_command: &mut Option<String>,
-    rename_input: &mut Option<String>,
-    new_folder_input: &mut Option<String>,
+    find_filter: &mut Option<Input>,
+    ripgrep_filter: &mut Option<Input>,
+    shell_command: &mut Option<Input>,
+    rename_input: &mut Option<Input>,
+    new_folder_input: &mut Option<Input>,
     copy_dest: &mut Option<CopyMoveState>,
     move_dest: &mut Option<CopyMoveState>,
     favorites_active: &mut bool,
@@ -79,8 +80,8 @@ fn handle_delete(
 fn handle_file_ops(
     event: KeyEvent,
     app_state: &mut AppState,
-    rename_input: &mut Option<String>,
-    new_folder_input: &mut Option<String>,
+    rename_input: &mut Option<Input>,
+    new_folder_input: &mut Option<Input>,
     copy_dest: &mut Option<CopyMoveState>,
     move_dest: &mut Option<CopyMoveState>,
 ) -> Option<bool> {
@@ -91,7 +92,7 @@ fn handle_file_ops(
             .selected_entry()
             .map(|e| e.name.clone())
             .unwrap_or_default();
-        *rename_input = Some(name);
+        *rename_input = Some(Input::new(name));
         return Some(true);
     }
     if event.code == KeyCode::F(5) {
@@ -104,7 +105,7 @@ fn handle_file_ops(
         if sources.is_empty() {
             return Some(false);
         }
-        let dest = opposite_pane_path(app_state);
+        let dest = Input::new(opposite_pane_path(app_state));
         *copy_dest = Some(CopyMoveState { sources, dest });
         return Some(true);
     }
@@ -118,12 +119,12 @@ fn handle_file_ops(
         if sources.is_empty() {
             return Some(false);
         }
-        let dest = opposite_pane_path(app_state);
+        let dest = Input::new(opposite_pane_path(app_state));
         *move_dest = Some(CopyMoveState { sources, dest });
         return Some(true);
     }
     if event.code == KeyCode::F(7) {
-        *new_folder_input = Some(String::new());
+        *new_folder_input = Some(Input::default());
         return Some(true);
     }
     None
@@ -144,24 +145,24 @@ fn opposite_pane_path(app_state: &AppState) -> String {
 
 fn handle_search(
     event: KeyEvent,
-    find_filter: &mut Option<String>,
-    ripgrep_filter: &mut Option<String>,
-    shell_command: &mut Option<String>,
+    find_filter: &mut Option<Input>,
+    ripgrep_filter: &mut Option<Input>,
+    shell_command: &mut Option<Input>,
 ) -> Option<bool> {
     if event.code == KeyCode::Char('!')
         && !event
             .modifiers
             .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
     {
-        *shell_command = Some(String::new());
+        *shell_command = Some(Input::default());
         return Some(true);
     }
     if event.code == KeyCode::Char('f') && event.modifiers.contains(KeyModifiers::CONTROL) {
-        *find_filter = Some(String::new());
+        *find_filter = Some(Input::default());
         return Some(true);
     }
     if event.code == KeyCode::Char('r') && event.modifiers.contains(KeyModifiers::CONTROL) {
-        *ripgrep_filter = Some(String::new());
+        *ripgrep_filter = Some(Input::default());
         return Some(true);
     }
     None
