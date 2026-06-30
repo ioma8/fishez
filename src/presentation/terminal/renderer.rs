@@ -212,24 +212,30 @@ impl TerminalRenderer {
             terminal::Clear(ClearType::UntilNewLine)
         );
         let pw = self.columns.saturating_sub(1) / 2;
-        let (ll, rl) = match active {
-            ActivePane::Left => ("*L", " R"),
-            ActivePane::Right => (" L", "*R"),
-        };
         let lt = truncate(
-            &format!("{}: {}", ll, left.current_path.display()),
+            &format!("L  {}", left.current_path.display()),
             pw as usize,
         );
         let rt = truncate(
-            &format!("{}: {}", rl, right.current_path.display()),
+            &format!("R  {}", right.current_path.display()),
             pw as usize,
         );
+        let (lstyle, rstyle) = match active {
+            ActivePane::Left => (
+                lt.bold().with(Color::White),
+                rt.with(Color::DarkGrey),
+            ),
+            ActivePane::Right => (
+                lt.with(Color::DarkGrey),
+                rt.bold().with(Color::White),
+            ),
+        };
         let _ = queue!(
             &mut self.stdout,
             cursor::MoveTo(0, 0),
-            Print(lt.with(Color::Cyan)),
+            Print(lstyle),
             cursor::MoveTo(pw + 1, 0),
-            Print(rt.with(Color::Cyan))
+            Print(rstyle)
         );
     }
 
