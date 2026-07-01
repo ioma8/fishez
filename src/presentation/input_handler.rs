@@ -1,14 +1,19 @@
 //! Input handler - keyboard event processing.
 
 use crate::application::ports::FileSystemPort;
-use crate::application::use_cases::{file_copy, file_move, file_ops, navigate, new_folder, quick_view};
+use crate::application::use_cases::transfer::{self, ConflictResolution, TransferKind};
+use crate::application::use_cases::{file_ops, navigate, new_folder, quick_view};
 use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode};
 use crate::infrastructure::{
     FdSearchAdapter, RipGrepAdapter, StdFileSystem, SystemClipboard, SystemOpenAdapter,
 };
 use crate::presentation::{FOOTER_ROWS, HEADER_ROWS, TerminalRenderer};
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{
+    Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::thread;
 use tui_input::Input;
@@ -36,18 +41,43 @@ pub enum ContextMenuAction {
 pub enum ContextMenuResponse {
     Handled,
     Close,
-    Execute { action: ContextMenuAction, target: PathBuf, name: String },
+    Execute {
+        action: ContextMenuAction,
+        target: PathBuf,
+        name: String,
+    },
 }
 
 pub enum MouseOutcome {
     Nothing,
     Redraw,
-    ExecuteContext { action: ContextMenuAction, target: PathBuf, name: String },
+    ExecuteContext {
+        action: ContextMenuAction,
+        target: PathBuf,
+        name: String,
+    },
 }
 
 pub struct CopyMoveState {
     pub sources: Vec<PathBuf>,
     pub dest: Input,
+}
+
+/// A conflict the background transfer is blocked on, waiting for the user's choice.
+pub struct PendingConflict {
+    pub path: PathBuf,
+    pub reply: Sender<ConflictResolution>,
+}
+
+/// UI-side view of an in-progress background copy/move.
+pub struct TransferUiState {
+    pub kind: TransferKind,
+    pub done: usize,
+    pub total: usize,
+    pub current: PathBuf,
+    pub cancel: Arc<AtomicBool>,
+    pub pending_conflict: Option<PendingConflict>,
+    pub cancelling: bool,
 }
 
 #[derive(Debug)]
@@ -61,11 +91,11 @@ pub enum Message {
         pane: ActivePane,
         mode: QuickViewMode,
     },
+    Transfer(transfer::TransferEvent),
 }
 
 const MAX_QUERY_LEN: usize = 64;
 const MAX_REPEAT_RUN: usize = 16;
-
 
 #[derive(PartialEq)]
 struct PanelUiState {
@@ -366,7 +396,9 @@ pub fn handle_shell_input(
             let cwd = state.active_panel().current_path.clone();
             let pane = state.active_pane;
             let panel = state.active_panel_mut();
-            panel.mode = PanelMode::QuickView(QuickViewMode::Loading { message: raw.clone() });
+            panel.mode = PanelMode::QuickView(QuickViewMode::Loading {
+                message: raw.clone(),
+            });
             let tx = sender.clone();
             thread::spawn(move || {
                 let lines = run_shell_command(&expanded, &cwd);
@@ -618,18 +650,29 @@ pub fn handle_mouse_event(
     if let Some(ctx) = context_menu.as_ref() {
         if matches!(event.kind, MouseEventKind::Down(MouseButton::Left)) {
             // Check if click lands on a menu item.
-            if let Some(outcome) = menu_click_hit(event.row, event.column, ctx, renderer_rows, renderer_cols) {
+            if let Some(outcome) =
+                menu_click_hit(event.row, event.column, ctx, renderer_rows, renderer_cols)
+            {
                 *context_menu = None;
                 return outcome;
             }
             // Click outside menu: close it and handle as normal file-list click.
             *context_menu = None;
-            return if mouse_click(event.row, event.column, app_state, renderer_rows, renderer_cols) {
+            return if mouse_click(
+                event.row,
+                event.column,
+                app_state,
+                renderer_rows,
+                renderer_cols,
+            ) {
                 MouseOutcome::Redraw
             } else {
                 MouseOutcome::Redraw // redraw to remove menu even if cursor didn't move
             };
-        } else if matches!(event.kind, MouseEventKind::ScrollUp | MouseEventKind::ScrollDown) {
+        } else if matches!(
+            event.kind,
+            MouseEventKind::ScrollUp | MouseEventKind::ScrollDown
+        ) {
             // Scroll while menu open: close menu and scroll.
             *context_menu = None;
         } else {
@@ -639,24 +682,46 @@ pub fn handle_mouse_event(
 
     match event.kind {
         MouseEventKind::Down(MouseButton::Left) => {
-            if mouse_click(event.row, event.column, app_state, renderer_rows, renderer_cols) {
+            if mouse_click(
+                event.row,
+                event.column,
+                app_state,
+                renderer_rows,
+                renderer_cols,
+            ) {
                 MouseOutcome::Redraw
             } else {
                 MouseOutcome::Nothing
             }
         }
         MouseEventKind::Down(MouseButton::Right) => {
-            if mouse_right_click(event.row, event.column, app_state, renderer_rows, renderer_cols, context_menu, sender) {
+            if mouse_right_click(
+                event.row,
+                event.column,
+                app_state,
+                renderer_rows,
+                renderer_cols,
+                context_menu,
+                sender,
+            ) {
                 MouseOutcome::Redraw
             } else {
                 MouseOutcome::Nothing
             }
         }
         MouseEventKind::ScrollUp => {
-            if mouse_scroll(app_state, -3, renderer_rows, sender) { MouseOutcome::Redraw } else { MouseOutcome::Nothing }
+            if mouse_scroll(app_state, -3, renderer_rows, sender) {
+                MouseOutcome::Redraw
+            } else {
+                MouseOutcome::Nothing
+            }
         }
         MouseEventKind::ScrollDown => {
-            if mouse_scroll(app_state, 3, renderer_rows, sender) { MouseOutcome::Redraw } else { MouseOutcome::Nothing }
+            if mouse_scroll(app_state, 3, renderer_rows, sender) {
+                MouseOutcome::Redraw
+            } else {
+                MouseOutcome::Nothing
+            }
         }
         _ => MouseOutcome::Nothing,
     }
@@ -696,8 +761,8 @@ fn mouse_click(
     renderer_rows: u16,
     renderer_cols: u16,
 ) -> bool {
-    use crate::presentation::{FOOTER_ROWS, HEADER_ROWS};
     use crate::application::ActivePane;
+    use crate::presentation::{FOOTER_ROWS, HEADER_ROWS};
 
     if row < HEADER_ROWS || row >= renderer_rows.saturating_sub(FOOTER_ROWS) {
         return false;
@@ -709,10 +774,20 @@ fn mouse_click(
         if col == pw {
             return false; // separator
         }
-        let pane = if col < pw { ActivePane::Left } else { ActivePane::Right };
+        let pane = if col < pw {
+            ActivePane::Left
+        } else {
+            ActivePane::Right
+        };
         let (scroll, len) = match pane {
-            ActivePane::Left => (app_state.left_panel.scroll, app_state.left_panel.entries.len()),
-            ActivePane::Right => (app_state.right_panel.scroll, app_state.right_panel.entries.len()),
+            ActivePane::Left => (
+                app_state.left_panel.scroll,
+                app_state.left_panel.entries.len(),
+            ),
+            ActivePane::Right => (
+                app_state.right_panel.scroll,
+                app_state.right_panel.entries.len(),
+            ),
         };
         app_state.active_pane = pane;
         let idx = scroll + list_row;
@@ -743,8 +818,8 @@ fn mouse_right_click(
     context_menu: &mut Option<ContextMenuState>,
     _sender: &Sender<Message>,
 ) -> bool {
-    use crate::presentation::{FOOTER_ROWS, HEADER_ROWS};
     use crate::application::ActivePane;
+    use crate::presentation::{FOOTER_ROWS, HEADER_ROWS};
 
     if row < HEADER_ROWS || row >= renderer_rows.saturating_sub(FOOTER_ROWS) {
         return false;
@@ -757,14 +832,28 @@ fn mouse_right_click(
         if col == pw {
             return false;
         }
-        let pane = if col < pw { ActivePane::Left } else { ActivePane::Right };
+        let pane = if col < pw {
+            ActivePane::Left
+        } else {
+            ActivePane::Right
+        };
         let (s, l) = match pane {
-            ActivePane::Left => (app_state.left_panel.scroll, app_state.left_panel.entries.len()),
-            ActivePane::Right => (app_state.right_panel.scroll, app_state.right_panel.entries.len()),
+            ActivePane::Left => (
+                app_state.left_panel.scroll,
+                app_state.left_panel.entries.len(),
+            ),
+            ActivePane::Right => (
+                app_state.right_panel.scroll,
+                app_state.right_panel.entries.len(),
+            ),
         };
         (Some(pane), s, l)
     } else {
-        (None, app_state.active_panel().scroll, app_state.active_panel().entries.len())
+        (
+            None,
+            app_state.active_panel().scroll,
+            app_state.active_panel().entries.len(),
+        )
     };
 
     let idx = scroll + list_row;
@@ -857,7 +946,11 @@ pub fn handle_context_menu_input(
             let target = menu.target.clone();
             let name = menu.target_name.clone();
             *ctx = None;
-            ContextMenuResponse::Execute { action, target, name }
+            ContextMenuResponse::Execute {
+                action,
+                target,
+                name,
+            }
         }
         KeyCode::Esc | KeyCode::F(10) => {
             *ctx = None;
@@ -905,7 +998,10 @@ pub fn handle_rename_input(
             *rename_input = None;
             true
         }
-        _ => { inp.handle_event(&Event::Key(event)); true }
+        _ => {
+            inp.handle_event(&Event::Key(event));
+            true
+        }
     }
 }
 
@@ -942,15 +1038,41 @@ pub fn handle_new_folder_input(
             *new_folder_input = None;
             true
         }
-        _ => { inp.handle_event(&Event::Key(event)); true }
+        _ => {
+            inp.handle_event(&Event::Key(event));
+            true
+        }
+    }
+}
+
+/// Spawns a background transfer job and wires its events back through `sender` as
+/// `Message::Transfer`. `StdFileSystem` is a zero-sized adapter, cheap to hand to the thread.
+fn start_transfer(
+    kind: TransferKind,
+    sources: Vec<PathBuf>,
+    dest: PathBuf,
+    sender: &Sender<Message>,
+) -> TransferUiState {
+    let tx = sender.clone();
+    let cancel = transfer::spawn_transfer(StdFileSystem, kind, sources, dest, move |ev| {
+        let _ = tx.send(Message::Transfer(ev));
+    });
+    TransferUiState {
+        kind,
+        done: 0,
+        total: 0,
+        current: PathBuf::new(),
+        cancel,
+        pending_conflict: None,
+        cancelling: false,
     }
 }
 
 pub fn handle_copy_dest_input(
     event: KeyEvent,
     copy_dest: &mut Option<CopyMoveState>,
-    fs: &StdFileSystem,
-    state: &mut AppState,
+    transfer_state: &mut Option<TransferUiState>,
+    sender: &Sender<Message>,
 ) -> bool {
     let Some(cms) = copy_dest.as_mut() else {
         return false;
@@ -963,28 +1085,25 @@ pub fn handle_copy_dest_input(
             if dest.as_os_str().is_empty() {
                 return true;
             }
-            match file_copy::copy_items(&sources, &dest, fs) {
-                Ok(()) => {
-                    navigate::refresh_entries(fs, &mut state.left_panel);
-                    navigate::refresh_entries(fs, &mut state.right_panel);
-                    state.active_panel_mut().set_notification("Copied".to_string());
-                }
-                Err(e) => state.active_panel_mut().set_notification(format!("Copy failed: {}", e)),
-            }
+            *transfer_state = Some(start_transfer(TransferKind::Copy, sources, dest, sender));
             true
         }
         KeyCode::Esc => {
             *copy_dest = None;
             true
         }
-        _ => { cms.dest.handle_event(&Event::Key(event)); true }
+        _ => {
+            cms.dest.handle_event(&Event::Key(event));
+            true
+        }
     }
 }
 
 pub fn handle_move_dest_input(
     event: KeyEvent,
     move_dest: &mut Option<CopyMoveState>,
-    fs: &StdFileSystem,
+    transfer_state: &mut Option<TransferUiState>,
+    sender: &Sender<Message>,
     state: &mut AppState,
 ) -> bool {
     let Some(cms) = move_dest.as_mut() else {
@@ -998,22 +1117,55 @@ pub fn handle_move_dest_input(
             if dest.as_os_str().is_empty() {
                 return true;
             }
-            match file_move::move_items(&sources, &dest, fs) {
-                Ok(()) => {
-                    state.active_panel_mut().clear_multi_selection();
-                    navigate::refresh_entries(fs, &mut state.left_panel);
-                    navigate::refresh_entries(fs, &mut state.right_panel);
-                    state.active_panel_mut().set_notification("Moved".to_string());
-                }
-                Err(e) => state.active_panel_mut().set_notification(format!("Move failed: {}", e)),
-            }
+            state.active_panel_mut().clear_multi_selection();
+            *transfer_state = Some(start_transfer(TransferKind::Move, sources, dest, sender));
             true
         }
         KeyCode::Esc => {
             *move_dest = None;
             true
         }
-        _ => { cms.dest.handle_event(&Event::Key(event)); true }
+        _ => {
+            cms.dest.handle_event(&Event::Key(event));
+            true
+        }
+    }
+}
+
+/// Handles input while a background transfer is active: conflict-prompt choices,
+/// or `Esc` to request cancellation. Returns whether a redraw is needed.
+pub fn handle_transfer_input(
+    event: KeyEvent,
+    transfer_state: &mut Option<TransferUiState>,
+) -> bool {
+    let Some(t) = transfer_state.as_mut() else {
+        return false;
+    };
+    if let Some(conflict) = t.pending_conflict.take() {
+        let resolution = match event.code {
+            KeyCode::Char('o') | KeyCode::Char('O') => Some(ConflictResolution::Overwrite),
+            KeyCode::Char('s') | KeyCode::Char('S') => Some(ConflictResolution::Skip),
+            KeyCode::Char('a') | KeyCode::Char('A') => Some(ConflictResolution::OverwriteAll),
+            KeyCode::Char('l') | KeyCode::Char('L') => Some(ConflictResolution::SkipAll),
+            KeyCode::Esc => Some(ConflictResolution::Cancel),
+            _ => None,
+        };
+        match resolution {
+            Some(r) => {
+                let _ = conflict.reply.send(r);
+                true
+            }
+            None => {
+                t.pending_conflict = Some(conflict);
+                false
+            }
+        }
+    } else if event.code == KeyCode::Esc && !t.cancelling {
+        t.cancel.store(true, Ordering::Relaxed);
+        t.cancelling = true;
+        true
+    } else {
+        false
     }
 }
 

@@ -229,7 +229,7 @@ fn extract_thumbnail(path: &Path) -> Option<DynamicImage> {
     load_from_memory(data).ok()
 }
 
-fn human_size(bytes: u64) -> String {
+pub(crate) fn human_size(bytes: u64) -> String {
     const U: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
     let (mut s, mut i) = (bytes as f64, 0);
     while s >= 1024.0 && i < U.len() - 1 {

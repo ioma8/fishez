@@ -2,24 +2,26 @@
 
 use crate::application::ports::ClipboardPort;
 use crate::application::use_cases::navigate;
+use crate::application::use_cases::transfer::TransferEvent;
 use crate::application::{ActivePane, AppState, PanelMode};
 use crate::infrastructure::{StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter};
 use crate::presentation::TerminalRenderer;
 use crate::presentation::input_handler::{
-    ContextMenuAction, ContextMenuResponse, ContextMenuState, CopyMoveState, Message,
-    MouseOutcome, handle_context_menu_input, handle_copy_dest_input, handle_delete_confirmation,
-    handle_favorites_input, handle_filter_mode, handle_find_input, handle_mouse_event,
-    handle_move_dest_input, handle_new_folder_input, handle_normal_mode, handle_quick_view_mode,
-    handle_rename_input, handle_ripgrep_input, handle_shell_input, is_quit, schedule_quick_view,
+    ContextMenuAction, ContextMenuResponse, ContextMenuState, CopyMoveState, Message, MouseOutcome,
+    PendingConflict, TransferUiState, handle_context_menu_input, handle_copy_dest_input,
+    handle_delete_confirmation, handle_favorites_input, handle_filter_mode, handle_find_input,
+    handle_mouse_event, handle_move_dest_input, handle_new_folder_input, handle_normal_mode,
+    handle_quick_view_mode, handle_rename_input, handle_ripgrep_input, handle_shell_input,
+    handle_transfer_input, is_quit, schedule_quick_view,
 };
 use crate::presentation::shortcuts;
 use crate::presentation::terminal::overlays;
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use std::path::PathBuf;
-use tui_input::Input;
 use std::process::exit;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant};
+use tui_input::Input;
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -40,6 +42,7 @@ pub fn run(
     rename_input: &mut Option<Input>,
     new_folder_input: &mut Option<Input>,
     copy_dest: &mut Option<CopyMoveState>,
+    transfer_state: &mut Option<TransferUiState>,
     move_dest: &mut Option<CopyMoveState>,
     context_menu: &mut Option<ContextMenuState>,
     favorites_active: &mut bool,
@@ -77,6 +80,7 @@ pub fn run(
                         rename_input,
                         new_folder_input,
                         copy_dest,
+                        transfer_state,
                         move_dest,
                         context_menu,
                         favorites_active,
@@ -97,22 +101,57 @@ pub fn run(
                         MouseOutcome::Nothing => {}
                         MouseOutcome::Redraw => {
                             redraw_current_view(
-                                renderer, app_state, delete_paths, find_filter, ripgrep_filter,
-                                shell_command, rename_input, new_folder_input, copy_dest,
-                                move_dest, context_menu, *favorites_active, favorites_items,
+                                renderer,
+                                app_state,
+                                delete_paths,
+                                find_filter,
+                                ripgrep_filter,
+                                shell_command,
+                                rename_input,
+                                new_folder_input,
+                                copy_dest,
+                                transfer_state,
+                                move_dest,
+                                context_menu,
+                                *favorites_active,
+                                favorites_items,
                                 *favorites_selected,
                             );
                         }
-                        MouseOutcome::ExecuteContext { action, target, name } => {
+                        MouseOutcome::ExecuteContext {
+                            action,
+                            target,
+                            name,
+                        } => {
                             execute_context_action(
-                                action, target, name, app_state, fs_adapter, open_adapter,
-                                vscode_adapter, clipboard_adapter, sender, renderer.columns,
-                                rename_input, delete_paths,
+                                action,
+                                target,
+                                name,
+                                app_state,
+                                fs_adapter,
+                                open_adapter,
+                                vscode_adapter,
+                                clipboard_adapter,
+                                sender,
+                                renderer.columns,
+                                rename_input,
+                                delete_paths,
                             );
                             redraw_current_view(
-                                renderer, app_state, delete_paths, find_filter, ripgrep_filter,
-                                shell_command, rename_input, new_folder_input, copy_dest,
-                                move_dest, context_menu, *favorites_active, favorites_items,
+                                renderer,
+                                app_state,
+                                delete_paths,
+                                find_filter,
+                                ripgrep_filter,
+                                shell_command,
+                                rename_input,
+                                new_folder_input,
+                                copy_dest,
+                                transfer_state,
+                                move_dest,
+                                context_menu,
+                                *favorites_active,
+                                favorites_items,
                                 *favorites_selected,
                             );
                         }
@@ -130,6 +169,7 @@ pub fn run(
                         rename_input,
                         new_folder_input,
                         copy_dest,
+                        transfer_state,
                         move_dest,
                         context_menu,
                         *favorites_active,
@@ -140,7 +180,7 @@ pub fn run(
                 _ => {}
             }
         }
-        handle_async_messages(receiver, app_state, renderer);
+        handle_async_messages(receiver, app_state, renderer, fs_adapter, transfer_state);
         if clear_expired_notification(app_state, 3000) {
             redraw_current_view(
                 renderer,
@@ -152,6 +192,7 @@ pub fn run(
                 rename_input,
                 new_folder_input,
                 copy_dest,
+                transfer_state,
                 move_dest,
                 context_menu,
                 *favorites_active,
@@ -181,6 +222,7 @@ fn route_input(
     rename_input: &mut Option<Input>,
     new_folder_input: &mut Option<Input>,
     copy_dest: &mut Option<CopyMoveState>,
+    transfer_state: &mut Option<TransferUiState>,
     move_dest: &mut Option<CopyMoveState>,
     context_menu: &mut Option<ContextMenuState>,
     favorites_active: &mut bool,
@@ -191,7 +233,11 @@ fn route_input(
     if context_menu.is_some() {
         match handle_context_menu_input(event, context_menu) {
             ContextMenuResponse::Handled | ContextMenuResponse::Close => {}
-            ContextMenuResponse::Execute { action, target, name } => {
+            ContextMenuResponse::Execute {
+                action,
+                target,
+                name,
+            } => {
                 execute_context_action(
                     action,
                     target,
@@ -218,6 +264,7 @@ fn route_input(
             rename_input,
             new_folder_input,
             copy_dest,
+            transfer_state,
             move_dest,
             context_menu,
             *favorites_active,
@@ -239,6 +286,7 @@ fn route_input(
                 rename_input,
                 new_folder_input,
                 copy_dest,
+                transfer_state,
                 move_dest,
                 context_menu,
                 *favorites_active,
@@ -262,6 +310,7 @@ fn route_input(
         rename_input,
         new_folder_input,
         copy_dest,
+        transfer_state,
         move_dest,
         favorites_active,
         favorites_items,
@@ -278,6 +327,7 @@ fn route_input(
                 rename_input,
                 new_folder_input,
                 copy_dest,
+                transfer_state,
                 move_dest,
                 context_menu,
                 *favorites_active,
@@ -299,6 +349,7 @@ fn route_input(
             rename_input,
             new_folder_input,
             copy_dest,
+            transfer_state,
             move_dest,
             context_menu,
             *favorites_active,
@@ -334,6 +385,7 @@ fn route_input(
                 rename_input,
                 new_folder_input,
                 copy_dest,
+                transfer_state,
                 move_dest,
                 context_menu,
                 *favorites_active,
@@ -362,6 +414,7 @@ fn route_input(
             rename_input,
             new_folder_input,
             copy_dest,
+            transfer_state,
             move_dest,
             context_menu,
             *favorites_active,
@@ -449,11 +502,15 @@ fn handle_modal_overlays(
     rename_input: &mut Option<Input>,
     new_folder_input: &mut Option<Input>,
     copy_dest: &mut Option<CopyMoveState>,
+    transfer_state: &mut Option<TransferUiState>,
     move_dest: &mut Option<CopyMoveState>,
     favorites_active: &mut bool,
     favorites_items: &[String],
     favorites_selected: &mut usize,
 ) -> Option<bool> {
+    if transfer_state.is_some() {
+        return Some(handle_transfer_input(event, transfer_state));
+    }
     if *favorites_active {
         return Some(handle_favorites_input(
             event,
@@ -500,16 +557,37 @@ fn handle_modal_overlays(
         ));
     }
     if rename_input.is_some() {
-        return Some(handle_rename_input(event, rename_input, fs_adapter, app_state));
+        return Some(handle_rename_input(
+            event,
+            rename_input,
+            fs_adapter,
+            app_state,
+        ));
     }
     if new_folder_input.is_some() {
-        return Some(handle_new_folder_input(event, new_folder_input, fs_adapter, app_state));
+        return Some(handle_new_folder_input(
+            event,
+            new_folder_input,
+            fs_adapter,
+            app_state,
+        ));
     }
     if copy_dest.is_some() {
-        return Some(handle_copy_dest_input(event, copy_dest, fs_adapter, app_state));
+        return Some(handle_copy_dest_input(
+            event,
+            copy_dest,
+            transfer_state,
+            sender,
+        ));
     }
     if move_dest.is_some() {
-        return Some(handle_move_dest_input(event, move_dest, fs_adapter, app_state));
+        return Some(handle_move_dest_input(
+            event,
+            move_dest,
+            transfer_state,
+            sender,
+            app_state,
+        ));
     }
     None
 }
@@ -558,6 +636,7 @@ fn redraw_current_view(
     rename_input: &Option<Input>,
     new_folder_input: &Option<Input>,
     copy_dest: &Option<CopyMoveState>,
+    transfer_state: &Option<TransferUiState>,
     move_dest: &Option<CopyMoveState>,
     context_menu: &Option<ContextMenuState>,
     favorites_active: bool,
@@ -588,6 +667,8 @@ fn redraw_current_view(
         overlays::draw_with_copy_dest(renderer, app_state, &state.dest);
     } else if let Some(state) = move_dest.as_ref() {
         overlays::draw_with_move_dest(renderer, app_state, &state.dest);
+    } else if let Some(job) = transfer_state.as_ref() {
+        overlays::draw_with_transfer(renderer, app_state, job);
     } else {
         overlays::draw(renderer, app_state);
     }
@@ -608,6 +689,8 @@ fn handle_async_messages(
     receiver: &Receiver<Message>,
     app_state: &mut AppState,
     renderer: &mut TerminalRenderer,
+    fs_adapter: &StdFileSystem,
+    transfer_state: &mut Option<TransferUiState>,
 ) {
     if let Ok(message) = receiver.try_recv() {
         match message {
@@ -632,6 +715,59 @@ fn handle_async_messages(
                 panel.mode = PanelMode::QuickView(mode);
                 overlays::draw(renderer, app_state);
             }
+            Message::Transfer(event) => {
+                handle_transfer_event(event, app_state, renderer, fs_adapter, transfer_state);
+            }
+        }
+    }
+}
+
+fn handle_transfer_event(
+    event: TransferEvent,
+    app_state: &mut AppState,
+    renderer: &mut TerminalRenderer,
+    fs_adapter: &StdFileSystem,
+    transfer_state: &mut Option<TransferUiState>,
+) {
+    match event {
+        TransferEvent::Progress {
+            current,
+            done,
+            total,
+        } => {
+            if let Some(job) = transfer_state.as_mut() {
+                job.current = current;
+                job.done = done;
+                job.total = total;
+                overlays::draw_with_transfer(renderer, app_state, job);
+            }
+        }
+        TransferEvent::Conflict { path, reply } => {
+            if let Some(job) = transfer_state.as_mut() {
+                job.pending_conflict = Some(PendingConflict { path, reply });
+                overlays::draw_with_transfer(renderer, app_state, job);
+            }
+        }
+        TransferEvent::Done {
+            ok,
+            failed,
+            cancelled,
+        } => {
+            navigate::refresh_entries(fs_adapter, &mut app_state.left_panel);
+            navigate::refresh_entries(fs_adapter, &mut app_state.right_panel);
+            let verb = match transfer_state.as_ref().map(|j| j.kind) {
+                Some(crate::application::use_cases::transfer::TransferKind::Move) => "Moved",
+                _ => "Copied",
+            };
+            let summary = match (cancelled, failed.len()) {
+                (true, 0) => format!("{} cancelled after {} item(s)", verb, ok),
+                (true, n) => format!("{} cancelled after {} item(s), {} failed", verb, ok, n),
+                (false, 0) => format!("{} {} item(s)", verb, ok),
+                (false, n) => format!("{} {} item(s), {} failed", verb, ok, n),
+            };
+            *transfer_state = None;
+            app_state.active_panel_mut().set_notification(summary);
+            overlays::draw(renderer, app_state);
         }
     }
 }

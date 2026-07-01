@@ -1,10 +1,12 @@
 //! Terminal renderer - draws UI to terminal.
 
+use crate::application::use_cases::quick_view::human_size;
 use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode};
 use crate::domain::FileEntry;
+use crate::infrastructure::disk_free_and_total;
 use base64::Engine;
-use crossterm::style::{Color, Print, StyledContent, Stylize};
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
+use crossterm::style::{Color, Print, StyledContent, Stylize};
 use crossterm::terminal::{ClearType, enable_raw_mode};
 use crossterm::{cursor, execute, queue, terminal};
 use image::{GenericImageView, ImageFormat};
@@ -212,23 +214,11 @@ impl TerminalRenderer {
             terminal::Clear(ClearType::UntilNewLine)
         );
         let pw = self.columns.saturating_sub(1) / 2;
-        let lt = truncate(
-            &format!("L  {}", left.current_path.display()),
-            pw as usize,
-        );
-        let rt = truncate(
-            &format!("R  {}", right.current_path.display()),
-            pw as usize,
-        );
+        let lt = truncate(&format!("L  {}", left.current_path.display()), pw as usize);
+        let rt = truncate(&format!("R  {}", right.current_path.display()), pw as usize);
         let (lstyle, rstyle) = match active {
-            ActivePane::Left => (
-                lt.bold().with(Color::White),
-                rt.with(Color::DarkGrey),
-            ),
-            ActivePane::Right => (
-                lt.with(Color::DarkGrey),
-                rt.bold().with(Color::White),
-            ),
+            ActivePane::Left => (lt.bold().with(Color::White), rt.with(Color::DarkGrey)),
+            ActivePane::Right => (lt.with(Color::DarkGrey), rt.bold().with(Color::White)),
         };
         let _ = queue!(
             &mut self.stdout,
@@ -443,12 +433,33 @@ impl TerminalRenderer {
 
     fn draw_footer(&mut self, panel: &PanelState) {
         self.draw_line(self.rows - FOOTER_ROWS);
-        let text = if panel.mode == PanelMode::Filter {
-            format!("Filter: {}", panel.filter_string).with(Color::Green)
+        let row = self.rows - FOOTER_ROWS + 1;
+
+        let (left, color, size_text) = if panel.mode == PanelMode::Filter {
+            (
+                format!("Filter: {}", panel.filter_string),
+                Color::Green,
+                None,
+            )
         } else if matches!(panel.mode, PanelMode::QuickView(_)) {
-            format!("File {} / {}", panel.cursor + 1, panel.entries.len()).with(Color::Green)
+            (
+                format!("File {} / {}", panel.cursor + 1, panel.entries.len()),
+                Color::Green,
+                None,
+            )
         } else if panel.multi_selected_count() > 0 {
-            format!("Selected: {}", panel.multi_selected_count()).with(Color::Yellow)
+            let total: u64 = panel
+                .multi_selected
+                .iter()
+                .filter_map(|&i| panel.entries.get(i))
+                .filter(|e| !e.is_dir())
+                .map(|e| e.size)
+                .sum();
+            (
+                format!("Selected: {}", panel.multi_selected_count()),
+                Color::Yellow,
+                Some(human_size(total)),
+            )
         } else {
             let has_parent = panel
                 .entries
@@ -460,22 +471,38 @@ impl TerminalRenderer {
                 .iter()
                 .filter(|e| e.is_dir() && e.name != "..")
                 .count();
-            format!(
-                "{} dirs, {} files",
-                dirs,
-                panel
-                    .entries
-                    .len()
-                    .saturating_sub(dirs + if has_parent { 1 } else { 0 })
+            let files = panel
+                .entries
+                .len()
+                .saturating_sub(dirs + if has_parent { 1 } else { 0 });
+            let disk_text = disk_free_and_total(&panel.current_path)
+                .map(|(free, total)| format!("{} of {} free", human_size(free), human_size(total)));
+            (
+                format!("{} dirs, {} files", dirs, files),
+                Color::Green,
+                disk_text,
             )
-            .with(Color::Green)
         };
+
         let _ = queue!(
             &mut self.stdout,
-            cursor::MoveTo(0, self.rows - FOOTER_ROWS + 1),
-            Print(text),
-            terminal::Clear(ClearType::UntilNewLine)
+            cursor::MoveTo(0, row),
+            terminal::Clear(ClearType::UntilNewLine),
+            Print(left.clone().with(color)),
         );
+
+        if let Some(size_str) = size_text {
+            let gap = 2usize;
+            let needed = left.len() + gap + size_str.len();
+            if needed <= self.columns as usize {
+                let col = self.columns - size_str.len() as u16;
+                let _ = queue!(
+                    &mut self.stdout,
+                    cursor::MoveTo(col, row),
+                    Print(size_str.with(Color::DarkGrey)),
+                );
+            }
+        }
     }
 
     fn draw_footer_actions(&mut self, mode: &PanelMode) {
@@ -626,7 +653,9 @@ impl TerminalRenderer {
             format!("{}{}{}", " ".repeat(l), s, " ".repeat(pad - l))
         };
         let blank = |s: &mut Self, r: u16| {
-            let _ = queue!(s.stdout, cursor::MoveTo(col, row + r),
+            let _ = queue!(
+                s.stdout,
+                cursor::MoveTo(col, row + r),
                 Print("│".with(border).on(bg)),
                 Print(" ".repeat(IW).on(bg)),
                 Print("│".with(border).on(bg))
@@ -638,40 +667,52 @@ impl TerminalRenderer {
         let bot = format!("╰{}╯", "─".repeat(IW));
 
         macro_rules! mv {
-            ($r:expr) => { cursor::MoveTo(col, row + $r) };
+            ($r:expr) => {
+                cursor::MoveTo(col, row + $r)
+            };
         }
 
         let _ = queue!(&mut self.stdout, mv!(0), Print(top.with(border).on(bg)));
         blank(self, 1);
 
         let title = center("f i s h e z");
-        let _ = queue!(&mut self.stdout, mv!(2),
+        let _ = queue!(
+            &mut self.stdout,
+            mv!(2),
             Print("│".with(border).on(bg)),
             Print(title.bold().with(Color::White).on(bg)),
             Print("│".with(border).on(bg))
         );
 
         let sub = center("a fast terminal file manager");
-        let _ = queue!(&mut self.stdout, mv!(3),
+        let _ = queue!(
+            &mut self.stdout,
+            mv!(3),
             Print("│".with(border).on(bg)),
             Print(sub.with(dim_col).on(bg)),
             Print("│".with(border).on(bg))
         );
 
         blank(self, 4);
-        let _ = queue!(&mut self.stdout, mv!(5), Print(sep.clone().with(border).on(bg)));
+        let _ = queue!(
+            &mut self.stdout,
+            mv!(5),
+            Print(sep.clone().with(border).on(bg))
+        );
         blank(self, 6);
 
         // shortcut rows: 3 + key(11) + desc(18) + key(8) + desc(14) + 2 = 56
         let shortcuts: &[(&str, &str, &str, &str)] = &[
-            ("type a-z",  "filter instantly",  "F3",  "quick view"),
-            ("Enter",     "open",               "F4",  "VS Code"),
-            ("Ctrl+T",    "two-pane mode",      "F8",  "delete"),
-            ("!",         "shell command",      "F1",  "all shortcuts"),
+            ("type a-z", "filter instantly", "F3", "quick view"),
+            ("Enter", "open", "F4", "VS Code"),
+            ("Ctrl+T", "two-pane mode", "F8", "delete"),
+            ("!", "shell command", "F1", "all shortcuts"),
         ];
 
         for (i, (k1, d1, k2, d2)) in shortcuts.iter().enumerate() {
-            let _ = queue!(&mut self.stdout, mv!(7 + i as u16),
+            let _ = queue!(
+                &mut self.stdout,
+                mv!(7 + i as u16),
                 Print("│".with(border).on(bg)),
                 Print("   ".on(bg)),
                 Print(format!("{:<11}", k1).with(key_col).on(bg)),
@@ -684,10 +725,16 @@ impl TerminalRenderer {
         }
 
         blank(self, 11);
-        let _ = queue!(&mut self.stdout, mv!(12), Print(sep.clone().with(border).on(bg)));
+        let _ = queue!(
+            &mut self.stdout,
+            mv!(12),
+            Print(sep.clone().with(border).on(bg))
+        );
 
         let dismiss = center("press any key to start  ·  F10 quit");
-        let _ = queue!(&mut self.stdout, mv!(13),
+        let _ = queue!(
+            &mut self.stdout,
+            mv!(13),
             Print("│".with(border).on(bg)),
             Print(dismiss.with(dim_col).on(bg)),
             Print("│".with(border).on(bg))
@@ -855,6 +902,108 @@ mod tests {
             b"\x1b]1337;ReportCellSize=17.50;8.00;2.0\x07"
         ));
         assert!(!is_iterm_probe_response(b"\x1b]1337;CursorShape=1\x07"));
+    }
+
+    fn entry(name: &str, kind: crate::domain::EntryKind, size: u64) -> FileEntry {
+        FileEntry::new(std::path::PathBuf::from(name), name.to_string(), kind, size)
+    }
+
+    fn file(name: &str, size: u64) -> FileEntry {
+        entry(name, crate::domain::EntryKind::File, size)
+    }
+
+    fn dir(name: &str) -> FileEntry {
+        entry(name, crate::domain::EntryKind::Dir, 0)
+    }
+
+    #[test]
+    fn footer_shows_disk_free_and_total_while_browsing() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 20);
+        let mut panel = PanelState::new();
+        panel.current_path = std::path::PathBuf::from("/");
+        panel.entries = vec![file("a.txt", 1024), dir("subdir/")];
+        renderer.draw_footer(&panel);
+        let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            out.contains(" of ") && out.contains("free"),
+            "expected a disk free/total figure in the footer, got: {out}"
+        );
+        assert!(
+            out.contains("1 dirs, 1 files"),
+            "left-hand dirs/files count must be unaffected, got: {out}"
+        );
+    }
+
+    #[test]
+    fn footer_omits_disk_usage_when_it_cannot_be_determined() {
+        use std::os::unix::ffi::OsStrExt;
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 20);
+        let mut panel = PanelState::new();
+        // A path with an interior NUL byte can't be turned into a CString, so
+        // disk_free_and_total returns None; the footer must just omit the figure.
+        panel.current_path = std::path::PathBuf::from(std::ffi::OsStr::from_bytes(b"/tmp\0bad"));
+        renderer.draw_footer(&panel);
+        let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            !out.contains("free"),
+            "expected no disk usage figure when it can't be determined, got: {out}"
+        );
+    }
+
+    #[test]
+    fn footer_shows_selected_size_instead_of_total_when_multi_selecting() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 20);
+        let mut panel = PanelState::new();
+        panel.entries = vec![
+            file("a.txt", 1024),
+            file("b.txt", 2048),
+            file("c.txt", 4096),
+        ];
+        panel.toggle_multi_selection(0);
+        panel.toggle_multi_selection(1);
+        renderer.draw_footer(&panel);
+        let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            out.contains("3.00 KB"),
+            "expected selected-only total (1KB+2KB), got: {out}"
+        );
+        assert!(
+            !out.contains("7.00 KB"),
+            "whole-directory total must not be used while selecting"
+        );
+    }
+
+    #[test]
+    fn footer_selected_size_excludes_selected_directories() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 20);
+        let mut panel = PanelState::new();
+        panel.entries = vec![file("a.txt", 1024), dir("subdir/")];
+        panel.toggle_multi_selection(0);
+        panel.toggle_multi_selection(1);
+        renderer.draw_footer(&panel);
+        let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            out.contains("1.00 KB"),
+            "expected selected directory excluded from total, got: {out}"
+        );
+    }
+
+    #[test]
+    fn footer_omits_size_when_terminal_too_narrow() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(10, 20);
+        let mut panel = PanelState::new();
+        panel.current_path = std::path::PathBuf::from("/");
+        panel.entries = vec![file("a.txt", 1024)];
+        renderer.draw_footer(&panel);
+        let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            out.contains("0 dirs, 1 files"),
+            "expected left-hand text intact, got: {out}"
+        );
+        assert!(
+            !out.contains("free"),
+            "size must be omitted rather than corrupting a too-narrow line, got: {out}"
+        );
     }
 
     fn tiny_png() -> Vec<u8> {

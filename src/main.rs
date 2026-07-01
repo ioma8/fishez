@@ -14,12 +14,12 @@ use application::use_cases::navigate;
 use infrastructure::{
     StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, load_favorites,
 };
-use presentation::input_handler::{CopyMoveState, ContextMenuState, Message};
-use tui_input::Input;
+use presentation::input_handler::{ContextMenuState, CopyMoveState, Message, TransferUiState};
 use presentation::{TerminalRenderer, overlays, run};
 use std::env;
 use std::path::PathBuf;
 use std::sync::mpsc;
+use tui_input::Input;
 
 fn main() {
     setup_panic_handler();
@@ -53,6 +53,7 @@ fn main() {
     let mut rename_input: Option<Input> = None;
     let mut new_folder_input: Option<Input> = None;
     let mut copy_dest: Option<CopyMoveState> = None;
+    let mut transfer_state: Option<TransferUiState> = None;
     let mut move_dest: Option<CopyMoveState> = None;
     let mut context_menu: Option<ContextMenuState> = None;
     let mut favorites_active = false;
@@ -79,6 +80,7 @@ fn main() {
         &mut rename_input,
         &mut new_folder_input,
         &mut copy_dest,
+        &mut transfer_state,
         &mut move_dest,
         &mut context_menu,
         &mut favorites_active,

@@ -1,13 +1,14 @@
 //! Terminal overlays - modal prompts and dialogs.
 
 use crate::application::AppState;
-use crate::presentation::input_handler::ContextMenuState;
+use crate::application::use_cases::transfer::TransferKind;
+use crate::presentation::input_handler::{ContextMenuState, TransferUiState};
 use crate::presentation::{FOOTER_ROWS, HEADER_ROWS, TerminalRenderer};
 use crossterm::style::{Color, Print, Stylize};
 use crossterm::terminal::ClearType;
 use crossterm::{cursor, queue, terminal};
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tui_input::Input;
 
 /// Draw the main UI based on state.
@@ -54,6 +55,67 @@ fn draw_delete_prompt(renderer: &mut TerminalRenderer, paths: &[PathBuf]) {
     let _ = std::io::stdout().flush();
 }
 
+/// Draw with an in-progress transfer overlay: progress line, or a conflict prompt on top of it.
+pub fn draw_with_transfer(
+    renderer: &mut TerminalRenderer,
+    state: &AppState,
+    job: &TransferUiState,
+) {
+    draw(renderer, state);
+    match &job.pending_conflict {
+        Some(conflict) => draw_conflict_prompt(renderer, &conflict.path),
+        None => draw_transfer_progress(renderer, job),
+    }
+}
+
+fn draw_transfer_progress(renderer: &mut TerminalRenderer, job: &TransferUiState) {
+    let verb = match job.kind {
+        TransferKind::Copy => "Copying",
+        TransferKind::Move => "Moving",
+    };
+    let name = job
+        .current
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let suffix = if job.cancelling {
+        "  [cancelling...]"
+    } else {
+        "  [esc to cancel]"
+    };
+    let prompt = format!(
+        "{} {} of {}: {}{}",
+        verb,
+        job.done,
+        job.total.max(job.done),
+        name,
+        suffix
+    );
+    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
+    let _ = queue!(
+        renderer.writer(),
+        cursor::MoveTo(0, prompt_row),
+        terminal::Clear(ClearType::UntilNewLine),
+        Print(prompt.cyan().bold()),
+    );
+    let _ = std::io::stdout().flush();
+}
+
+fn draw_conflict_prompt(renderer: &mut TerminalRenderer, path: &Path) {
+    let prompt = format!(
+        "{} already exists: (O)verwrite  (S)kip  Overwrite (A)ll  Skip a(L)l  (Esc) Cancel",
+        path.display()
+    );
+    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
+    let _ = queue!(
+        renderer.writer(),
+        cursor::MoveTo(0, prompt_row),
+        terminal::Clear(ClearType::UntilNewLine),
+        Print(prompt.red().bold()),
+    );
+    let _ = std::io::stdout().flush();
+}
+
 /// Draw with find prompt overlay.
 pub fn draw_with_find(renderer: &mut TerminalRenderer, state: &AppState, filter: Option<&Input>) {
     draw(renderer, state);
@@ -75,11 +137,7 @@ pub fn draw_with_ripgrep(
 }
 
 /// Draw with shell command prompt overlay.
-pub fn draw_with_shell(
-    renderer: &mut TerminalRenderer,
-    state: &AppState,
-    command: Option<&Input>,
-) {
+pub fn draw_with_shell(renderer: &mut TerminalRenderer, state: &AppState, command: Option<&Input>) {
     draw(renderer, state);
     if let Some(c) = command {
         draw_input_prompt(renderer, "!", c);
@@ -138,7 +196,8 @@ fn draw_input_prompt(renderer: &mut TerminalRenderer, label: &str, input: &Input
     );
     match cur_ch {
         Some(ch) => {
-            let _ = queue!(renderer.writer(),
+            let _ = queue!(
+                renderer.writer(),
                 Print(ch.to_string().black().on_cyan()),
                 Print(rest.cyan().bold()),
             );
@@ -164,7 +223,11 @@ pub fn draw_context_menu(renderer: &mut TerminalRenderer, ctx: &ContextMenuState
     let top = format!("┌{}┐", "─".repeat(width as usize - 2));
     let bot = format!("└{}┘", "─".repeat(width as usize - 2));
 
-    let _ = queue!(renderer.writer(), cursor::MoveTo(col, row), Print(top.clone().white()));
+    let _ = queue!(
+        renderer.writer(),
+        cursor::MoveTo(col, row),
+        Print(top.clone().white())
+    );
 
     for (i, label) in labels.iter().enumerate() {
         let content = format!(" {:<width$} ", label, width = width as usize - 4);
@@ -180,7 +243,11 @@ pub fn draw_context_menu(renderer: &mut TerminalRenderer, ctx: &ContextMenuState
         );
     }
 
-    let _ = queue!(renderer.writer(), cursor::MoveTo(col, row + height - 1), Print(bot.white()));
+    let _ = queue!(
+        renderer.writer(),
+        cursor::MoveTo(col, row + height - 1),
+        Print(bot.white())
+    );
     let _ = std::io::stdout().flush();
 }
 

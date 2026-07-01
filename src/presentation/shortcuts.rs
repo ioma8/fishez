@@ -4,8 +4,8 @@ use crate::application::{AppState, PanelMode};
 use crate::infrastructure::{VsCodeAdapter, add_favorite};
 use crate::presentation::input_handler::CopyMoveState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use tui_input::Input;
 use std::path::PathBuf;
+use tui_input::Input;
 
 /// Handle feature shortcuts.
 #[allow(clippy::too_many_arguments)]
@@ -28,7 +28,14 @@ pub fn handle(
     if let Some(needs_redraw) = handle_delete(event, app_state, delete_paths) {
         return Some(needs_redraw);
     }
-    if let Some(needs_redraw) = handle_file_ops(event, app_state, rename_input, new_folder_input, copy_dest, move_dest) {
+    if let Some(needs_redraw) = handle_file_ops(
+        event,
+        app_state,
+        rename_input,
+        new_folder_input,
+        copy_dest,
+        move_dest,
+    ) {
         return Some(needs_redraw);
     }
     if let Some(needs_redraw) = handle_search(event, find_filter, ripgrep_filter, shell_command) {

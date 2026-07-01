@@ -47,8 +47,8 @@ fishez --two-pane
 | **Navigate** | `↑↓` / `Enter` / `Backspace` | Move through directories instantly |
 | **Quick View** | `F3` | Preview files with syntax highlighting |
 | **Multi-select** | `Space` | Batch operations on multiple files |
-| **Copy** | `F5` | Copy selected file(s) to opposite pane or prompted destination |
-| **Move** | `F6` | Move selected file(s) to opposite pane or prompted destination |
+| **Copy** | `F5` | Copy selected file(s) to opposite pane or prompted destination, with background progress and overwrite prompts |
+| **Move** | `F6` | Move selected file(s) to opposite pane or prompted destination, with background progress and overwrite prompts |
 | **Rename** | `Shift+F6` | Inline rename of file or directory under cursor |
 | **New Folder** | `F7` | Create a new directory in current pane |
 | **Delete** | `F8` / `Ctrl+W` | Move to trash (safe delete) |
@@ -63,6 +63,10 @@ fishez --two-pane
 ### Dual-Pane Mode
 
 Run with `-2` or `--two-pane` for a split view. Press `Tab` to switch focus between panels — perfect for comparing directories or moving files.
+
+### Safe Copy & Move
+
+Copy (`F5`) and move (`F6`) run in the background, so the UI stays responsive during large transfers — a progress line shows the current file and how many are done. If a destination file already exists, fishez pauses and asks: **(O)verwrite**, **(S)kip**, **Overwrite (A)ll**, **Skip a(L)l**, or **(Esc)** to cancel the whole transfer. Copying or moving a directory onto an existing one merges the two instead of silently replacing it. Press `Esc` at any time to stop a transfer after the current file.
 
 ## 💪 Why fishez?
 
