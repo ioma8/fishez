@@ -456,6 +456,11 @@ impl TerminalRenderer {
                         human_size(total)
                     )
                 }
+                // The selection total is usually much smaller than the whole-directory
+                // total and resolves first; show it without waiting on the slower one.
+                (SizeFigure::Ready(selected), _) => {
+                    format!("Selected: {}", human_size(selected))
+                }
                 _ => format!("Selected: {}", panel.multi_selected_count()),
             };
             (text, Color::Yellow, None)
@@ -989,6 +994,28 @@ mod tests {
         assert!(
             !out.contains(" of "),
             "must not show a partial size string, got: {out}"
+        );
+    }
+
+    #[test]
+    fn footer_shows_selected_size_alone_before_dir_total_is_ready() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 20);
+        let mut panel = PanelState::new();
+        panel.entries = vec![file("a.txt", 1024), file("b.txt", 2048)];
+        panel.toggle_multi_selection(0);
+        panel.toggle_multi_selection(1);
+        // Selection total resolved (usually the fast one); dir total is still computing
+        // (e.g. a huge directory). The selection size should show without waiting.
+        panel.selection_total = SizeFigure::Ready(3 * 1024);
+        renderer.draw_footer(&panel);
+        let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            out.contains("Selected: 3.00 KB"),
+            "expected the selected size shown alone, got: {out}"
+        );
+        assert!(
+            !out.contains(" of "),
+            "must not show a denominator before it's ready, got: {out}"
         );
     }
 

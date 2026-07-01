@@ -1,7 +1,7 @@
 //! Application state - holds the current state of the application.
 
 use crate::domain::FileEntry;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -52,6 +52,10 @@ pub struct PanelState {
     pub selection_total: SizeFigure,
     pub selection_total_generation: u64,
     pub selection_cancel: Option<Arc<AtomicBool>>,
+    /// Session-lifetime cache of already-computed directory totals, keyed by path, so
+    /// revisiting a directory shows its real size instantly instead of recomputing.
+    /// Can go stale if the directory's contents change between visits.
+    pub dir_total_cache: HashMap<PathBuf, u64>,
 }
 
 impl Default for PanelState {
@@ -78,6 +82,7 @@ impl PanelState {
             selection_total: SizeFigure::Idle,
             selection_total_generation: 0,
             selection_cancel: None,
+            dir_total_cache: HashMap::new(),
         }
     }
 

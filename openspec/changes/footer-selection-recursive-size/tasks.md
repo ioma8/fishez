@@ -52,3 +52,14 @@ Found during manual verification: on a real directory containing ~20 large proje
 - [x] 8.3 Update tests: byte-exact assertions moved to exercise `total_size_fallback` directly (`du` reports block-rounded disk usage, not exact byte sums); added tests for the public `total_size` entrypoint (at-least-apparent-size, empty roots, up-front cancellation)
 - [x] 8.4 Verified against the real reported directory (`/Users/jakubkolcar/projects/customs`, ~124 GB): resolves in ~11s via `du`, versus not finishing within minutes via the old pure-Rust walk
 - [x] 8.5 `cargo check` / `cargo clippy --all-targets --all-features` / `cargo test` / `cargo fmt` all clean
+
+## 9. Further speed-up: investigated OS shortcuts, parallelized `du`, added path caching
+
+`du` alone was still ~11s on the ~124 GB reported directory, which the user still found too slow ("I want it to be instant").
+
+- [x] 9.1 Investigated Spotlight (`mdfind`) as a near-instant OS-level shortcut; empirically rejected — found only 76 of 222 real files in a small test project (build artifacts under-indexed), and it doesn't provide a pre-aggregated size sum, so it would be neither fast nor correct
+- [x] 9.2 Parallelized `total_size_via_du`: split `roots` into `available_parallelism()` chunks and run one `du` process per chunk concurrently (all-or-nothing spawn — any chunk failing to spawn aborts and falls back to `total_size_fallback` for everything), instead of one sequential `du` process handling all roots — cut the reported directory from ~11s to ~5s
+- [x] 9.3 Added `PanelState.dir_total_cache: HashMap<PathBuf, u64>` — a session-lifetime, path-keyed cache of computed directory totals. `refresh_entries` now restores `SizeFigure::Ready` immediately when revisiting an already-computed path (only resetting to `Idle` for genuinely new paths); `apply_dir_total_result` populates the cache when a fresh result lands. Makes repeat visits to the same directory within a session instant; can go stale if the directory's contents change between visits (documented trade-off, no auto-invalidation)
+- [x] 9.4 Decoupled the footer's two figures: shows `"Selected: {size}"` as soon as the (usually much faster) selection total is ready, appending `" of {total}"` only once the whole-directory total also resolves, instead of blocking on both together
+- [x] 9.5 New/updated tests: parallel `du` covered by existing `total_size` tests (implementation detail, same public behavior); cache hit/miss-by-path tests in `navigate.rs`; cache-population test for `apply_dir_total_result`; footer test for the selection-alone partial display
+- [x] 9.6 `cargo check` / `cargo clippy --all-targets --all-features` / `cargo test` (168 passing) / `cargo fmt` all clean

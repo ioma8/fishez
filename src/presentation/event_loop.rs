@@ -754,6 +754,9 @@ fn handle_async_messages(
 fn apply_dir_total_result(panel: &mut PanelState, generation: u64, total: u64) -> bool {
     if panel.dir_total_generation == generation {
         panel.dir_total = SizeFigure::Ready(total);
+        panel
+            .dir_total_cache
+            .insert(panel.current_path.clone(), total);
         true
     } else {
         false
@@ -864,6 +867,18 @@ mod tests {
         panel.dir_total_generation = 3;
         assert!(apply_dir_total_result(&mut panel, 3, 12345));
         assert_eq!(panel.dir_total, SizeFigure::Ready(12345));
+    }
+
+    #[test]
+    fn dir_total_result_populates_the_path_cache() {
+        let mut panel = PanelState::new();
+        panel.current_path = std::path::PathBuf::from("/some/dir");
+        panel.dir_total_generation = 1;
+        assert!(apply_dir_total_result(&mut panel, 1, 42));
+        assert_eq!(
+            panel.dir_total_cache.get(std::path::Path::new("/some/dir")),
+            Some(&42)
+        );
     }
 
     #[test]

@@ -8,7 +8,10 @@ use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 /// Refreshes the panel entries from the file system.
 pub fn refresh_entries(fs: &dyn FileSystemPort, panel: &mut PanelState) {
     panel.clear_multi_selection();
-    panel.dir_total = SizeFigure::Idle;
+    panel.dir_total = match panel.dir_total_cache.get(&panel.current_path) {
+        Some(&cached) => SizeFigure::Ready(cached),
+        None => SizeFigure::Idle,
+    };
     panel.dir_total_generation += 1;
     panel.entries.clear();
 
@@ -380,6 +383,32 @@ mod tests {
         refresh_entries(&fs, &mut panel);
         assert_eq!(panel.dir_total, SizeFigure::Idle);
         assert_eq!(panel.dir_total_generation, 8);
+    }
+
+    #[test]
+    fn test_refresh_entries_restores_cached_dir_total_for_a_revisited_path() {
+        let fs = MockFileSystem::with_entries(create_test_entries());
+        let mut panel = PanelState::new();
+        panel.current_path = PathBuf::from("/home/user");
+        panel
+            .dir_total_cache
+            .insert(PathBuf::from("/home/user"), 999_999);
+        // No prior Ready value on the panel itself - simulates arriving fresh at a
+        // path this session has already computed a total for.
+        refresh_entries(&fs, &mut panel);
+        assert_eq!(panel.dir_total, SizeFigure::Ready(999_999));
+    }
+
+    #[test]
+    fn test_refresh_entries_does_not_use_cache_from_a_different_path() {
+        let fs = MockFileSystem::with_entries(create_test_entries());
+        let mut panel = PanelState::new();
+        panel
+            .dir_total_cache
+            .insert(PathBuf::from("/some/other/dir"), 999_999);
+        panel.current_path = PathBuf::from("/home/user");
+        refresh_entries(&fs, &mut panel);
+        assert_eq!(panel.dir_total, SizeFigure::Idle);
     }
 
     #[test]
