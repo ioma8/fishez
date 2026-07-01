@@ -27,11 +27,42 @@ Six independent items, ordered by ROI. Each is self-contained and can be impleme
 
 **Goal:** F4 opens the file in `$EDITOR` if set, else VS Code (current behavior).
 
-- `src/infrastructure/open_adapter.rs`, `VsCodeAdapter::open` (rename adapter to `EditorAdapter`; keep the variable name in `main.rs` or rename — mechanical): at the top, if `env::var("EDITOR")` is set and non-empty, run it. Terminal editors (vim, nvim, hx, nano, emacs -nw) must take over the TTY, so this is not `spawn()`:
-  - Suspend the TUI: the event loop must handle this — the simplest correct route is a new `Message`/return path that tells the presentation layer to `disable_raw_mode` + leave alternate screen, run `Command::new(editor).arg(path).status()` (blocking), then re-enter alternate screen + `enable_raw_mode` + full redraw. Follow the same pattern the shell-command (`!`) feature already uses for running external commands — reuse its suspend/resume code if it has one; if `!` runs without suspending, add one shared `fn run_in_terminal(cmd: &mut Command, renderer: &mut TerminalRenderer)` used by both.
-  - `$EDITOR` may contain arguments (`"code -w"`): split on whitespace, first token is the program.
-- If `$EDITOR` unset: keep existing VS Code branches unchanged.
-- Test: unit test for the `$EDITOR` parsing (split program/args); manual check with `EDITOR=vim` and unset.
+Key fact: fishez never enters the alternate screen — the renderer only does `enable_raw_mode()` + `EnableMouseCapture` (`renderer.rs:111-112`), and `reset_terminal()` (`renderer.rs:137`) already does the full teardown (show cursor, clear, disable raw mode, disable mouse capture, flush). So suspend/resume is trivial. Also verified: the `ctrlc` crate is declared in Cargo.toml but unused in src — no SIGINT handler conflicts with a child editor (drop the dead dependency while here).
+
+- `src/presentation/terminal/renderer.rs`: add
+  ```rust
+  pub fn suspend<T>(&mut self, f: impl FnOnce() -> T) -> T {
+      self.reset_terminal();
+      let result = f();
+      let _ = enable_raw_mode();
+      let _ = execute!(std::io::stdout(), EnableMouseCapture);
+      if let Ok((c, r)) = terminal::size() { self.update_size(c, r); } // editor may have been resized
+      self.kitty_image_hash = None; // force image re-transmit
+      result
+  }
+  ```
+- `src/infrastructure/open_adapter.rs`: add
+  ```rust
+  pub fn editor_command() -> Option<Vec<String>> {
+      let e = std::env::var("EDITOR").ok()?;
+      let parts: Vec<String> = e.split_whitespace().map(String::from).collect();
+      (!parts.is_empty()).then_some(parts) // handles EDITOR="code -w"
+  }
+  ```
+- Call sites (F4 key handler and `ContextMenuAction::OpenVsCode` at `event_loop.rs:471`): thread `&mut TerminalRenderer` into the context-menu handler (`event_loop.rs:436` doesn't receive it yet; the run loop has it — mechanical param addition), then:
+  ```rust
+  if let Some(ed) = editor_command() {
+      renderer.suspend(|| {
+          let _ = Command::new(&ed[0]).args(&ed[1..]).arg(&target).status();
+      });
+      overlays::draw(renderer, app_state);
+  } else {
+      vscode_adapter.open(&target); // unchanged fallback
+  }
+  ```
+  `status()` (not `spawn()`) is essential: child inherits the TTY and blocks until exit, which is what terminal editors expect. GUI editors work too (`code -w` blocks; plain `code` returns instantly and we redraw).
+- If `$EDITOR` unset/empty: existing VS Code branches unchanged.
+- Test: unit test `editor_command` parsing (unset → None, `"vim"` → `["vim"]`, `"code -w"` → `["code","-w"]`, empty → None; use a serialized env-var guard or pass the string in and wrap env lookup thinly). Manual check with `EDITOR=vim`, `EDITOR="code -w"`, and unset.
 
 ## 3a. Hidden-files toggle (Ctrl+H)
 
