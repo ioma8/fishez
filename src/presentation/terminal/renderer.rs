@@ -175,7 +175,13 @@ impl TerminalRenderer {
             self.draw(state);
             return;
         }
-        self.draw_dual_header(&state.left_panel, &state.right_panel, state.active_pane);
+        let reserve = self.header_right_reserve(state.active_panel());
+        self.draw_dual_header(
+            &state.left_panel,
+            &state.right_panel,
+            state.active_pane,
+            reserve,
+        );
         self.draw_system_header(state.active_panel());
         self.draw_files_two_panes(&state.left_panel, &state.right_panel, state.active_pane);
         self.draw_footer(state.active_panel());
@@ -189,16 +195,32 @@ impl TerminalRenderer {
         let _ = self.stdout.flush();
     }
 
+    /// Text drawn right-aligned on the header row, and whether it is a notification.
+    /// Capped to half the terminal width so the path always keeps some room.
+    fn header_right_label(&self, panel: &PanelState) -> (String, bool) {
+        match &panel.notification {
+            Some(n) => (truncate(n, (self.columns as usize) / 2), true),
+            None => ("FISHEZ".to_string(), false),
+        }
+    }
+
+    /// Columns of the header row that the right label occupies, plus one gap column.
+    fn header_right_reserve(&self, panel: &PanelState) -> usize {
+        self.header_right_label(panel).0.chars().count() + 1
+    }
+
     fn draw_header(&mut self, panel: &PanelState) {
-        let left = if matches!(panel.mode, PanelMode::QuickView(_)) {
+        let text = if matches!(panel.mode, PanelMode::QuickView(_)) {
             if panel.cursor < panel.entries.len() {
-                format!("Viewing: {}", &panel.entries[panel.cursor].name).with(Color::Cyan)
+                format!("Viewing: {}", &panel.entries[panel.cursor].name)
             } else {
-                "Viewing".to_string().with(Color::Cyan)
+                "Viewing".to_string()
             }
         } else {
-            format!("PWD: {}", panel.current_path.display()).with(Color::Cyan)
+            format!("PWD: {}", panel.current_path.display())
         };
+        let width = (self.columns as usize).saturating_sub(self.header_right_reserve(panel));
+        let left = truncate(&text, width).with(Color::Cyan);
         let _ = queue!(
             &mut self.stdout,
             cursor::MoveTo(0, 0),
@@ -207,15 +229,24 @@ impl TerminalRenderer {
         );
     }
 
-    fn draw_dual_header(&mut self, left: &PanelState, right: &PanelState, active: ActivePane) {
+    fn draw_dual_header(
+        &mut self,
+        left: &PanelState,
+        right: &PanelState,
+        active: ActivePane,
+        reserve: usize,
+    ) {
         let _ = queue!(
             &mut self.stdout,
             cursor::MoveTo(0, 0),
             terminal::Clear(ClearType::UntilNewLine)
         );
         let pw = self.columns.saturating_sub(1) / 2;
+        let right_width = (self.columns as usize)
+            .saturating_sub(pw as usize + 1)
+            .saturating_sub(reserve);
         let lt = truncate(&format!("L  {}", left.current_path.display()), pw as usize);
-        let rt = truncate(&format!("R  {}", right.current_path.display()), pw as usize);
+        let rt = truncate(&format!("R  {}", right.current_path.display()), right_width);
         let (lstyle, rstyle) = match active {
             ActivePane::Left => (lt.bold().with(Color::White), rt.with(Color::DarkGrey)),
             ActivePane::Right => (lt.with(Color::DarkGrey), rt.bold().with(Color::White)),
@@ -230,20 +261,17 @@ impl TerminalRenderer {
     }
 
     fn draw_system_header(&mut self, panel: &PanelState) {
-        let mut right = panel
-            .notification
-            .clone()
-            .map(|n| n.on(Color::DarkMagenta))
-            .unwrap_or_else(|| "FISHEZ".to_string().with(Color::Cyan));
-        let max_width = self.columns as usize;
-        if right.content().len() > max_width {
-            let truncated: String = right.content().chars().take(max_width).collect();
-            right = right.style().apply(truncated);
-        }
+        let (label, is_notification) = self.header_right_label(panel);
+        let width = label.chars().count() as u16;
+        let styled = if is_notification {
+            label.on(Color::DarkMagenta)
+        } else {
+            label.with(Color::Cyan)
+        };
         let _ = queue!(
             &mut self.stdout,
-            cursor::MoveTo(self.columns.saturating_sub(right.content().len() as u16), 0),
-            Print(right)
+            cursor::MoveTo(self.columns.saturating_sub(width), 0),
+            Print(styled)
         );
         self.draw_line(1);
     }
@@ -789,6 +817,58 @@ impl TerminalRenderer {
 mod tests {
     use super::*;
     use crate::application::{AppState, PanelMode, QuickViewMode};
+
+    #[test]
+    fn header_path_is_truncated_to_leave_room_for_right_label() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(40, 20);
+        let mut state = AppState::new(false);
+        state.left_panel.current_path =
+            std::path::PathBuf::from("/very/long/path/that/exceeds/forty/columns/for/sure");
+        renderer.draw(&state);
+        let s = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            !s.contains("for/sure"),
+            "long path should be truncated so the FISHEZ label has room"
+        );
+    }
+
+    #[test]
+    fn dual_header_right_path_is_truncated_under_notification() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(60, 20);
+        let mut state = AppState::new(true);
+        state.right_panel.current_path =
+            std::path::PathBuf::from("/some/really/long/right/pane/path/beyond/half");
+        state.left_panel.set_notification("Copied 2 files".to_string());
+        renderer.draw_two_panes(&state);
+        let s = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            s.contains("Copied 2 files"),
+            "notification should be rendered"
+        );
+        // right half budget: 60 cols - 30 (right half start) - 15 (label + gap) = 15 chars
+        assert!(
+            s.contains("R  /some/reall…"),
+            "right pane path should be truncated to its 15-column budget"
+        );
+        assert!(
+            !s.contains("R  /some/really"),
+            "right pane path must stop before the notification region"
+        );
+    }
+
+    #[test]
+    fn notification_is_positioned_by_char_count_not_bytes() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(40, 20);
+        let mut state = AppState::new(false);
+        // 11 chars but 13 bytes; byte-based positioning would start 2 columns early
+        state.left_panel.set_notification("Zkopírováno".to_string());
+        renderer.draw(&state);
+        let s = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            s.contains("\x1b[1;30H") && s.contains("Zkopírováno"),
+            "notification should start at column 40 - 11 chars = ANSI col 30"
+        );
+    }
 
     #[test]
     fn quick_view_image_clears_previous_content() {

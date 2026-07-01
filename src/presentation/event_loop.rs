@@ -53,6 +53,23 @@ pub fn run(
     loop {
         if app_state.show_onboarding && onboarding_start.elapsed() > Duration::from_secs(2) {
             app_state.show_onboarding = false;
+            redraw_current_view(
+                renderer,
+                app_state,
+                delete_paths,
+                find_filter,
+                ripgrep_filter,
+                shell_command,
+                rename_input,
+                new_folder_input,
+                copy_dest,
+                transfer_state,
+                move_dest,
+                context_menu,
+                *favorites_active,
+                favorites_items,
+                *favorites_selected,
+            );
         }
         if event::poll(std::time::Duration::from_millis(100)).unwrap() {
             match event::read().unwrap() {
