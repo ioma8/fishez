@@ -57,8 +57,44 @@ pub fn run(
         if event::poll(std::time::Duration::from_millis(100)).unwrap() {
             match event::read().unwrap() {
                 Event::Key(ev) if ev.kind == event::KeyEventKind::Press => {
-                    app_state.show_onboarding = false;
-                    if is_quit(ev) {
+                    if app_state.show_onboarding {
+                        app_state.show_onboarding = false;
+                        redraw_current_view(
+                            renderer,
+                            app_state,
+                            delete_paths,
+                            find_filter,
+                            ripgrep_filter,
+                            shell_command,
+                            rename_input,
+                            new_folder_input,
+                            copy_dest,
+                            transfer_state,
+                            move_dest,
+                            context_menu,
+                            *favorites_active,
+                            favorites_items,
+                            *favorites_selected,
+                        );
+                        continue;
+                    }
+                    if is_quit(ev)
+                        || should_quit_with_escape(
+                            ev,
+                            app_state,
+                            delete_paths,
+                            find_filter,
+                            ripgrep_filter,
+                            shell_command,
+                            rename_input,
+                            new_folder_input,
+                            copy_dest,
+                            transfer_state,
+                            move_dest,
+                            context_menu,
+                            *favorites_active,
+                        )
+                    {
                         renderer.reset_terminal();
                         exit(0);
                     }
@@ -201,6 +237,39 @@ pub fn run(
             );
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn should_quit_with_escape(
+    event: KeyEvent,
+    app_state: &AppState,
+    delete_paths: &Option<Vec<PathBuf>>,
+    find_filter: &Option<Input>,
+    ripgrep_filter: &Option<Input>,
+    shell_command: &Option<Input>,
+    rename_input: &Option<Input>,
+    new_folder_input: &Option<Input>,
+    copy_dest: &Option<CopyMoveState>,
+    transfer_state: &Option<TransferUiState>,
+    move_dest: &Option<CopyMoveState>,
+    context_menu: &Option<ContextMenuState>,
+    favorites_active: bool,
+) -> bool {
+    event.code == KeyCode::Esc
+        && !app_state.show_help
+        && delete_paths.is_none()
+        && find_filter.is_none()
+        && ripgrep_filter.is_none()
+        && shell_command.is_none()
+        && rename_input.is_none()
+        && new_folder_input.is_none()
+        && copy_dest.is_none()
+        && transfer_state.is_none()
+        && move_dest.is_none()
+        && context_menu.is_none()
+        && !favorites_active
+        && app_state.active_panel().multi_selected_count() == 0
+        && matches!(app_state.active_panel().mode, PanelMode::Normal)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -907,5 +976,48 @@ mod tests {
         // A result for a superseded selection (the user toggled again before this arrived).
         assert!(!apply_selection_total_result(&mut panel, 4, 999));
         assert_eq!(panel.selection_total, SizeFigure::Computing(5));
+    }
+
+    #[test]
+    fn esc_quits_from_clean_normal_state() {
+        let state = AppState::new(false);
+
+        assert!(should_quit_with_escape(
+            KeyEvent::from(KeyCode::Esc),
+            &state,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            false,
+        ));
+    }
+
+    #[test]
+    fn esc_does_not_quit_while_filtering() {
+        let mut state = AppState::new(false);
+        state.active_panel_mut().mode = PanelMode::Filter;
+
+        assert!(!should_quit_with_escape(
+            KeyEvent::from(KeyCode::Esc),
+            &state,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            false,
+        ));
     }
 }

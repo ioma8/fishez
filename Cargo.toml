@@ -5,10 +5,8 @@ edition = "2024"
 
 [dependencies]
 base64 = "0.22.1"
-clipboard = "0.5.0"
 crossterm = "0.28.1"
 tui-input = { version = "0.10", features = ["crossterm"] }
-ctrlc = "3.4.5"
 image = "0.25.5"
 iterm2img = "0.1.0"
 libc = "0.2"
@@ -18,4 +16,4 @@ textwrap = "0.16.2"
 trash = "5.2.0"
 tree_magic_mini = "3.1.6"
 jpgfromrawlib = { package = "jpgfromraw", git = "https://github.com/ioma8/jpgfromrawlib" }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt"] }
