@@ -12,6 +12,8 @@
 
 Navigate files at the speed of thought. Preview code with syntax highlighting. Search instantly with ripgrep. Open in VS Code with one keystroke.
 
+<img src="demo.gif" alt="fishez demo" width="900" />
+
 </div>
 
 ## 🚀 Quick Start
@@ -32,9 +34,9 @@ fishez is a keyboard-driven terminal file manager for developers who live in the
 | Feature | Shortcut | Description |
 |---------|----------|-------------|
 | **Navigate** | `↑↓` / `Enter` / `Backspace` | Move through directories instantly |
-| **Quick View** | `F3` | Preview files with syntax highlighting |
+| **Quick View** | `F3` / `Ctrl+P` | Preview files with syntax highlighting |
 | **Multi-select** | `Space` | Batch operations on multiple files |
-| **Copy** | `F5` | Copy selected file(s) to opposite pane or prompted destination, with background progress and overwrite prompts |
+| **Copy** | `F5` / `Ctrl+Y` | Copy selected file(s) to opposite pane or prompted destination, with background progress and overwrite prompts |
 | **Move** | `F6` | Move selected file(s) to opposite pane or prompted destination, with background progress and overwrite prompts |
 | **Rename** | `Shift+F6` | Inline rename of file or directory under cursor |
 | **New Folder** | `F7` | Create a new directory in current pane |
@@ -118,11 +120,11 @@ sudo pacman -S fd ripgrep
 ```
 Navigation                    File Operations
 ─────────────────────────     ─────────────────────────
-↑/↓         Move cursor       F5          Copy selected
+↑/↓         Move cursor       F5/Ctrl+Y   Copy selected
 Home/End    Jump to start/end F6          Move selected
 Tab         Switch pane       Shift+F6    Rename
                               F7          New folder
-Quick View (F3)               F8/Ctrl+W   Delete selected
+Quick View (F3 / Ctrl+P)      F8/Ctrl+W   Delete selected
 ─────────────────────────
 ↑/↓         Scroll content    Actions
 ←/→         Prev/next file    ─────────────────────────
@@ -163,6 +165,19 @@ cargo test      # Run tests
 ```
 
 Additional docs live under [`docs/`](docs).
+
+### Regenerating the demo GIF
+
+The README demo is a scripted [vhs](https://github.com/charmbracelet/vhs) recording, so it can be re-recorded any time the UI changes:
+
+```bash
+brew install vhs ttyd          # recording tools
+cargo build --release
+eval "$(scripts/demo_setup.sh)"   # stages the demo project, exports FISHEZ_DEMO_DIR
+FISHEZ_BIN=/tmp/fishez_target/release/fishez vhs demo.tape   # target dir is set in .cargo/config.toml
+```
+
+This rewrites `demo.gif`. Note: vhs cannot send F-keys, which is why `demo.tape` uses the `Ctrl+P` / `Ctrl+Y` aliases.
 
 ### CI Integration Tests
 
