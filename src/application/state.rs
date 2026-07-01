@@ -3,7 +3,19 @@
 use crate::domain::FileEntry;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
+
+/// A recursively-computed size figure that may still be in flight on a background thread.
+/// The `u64` in `Computing` is the generation token: a result only applies if it matches
+/// the panel's current generation counter for that figure, discarding stale results.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SizeFigure {
+    Idle,
+    Computing(u64),
+    Ready(u64),
+}
 
 /// The mode of the panel view.
 #[derive(Debug, Clone, PartialEq)]
@@ -35,6 +47,11 @@ pub struct PanelState {
     pub notification: Option<String>,
     pub notification_created: Instant,
     pub multi_selected: HashSet<usize>,
+    pub dir_total: SizeFigure,
+    pub dir_total_generation: u64,
+    pub selection_total: SizeFigure,
+    pub selection_total_generation: u64,
+    pub selection_cancel: Option<Arc<AtomicBool>>,
 }
 
 impl Default for PanelState {
@@ -56,6 +73,11 @@ impl PanelState {
             notification: None,
             notification_created: Instant::now(),
             multi_selected: HashSet::new(),
+            dir_total: SizeFigure::Idle,
+            dir_total_generation: 0,
+            selection_total: SizeFigure::Idle,
+            selection_total_generation: 0,
+            selection_cancel: None,
         }
     }
 
@@ -100,9 +122,13 @@ impl PanelState {
         }
     }
 
-    /// Clears all multi-selections.
+    /// Clears all multi-selections, cancelling any in-flight selection-size computation.
     pub fn clear_multi_selection(&mut self) {
         self.multi_selected.clear();
+        if let Some(cancel) = self.selection_cancel.take() {
+            cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        self.selection_total = SizeFigure::Idle;
     }
 
     /// Returns the count of multi-selected items.

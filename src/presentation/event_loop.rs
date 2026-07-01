@@ -3,7 +3,7 @@
 use crate::application::ports::ClipboardPort;
 use crate::application::use_cases::navigate;
 use crate::application::use_cases::transfer::TransferEvent;
-use crate::application::{ActivePane, AppState, PanelMode};
+use crate::application::{ActivePane, AppState, PanelMode, PanelState, SizeFigure};
 use crate::infrastructure::{StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter};
 use crate::presentation::TerminalRenderer;
 use crate::presentation::input_handler::{
@@ -373,6 +373,7 @@ fn route_input(
         favorites_active,
         favorites_items,
         favorites_selected,
+        sender,
     ) {
         if needs_redraw {
             redraw_current_view(
@@ -718,7 +719,55 @@ fn handle_async_messages(
             Message::Transfer(event) => {
                 handle_transfer_event(event, app_state, renderer, fs_adapter, transfer_state);
             }
+            Message::DirTotalResult {
+                pane,
+                generation,
+                total,
+            } => {
+                let panel = match pane {
+                    ActivePane::Left => &mut app_state.left_panel,
+                    ActivePane::Right => &mut app_state.right_panel,
+                };
+                if apply_dir_total_result(panel, generation, total) {
+                    overlays::draw(renderer, app_state);
+                }
+            }
+            Message::SelectionTotalResult {
+                pane,
+                generation,
+                total,
+            } => {
+                let panel = match pane {
+                    ActivePane::Left => &mut app_state.left_panel,
+                    ActivePane::Right => &mut app_state.right_panel,
+                };
+                if apply_selection_total_result(panel, generation, total) {
+                    overlays::draw(renderer, app_state);
+                }
+            }
         }
+    }
+}
+
+/// Applies a directory-total background result, discarding it if a newer generation
+/// (e.g. navigating to another directory) has superseded it. Returns whether it was applied.
+fn apply_dir_total_result(panel: &mut PanelState, generation: u64, total: u64) -> bool {
+    if panel.dir_total_generation == generation {
+        panel.dir_total = SizeFigure::Ready(total);
+        true
+    } else {
+        false
+    }
+}
+
+/// Applies a selection-total background result, discarding it if a newer generation
+/// (e.g. the selection changed again) has superseded it. Returns whether it was applied.
+fn apply_selection_total_result(panel: &mut PanelState, generation: u64, total: u64) -> bool {
+    if panel.selection_total_generation == generation {
+        panel.selection_total = SizeFigure::Ready(total);
+        true
+    } else {
+        false
     }
 }
 
@@ -807,5 +856,41 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(10));
 
         assert!(clear_expired_notification(&mut state, 1));
+    }
+
+    #[test]
+    fn dir_total_result_applies_when_generation_matches() {
+        let mut panel = PanelState::new();
+        panel.dir_total_generation = 3;
+        assert!(apply_dir_total_result(&mut panel, 3, 12345));
+        assert_eq!(panel.dir_total, SizeFigure::Ready(12345));
+    }
+
+    #[test]
+    fn stale_dir_total_result_is_discarded() {
+        let mut panel = PanelState::new();
+        panel.dir_total_generation = 3;
+        panel.dir_total = SizeFigure::Computing(3);
+        // A result for an older generation (e.g. the user navigated away mid-walk).
+        assert!(!apply_dir_total_result(&mut panel, 2, 999));
+        assert_eq!(panel.dir_total, SizeFigure::Computing(3));
+    }
+
+    #[test]
+    fn selection_total_result_applies_when_generation_matches() {
+        let mut panel = PanelState::new();
+        panel.selection_total_generation = 5;
+        assert!(apply_selection_total_result(&mut panel, 5, 4096));
+        assert_eq!(panel.selection_total, SizeFigure::Ready(4096));
+    }
+
+    #[test]
+    fn stale_selection_total_result_is_discarded() {
+        let mut panel = PanelState::new();
+        panel.selection_total_generation = 5;
+        panel.selection_total = SizeFigure::Computing(5);
+        // A result for a superseded selection (the user toggled again before this arrived).
+        assert!(!apply_selection_total_result(&mut panel, 4, 999));
+        assert_eq!(panel.selection_total, SizeFigure::Computing(5));
     }
 }

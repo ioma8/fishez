@@ -1,7 +1,7 @@
 //! Terminal renderer - draws UI to terminal.
 
 use crate::application::use_cases::quick_view::human_size;
-use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode};
+use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode, SizeFigure};
 use crate::domain::FileEntry;
 use crate::infrastructure::disk_free_and_total;
 use base64::Engine;
@@ -448,18 +448,17 @@ impl TerminalRenderer {
                 None,
             )
         } else if panel.multi_selected_count() > 0 {
-            let total: u64 = panel
-                .multi_selected
-                .iter()
-                .filter_map(|&i| panel.entries.get(i))
-                .filter(|e| !e.is_dir())
-                .map(|e| e.size)
-                .sum();
-            (
-                format!("Selected: {}", panel.multi_selected_count()),
-                Color::Yellow,
-                Some(human_size(total)),
-            )
+            let text = match (panel.selection_total, panel.dir_total) {
+                (SizeFigure::Ready(selected), SizeFigure::Ready(total)) => {
+                    format!(
+                        "Selected: {} of {}",
+                        human_size(selected),
+                        human_size(total)
+                    )
+                }
+                _ => format!("Selected: {}", panel.multi_selected_count()),
+            };
+            (text, Color::Yellow, None)
         } else {
             let has_parent = panel
                 .entries
@@ -951,7 +950,7 @@ mod tests {
     }
 
     #[test]
-    fn footer_shows_selected_size_instead_of_total_when_multi_selecting() {
+    fn footer_shows_selected_of_total_once_both_sizes_are_ready() {
         let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 20);
         let mut panel = PanelState::new();
         panel.entries = vec![
@@ -961,30 +960,35 @@ mod tests {
         ];
         panel.toggle_multi_selection(0);
         panel.toggle_multi_selection(1);
+        // Recursive computation itself is covered by dir_size tests; here the totals
+        // are just supplied as already-`Ready`, exercising the footer's formatting.
+        panel.selection_total = SizeFigure::Ready(3 * 1024);
+        panel.dir_total = SizeFigure::Ready(7 * 1024);
         renderer.draw_footer(&panel);
         let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
         assert!(
-            out.contains("3.00 KB"),
-            "expected selected-only total (1KB+2KB), got: {out}"
-        );
-        assert!(
-            !out.contains("7.00 KB"),
-            "whole-directory total must not be used while selecting"
+            out.contains("Selected: 3.00 KB of 7.00 KB"),
+            "expected Total-Commander-style 'Selected: X of Y', got: {out}"
         );
     }
 
     #[test]
-    fn footer_selected_size_excludes_selected_directories() {
+    fn footer_shows_count_placeholder_before_sizes_are_ready() {
         let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 20);
         let mut panel = PanelState::new();
         panel.entries = vec![file("a.txt", 1024), dir("subdir/")];
         panel.toggle_multi_selection(0);
         panel.toggle_multi_selection(1);
+        // Neither total has resolved yet (Idle/Computing) — must not show a bogus size.
         renderer.draw_footer(&panel);
         let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
         assert!(
-            out.contains("1.00 KB"),
-            "expected selected directory excluded from total, got: {out}"
+            out.contains("Selected: 2"),
+            "expected the count-based placeholder while sizes are computing, got: {out}"
+        );
+        assert!(
+            !out.contains(" of "),
+            "must not show a partial size string, got: {out}"
         );
     }
 

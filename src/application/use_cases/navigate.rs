@@ -1,13 +1,15 @@
 //! Navigation use cases - handles directory navigation and cursor movement.
 
 use crate::application::ports::FileSystemPort;
-use crate::application::state::{PanelMode, PanelState};
+use crate::application::state::{PanelMode, PanelState, SizeFigure};
 use crate::domain::{EntryKind, FileEntry};
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 
 /// Refreshes the panel entries from the file system.
 pub fn refresh_entries(fs: &dyn FileSystemPort, panel: &mut PanelState) {
-    panel.multi_selected.clear();
+    panel.clear_multi_selection();
+    panel.dir_total = SizeFigure::Idle;
+    panel.dir_total_generation += 1;
     panel.entries.clear();
 
     // Add parent directory entry unless in filter mode
@@ -366,6 +368,18 @@ mod tests {
         assert_eq!(panel.multi_selected_count(), 1);
         refresh_entries(&fs, &mut panel);
         assert_eq!(panel.multi_selected_count(), 0);
+    }
+
+    #[test]
+    fn test_refresh_entries_invalidates_cached_dir_total() {
+        let fs = MockFileSystem::with_entries(create_test_entries());
+        let mut panel = PanelState::new();
+        panel.current_path = PathBuf::from("/home/user");
+        panel.dir_total = SizeFigure::Ready(12345);
+        panel.dir_total_generation = 7;
+        refresh_entries(&fs, &mut panel);
+        assert_eq!(panel.dir_total, SizeFigure::Idle);
+        assert_eq!(panel.dir_total_generation, 8);
     }
 
     #[test]

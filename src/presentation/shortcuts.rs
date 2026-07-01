@@ -2,9 +2,10 @@
 
 use crate::application::{AppState, PanelMode};
 use crate::infrastructure::{VsCodeAdapter, add_favorite};
-use crate::presentation::input_handler::CopyMoveState;
+use crate::presentation::input_handler::{CopyMoveState, Message, schedule_size_jobs};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::path::PathBuf;
+use std::sync::mpsc::Sender;
 use tui_input::Input;
 
 /// Handle feature shortcuts.
@@ -24,6 +25,7 @@ pub fn handle(
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
     favorites_selected: &mut usize,
+    sender: &Sender<Message>,
 ) -> Option<bool> {
     if let Some(needs_redraw) = handle_delete(event, app_state, delete_paths) {
         return Some(needs_redraw);
@@ -56,7 +58,7 @@ pub fn handle(
     if let Some(needs_redraw) = handle_vscode(event, app_state, vscode_adapter) {
         return Some(needs_redraw);
     }
-    handle_selection(event, app_state)
+    handle_selection(event, app_state, sender)
 }
 
 fn handle_delete(
@@ -216,16 +218,25 @@ fn handle_vscode(
     None
 }
 
-fn handle_selection(event: KeyEvent, app_state: &mut AppState) -> Option<bool> {
+fn handle_selection(
+    event: KeyEvent,
+    app_state: &mut AppState,
+    sender: &Sender<Message>,
+) -> Option<bool> {
     let panel = app_state.active_panel_mut();
 
     // Multi-select (Space)
     if event.code == KeyCode::Char(' ') && !matches!(panel.mode, PanelMode::QuickView(_)) {
         let before = panel.multi_selected_count();
         panel.toggle_multi_selection(panel.cursor);
-        return Some(panel.multi_selected_count() != before);
+        let changed = panel.multi_selected_count() != before;
+        if changed {
+            schedule_size_jobs(app_state, sender);
+        }
+        return Some(changed);
     }
 
+    let panel = app_state.active_panel_mut();
     // Clear multi-selection (Esc)
     if event.code == KeyCode::Esc
         && panel.multi_selected_count() > 0

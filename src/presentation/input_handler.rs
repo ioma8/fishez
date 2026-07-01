@@ -2,8 +2,8 @@
 
 use crate::application::ports::FileSystemPort;
 use crate::application::use_cases::transfer::{self, ConflictResolution, TransferKind};
-use crate::application::use_cases::{file_ops, navigate, new_folder, quick_view};
-use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode};
+use crate::application::use_cases::{dir_size, file_ops, navigate, new_folder, quick_view};
+use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode, SizeFigure};
 use crate::infrastructure::{
     FdSearchAdapter, RipGrepAdapter, StdFileSystem, SystemClipboard, SystemOpenAdapter,
 };
@@ -92,6 +92,16 @@ pub enum Message {
         mode: QuickViewMode,
     },
     Transfer(transfer::TransferEvent),
+    DirTotalResult {
+        pane: ActivePane,
+        generation: u64,
+        total: u64,
+    },
+    SelectionTotalResult {
+        pane: ActivePane,
+        generation: u64,
+        total: u64,
+    },
 }
 
 const MAX_QUERY_LEN: usize = 64;
@@ -243,6 +253,65 @@ pub fn schedule_quick_view(
         thread::spawn(move || {
             let mode = quick_view::preview(path, columns);
             let _ = sender.send(Message::QuickViewResult { pane, mode });
+        });
+    }
+}
+
+/// Kicks off (or cancels) the background recursive-size jobs for the active panel's
+/// selection, called whenever the multi-selection changes (`Space`).
+pub fn schedule_size_jobs(app_state: &mut AppState, sender: &Sender<Message>) {
+    let pane = app_state.active_pane;
+    let panel = app_state.active_panel_mut();
+
+    if let Some(cancel) = panel.selection_cancel.take() {
+        cancel.store(true, Ordering::Relaxed);
+    }
+
+    if panel.multi_selected_count() == 0 {
+        panel.selection_total = SizeFigure::Idle;
+        return;
+    }
+
+    panel.selection_total_generation += 1;
+    let generation = panel.selection_total_generation;
+    panel.selection_total = SizeFigure::Computing(generation);
+    let cancel = Arc::new(AtomicBool::new(false));
+    panel.selection_cancel = Some(cancel.clone());
+
+    let roots: Vec<_> = panel
+        .multi_selected
+        .iter()
+        .filter_map(|&i| panel.entries.get(i))
+        .cloned()
+        .collect();
+    let tx = sender.clone();
+    thread::spawn(move || {
+        let total = dir_size::total_size(&StdFileSystem, &roots, &cancel);
+        let _ = tx.send(Message::SelectionTotalResult {
+            pane,
+            generation,
+            total,
+        });
+    });
+
+    if matches!(panel.dir_total, SizeFigure::Idle) {
+        panel.dir_total_generation += 1;
+        let generation = panel.dir_total_generation;
+        panel.dir_total = SizeFigure::Computing(generation);
+        let roots: Vec<_> = panel
+            .entries
+            .iter()
+            .filter(|e| e.name != "..")
+            .cloned()
+            .collect();
+        let tx = sender.clone();
+        thread::spawn(move || {
+            let total = dir_size::total_size(&StdFileSystem, &roots, &AtomicBool::new(false));
+            let _ = tx.send(Message::DirTotalResult {
+                pane,
+                generation,
+                total,
+            });
         });
     }
 }
