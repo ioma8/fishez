@@ -92,7 +92,6 @@ pub struct TerminalRenderer {
     pub columns: u16,
     pub rows: u16,
     stdout: StdoutKind,
-    help_entries: Vec<(&'static str, &'static str)>,
     logo_png: Option<Vec<u8>>,
     image_protocol: ImageProtocol,
     kitty_image_hash: Option<u64>,
@@ -118,7 +117,6 @@ impl TerminalRenderer {
             columns,
             rows,
             stdout: StdoutKind::Real(std::io::stdout()),
-            help_entries: default_help_entries(),
             logo_png,
             image_protocol: detect_image_protocol(),
             kitty_image_hash: None,
@@ -571,13 +569,29 @@ impl TerminalRenderer {
     }
 
     fn draw_help_overlay(&mut self) {
-        let mut e = self.help_entries.clone();
-        e.sort_by_key(|(k, _)| *k);
-        let (mk, md) = (
-            e.iter().map(|(k, _)| k.len()).max().unwrap_or(0),
-            e.iter().map(|(_, d)| d.len()).max().unwrap_or(0),
-        );
-        let tw = (mk + 4 + md + 4).min(self.columns as usize);
+        let column_width = |sections: &[(&str, &[(&str, &str)])]| {
+            let mk = sections
+                .iter()
+                .flat_map(|(_, e)| e.iter())
+                .map(|(k, _)| k.chars().count())
+                .max()
+                .unwrap_or(0);
+            let md = sections
+                .iter()
+                .flat_map(|(_, e)| e.iter())
+                .map(|(_, d)| d.chars().count())
+                .max()
+                .unwrap_or(0);
+            (mk, mk + 3 + md)
+        };
+        let (left, right) = HELP_SECTIONS.split_at(HELP_COLUMN_SPLIT);
+        let (lk, lw) = column_width(left);
+        let (rk, rw) = column_width(right);
+        let gap = 6usize;
+        // Narrow terminals get one stacked column instead of wrapped garbage.
+        let two_col = lw + gap + rw <= self.columns as usize;
+        let (single_k, single_w) = column_width(HELP_SECTIONS);
+        let tw = if two_col { lw + gap + rw } else { single_w }.min(self.columns as usize);
         let sc = ((self.columns as usize).saturating_sub(tw)) / 2;
         let _ = queue!(
             &mut self.stdout,
@@ -630,17 +644,49 @@ impl TerminalRenderer {
             cursor::MoveTo(sc as u16, content_start + 1),
             Print("─".repeat(tw).with(Color::Blue))
         );
-        for (i, (key, desc)) in e.iter().enumerate() {
-            if content_start + 2 + i as u16 >= self.rows - 1 {
-                break;
+
+        let max_row = self.rows.saturating_sub(1);
+        let mut draw_column = |s: &mut Self,
+                               sections: &[(&str, &[(&str, &str)])],
+                               x: u16,
+                               key_w: usize| {
+            let mut y = content_start + 2;
+            for (title, entries) in sections {
+                if y >= max_row {
+                    return;
+                }
+                let _ = queue!(
+                    s.stdout,
+                    cursor::MoveTo(x, y),
+                    Print(
+                        (*title)
+                            .with(Color::Cyan)
+                            .attribute(crossterm::style::Attribute::Bold)
+                    )
+                );
+                y += 1;
+                for (key, desc) in entries.iter() {
+                    if y >= max_row {
+                        return;
+                    }
+                    let pad = key_w.saturating_sub(key.chars().count());
+                    let _ = queue!(
+                        s.stdout,
+                        cursor::MoveTo(x, y),
+                        Print((*key).with(Color::Yellow)),
+                        Print(" ".repeat(pad + 3)),
+                        Print((*desc).with(Color::Green))
+                    );
+                    y += 1;
+                }
+                y += 1; // blank line between sections
             }
-            let _ = queue!(
-                &mut self.stdout,
-                cursor::MoveTo(sc as u16, content_start + 2 + i as u16),
-                Print(format!("{:w$}", key, w = mk).with(Color::Yellow)),
-                cursor::MoveTo((sc + mk + 4) as u16, content_start + 2 + i as u16),
-                Print((*desc).with(Color::Green))
-            );
+        };
+        if two_col {
+            draw_column(self, left, sc as u16, lk);
+            draw_column(self, right, (sc + lw + gap) as u16, rk);
+        } else {
+            draw_column(self, HELP_SECTIONS, sc as u16, single_k);
         }
     }
 
@@ -802,8 +848,7 @@ impl TerminalRenderer {
                 columns,
                 rows,
                 stdout: StdoutKind::Test(writer),
-                help_entries: default_help_entries(),
-                logo_png: None,
+                    logo_png: None,
                 image_protocol: ImageProtocol::ITerm2,
                 kitty_image_hash: None,
                 loading_frame: 0,
@@ -817,6 +862,47 @@ impl TerminalRenderer {
 mod tests {
     use super::*;
     use crate::application::{AppState, PanelMode, QuickViewMode};
+
+    #[test]
+    fn help_overlay_renders_sections_in_two_columns() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(120, 40);
+        let mut state = AppState::new(false);
+        state.show_help = true;
+        renderer.draw(&state);
+        let s = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        for section in [
+            "Navigation",
+            "Quick View",
+            "Favorites",
+            "File Operations",
+            "Search & Tools",
+            "App",
+        ] {
+            assert!(s.contains(section), "missing help section: {section}");
+        }
+        // aliases must be documented
+        assert!(s.contains("Ctrl+P") && s.contains("Ctrl+Y"));
+        // lw=45, gap=6 → right column starts at sc+51; sc=(120-94)/2=13 → ANSI col 65,
+        // first section header row = 2 + ascii logo (6) + 2 → ANSI row 11
+        assert!(
+            s.contains("\x1b[11;65H"),
+            "right column should start at ANSI col 65"
+        );
+    }
+
+    #[test]
+    fn help_overlay_falls_back_to_single_column_on_narrow_terminal() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 40);
+        let mut state = AppState::new(false);
+        state.show_help = true;
+        renderer.draw(&state);
+        let s = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(s.contains("Navigation") && s.contains("File Operations"));
+        assert!(
+            !s.contains("\x1b[11;65H"),
+            "narrow terminal must not use the two-column layout"
+        );
+    }
 
     #[test]
     fn header_path_is_truncated_to_leave_room_for_right_label() {
@@ -1137,32 +1223,70 @@ impl Drop for TerminalRenderer {
     }
 }
 
-fn default_help_entries() -> Vec<(&'static str, &'static str)> {
-    vec![
-        ("F1", "Toggle help"),
-        ("Arrows", "Navigate"),
-        ("Enter", "Open dir/file"),
-        ("Backspace", "Go up"),
-        ("F3", "Quick view"),
-        ("Tab", "Switch pane"),
-        ("Ctrl+T", "Toggle two-pane"),
-        ("Esc", "Cancel/close"),
-        ("Esc/F10/Ctrl+C", "Quit"),
-        ("F5", "Copy to"),
-        ("F6", "Move to"),
-        ("Shift+F6", "Rename"),
-        ("F7", "New folder"),
-        ("F8", "Delete"),
-        ("Ctrl+W", "Delete (alias)"),
-        ("Ctrl+F", "Find files (fd)"),
-        ("Ctrl+R", "Search contents (rg)"),
-        ("!", "Shell command"),
-        ("Ctrl+D", "Favorites"),
-        ("Space", "Toggle selection"),
-        ("F4", "VS Code"),
-        ("a-z / 0-9", "Type to filter files"),
-    ]
-}
+/// Help screen content, grouped into sections. Left/right column split is
+/// HELP_COLUMN_SPLIT. Keep in sync with the bindings in shortcuts.rs and
+/// input_handler.rs — this is documentation, drift here is a bug.
+const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
+    (
+        "Navigation",
+        &[
+            ("↑/↓", "Move cursor"),
+            ("Home/End", "Jump to top / bottom"),
+            ("Enter", "Open file / enter dir"),
+            ("Backspace", "Go up one level"),
+            ("a-z 0-9", "Filter instantly (Esc clears)"),
+            ("Tab", "Switch pane"),
+            ("Ctrl+T", "Toggle two panes"),
+        ],
+    ),
+    (
+        "Quick View",
+        &[
+            ("F3 / Ctrl+P", "Open / close preview"),
+            ("↑/↓ PgUp/PgDn", "Scroll"),
+            ("←/→", "Previous / next file"),
+        ],
+    ),
+    (
+        "Favorites",
+        &[
+            ("Ctrl+D", "Open favorites"),
+            ("Ctrl+Shift+D", "Add current dir"),
+        ],
+    ),
+    (
+        "File Operations",
+        &[
+            ("Space", "Select / deselect"),
+            ("F5 / Ctrl+Y", "Copy"),
+            ("F6", "Move"),
+            ("Shift+F6", "Rename"),
+            ("F7", "New folder"),
+            ("F8 / Ctrl+W", "Delete to trash"),
+        ],
+    ),
+    (
+        "Search & Tools",
+        &[
+            ("Ctrl+F", "Find files (fd)"),
+            ("Ctrl+R", "Search contents (rg)"),
+            ("!", "Shell command ({1}, {@})"),
+            ("F4", "Open in VS Code"),
+            ("Ctrl+Enter", "Copy path (+Shift: absolute)"),
+        ],
+    ),
+    (
+        "App",
+        &[
+            ("F1", "Toggle this help"),
+            ("Esc", "Cancel, or quit when idle"),
+            ("F10 / Ctrl+C", "Quit"),
+        ],
+    ),
+];
+
+/// First HELP_COLUMN_SPLIT sections render in the left column, the rest right.
+const HELP_COLUMN_SPLIT: usize = 3;
 
 fn footer_actions(mode: &PanelMode) -> &'static [&'static str] {
     match mode {
