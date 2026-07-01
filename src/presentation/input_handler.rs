@@ -151,7 +151,7 @@ pub fn handle_normal_mode(
     let panel = state.active_panel_mut();
     let before = PanelUiState::capture(panel);
     match event.code {
-        KeyCode::Char(c) => {
+        KeyCode::Char(c) if !event.modifiers.contains(KeyModifiers::CONTROL) => {
             panel.mode = PanelMode::Filter;
             panel.filter_string.push(c);
             navigate::refresh_entries(fs, panel);
@@ -195,7 +195,7 @@ pub fn handle_filter_mode(
             panel.filter_string.pop();
             navigate::refresh_entries(fs, panel);
         }
-        KeyCode::Char(c) => {
+        KeyCode::Char(c) if !event.modifiers.contains(KeyModifiers::CONTROL) => {
             panel.filter_string.push(c);
             navigate::refresh_entries(fs, panel);
         }
@@ -232,6 +232,10 @@ fn handle_panel_navigation(
         KeyCode::End => navigate::navigate_end(panel, visible_rows),
         KeyCode::Enter => handle_enter(event, fs, open, clipboard, panel),
         KeyCode::F(3) => schedule_quick_view(panel, pane, columns, sender),
+        // Ctrl+P alias for terminals/keyboards where F3 is awkward (macOS media keys).
+        KeyCode::Char('p') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+            schedule_quick_view(panel, pane, columns, sender)
+        }
         _ => {}
     }
 }
@@ -368,6 +372,9 @@ pub fn handle_quick_view_mode(
             quick_view::open(panel, renderer.columns);
         }
         KeyCode::Esc | KeyCode::F(3) => panel.mode = PanelMode::Normal,
+        KeyCode::Char('p') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+            panel.mode = PanelMode::Normal
+        }
         _ => {}
     }
     PanelUiState::capture(panel) != before

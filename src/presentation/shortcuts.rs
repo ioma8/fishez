@@ -104,7 +104,10 @@ fn handle_file_ops(
         *rename_input = Some(Input::new(name));
         return Some(true);
     }
-    if event.code == KeyCode::F(5) {
+    // Ctrl+Y ("yank") alias for terminals/keyboards where F5 is awkward (macOS media keys).
+    if event.code == KeyCode::F(5)
+        || (event.code == KeyCode::Char('y') && event.modifiers.contains(KeyModifiers::CONTROL))
+    {
         let panel = app_state.active_panel();
         let sources = if panel.multi_selected_count() > 0 {
             panel.multi_selected_paths()
