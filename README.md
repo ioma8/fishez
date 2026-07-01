@@ -14,31 +14,18 @@ Navigate files at the speed of thought. Preview code with syntax highlighting. S
 
 </div>
 
----
-
-## ✨ What is fishez?
-
-fishez is a keyboard-driven terminal file manager designed for developers who live in the terminal. It combines the speed of command-line navigation with the convenience of visual file browsing — without ever leaving your workflow.
-
-**No mouse required. No config files. Just install and go.**
-
 ## 🚀 Quick Start
 
 ```bash
-# One-line install (macOS / Linux)
-curl -sfL https://raw.githubusercontent.com/ioma8/fishez/main/install.sh | sh
-
-# Or via Cargo
 cargo install fishez
-
-# Or build from source
-# git clone https://github.com/ioma8/fishez.git
-# cd fishez
-# cargo run
-
-# Start with dual-pane mode
-fishez --two-pane
+fishez ~/projects
 ```
+
+Press `Ctrl+T` to split into two panes. Press `Esc` to back out of overlays, and from a clean normal state it quits.
+
+## ✨ What is fishez?
+
+fishez is a keyboard-driven terminal file manager for developers who live in the terminal. No config file, no plugin hunt, no startup ceremony.
 
 ## 🎯 Core Features
 
@@ -53,8 +40,8 @@ fishez --two-pane
 | **New Folder** | `F7` | Create a new directory in current pane |
 | **Delete** | `F8` / `Ctrl+W` | Move to trash (safe delete) |
 | **Open in VS Code** | `F4` | Jump straight into your editor |
-| **Fuzzy Search** | `Alt+F7` | Find files with `fd` |
-| **Content Search** | `Ctrl+G` | Search file contents with `ripgrep` |
+| **Find Files** | `Ctrl+F` | Find files with `fd` |
+| **Content Search** | `Ctrl+R` | Search file contents with `ripgrep` |
 | **Shell Command** | `!` | Run a shell command; use `{1}` for selected file, `{@}` for all selected |
 | **Favorites** | `Ctrl+D` | Quick-jump to pinned directories |
 | **Filter** | *Start typing* | Instantly filter current directory |
@@ -62,7 +49,7 @@ fishez --two-pane
 
 ### Dual-Pane Mode
 
-Run with `-2` or `--two-pane` for a split view. Press `Tab` to switch focus between panels — perfect for comparing directories or moving files.
+Press `Ctrl+T` for a split view. `-2` / `--two-pane` still work as startup aliases, but they are the same toggle.
 
 ### Safe Copy & Move
 
@@ -111,8 +98,8 @@ No rc files to configure. No plugins to install. No learning curve. It just work
 
 fishez works standalone but shines with these tools installed:
 
-- **[fd](https://github.com/sharkdp/fd)** — Fast file search (`F6`)
-- **[ripgrep](https://github.com/BurntSushi/ripgrep)** — Content search (`F7`)
+- **[fd](https://github.com/sharkdp/fd)** — Fast file search (`Ctrl+F`)
+- **[ripgrep](https://github.com/BurntSushi/ripgrep)** — Content search (`Ctrl+R`)
 - **VS Code CLI** — Editor integration (`F4`)
 
 ```bash
@@ -148,11 +135,11 @@ Favorites (Ctrl+D)            Ctrl+Enter  Copy path
 Enter       Jump to favorite  Search & Tools
 Ctrl+Shift+D  Add current dir ─────────────────────────
                               F4          Open in VS Code
-                              Alt+F7      fd file search
-                              Ctrl+G      ripgrep search
+                              Ctrl+F      fd file search
+                              Ctrl+R      ripgrep search
                               !           Shell command
                               F1          Show help
-                              F10/Ctrl+C  Quit
+                              Esc/F10/Ctrl+C  Quit
 ```
 
 ## 🤝 Contributing
@@ -174,6 +161,8 @@ cargo fmt       # Format code
 cargo clippy    # Lint
 cargo test      # Run tests
 ```
+
+Additional docs live under [`docs/`](docs).
 
 ### CI Integration Tests
 

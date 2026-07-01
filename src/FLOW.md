@@ -2,7 +2,7 @@
 
 Two layouts are available:
 - Default single pane uses one `FilesView` and `TerminalUI::draw_ui`.
-- Two-pane mode (`--two-pane` or `-2`) instantiates two `FilesView`s, renders them via `draw_ui_two_panes`, and switches focus with `Tab` while Quick View still occupies the full screen.
+- Two-pane mode is a runtime toggle (`Ctrl+T`); `--two-pane` / `-2` remain startup aliases for the same state.
 
 ```mermaid
 flowchart TD

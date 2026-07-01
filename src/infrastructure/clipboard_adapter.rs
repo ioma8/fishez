@@ -1,12 +1,11 @@
-//! Clipboard adapter - implements ClipboardPort using clipboard crate.
+//! Clipboard adapter - emits OSC 52 clipboard escape codes.
 
 use crate::application::ports::ClipboardPort;
-use clipboard::{ClipboardContext, ClipboardProvider};
+use base64::Engine;
+use std::io::{self, Write};
 
 /// System clipboard adapter.
-pub struct SystemClipboard {
-    ctx: Option<ClipboardContext>,
-}
+pub struct SystemClipboard;
 
 impl Default for SystemClipboard {
     fn default() -> Self {
@@ -16,18 +15,33 @@ impl Default for SystemClipboard {
 
 impl SystemClipboard {
     pub fn new() -> Self {
-        Self {
-            ctx: ClipboardProvider::new().ok(),
-        }
+        Self
     }
 }
 
 impl ClipboardPort for SystemClipboard {
     fn copy(&mut self, text: &str) -> Result<(), String> {
-        let Some(ctx) = &mut self.ctx else {
-            return Err("Clipboard unavailable".to_string());
-        };
-        ctx.set_contents(text.to_string())
-            .map_err(|e| e.to_string())
+        let mut stdout = io::stdout();
+        stdout
+            .write_all(osc52_escape(text).as_bytes())
+            .map_err(|e| e.to_string())?;
+        stdout.flush().map_err(|e| e.to_string())
+    }
+}
+
+fn osc52_escape(text: &str) -> String {
+    format!(
+        "\x1b]52;c;{}\x07",
+        base64::engine::general_purpose::STANDARD.encode(text.as_bytes())
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::osc52_escape;
+
+    #[test]
+    fn encodes_osc52_clipboard_sequence() {
+        assert_eq!(osc52_escape("file.txt"), "\u{1b}]52;c;ZmlsZS50eHQ=\u{7}");
     }
 }

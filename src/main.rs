@@ -17,6 +17,7 @@ use infrastructure::{
 use presentation::input_handler::{ContextMenuState, CopyMoveState, Message, TransferUiState};
 use presentation::{TerminalRenderer, overlays, run};
 use std::env;
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::mpsc;
 use tui_input::Input;
@@ -24,7 +25,7 @@ use tui_input::Input;
 fn main() {
     setup_panic_handler();
 
-    let two_pane = env::args().any(|arg| arg == "--two-pane" || arg == "-2");
+    let (two_pane, start_path) = parse_args(env::args_os().skip(1));
 
     // Initialize infrastructure (adapters)
     let fs = StdFileSystem;
@@ -34,6 +35,10 @@ fn main() {
 
     // Initialize application state
     let mut state = AppState::new(two_pane);
+    if let Some(path) = start_path {
+        state.left_panel.current_path = path.clone();
+        state.right_panel.current_path = path;
+    }
     navigate::refresh_entries(&fs, &mut state.left_panel);
     navigate::refresh_entries(&fs, &mut state.right_panel);
 
@@ -89,15 +94,47 @@ fn main() {
     );
 }
 
+fn parse_args(args: impl IntoIterator<Item = OsString>) -> (bool, Option<PathBuf>) {
+    let mut two_pane = false;
+    let mut start_path = None;
+
+    for arg in args {
+        if arg == "--two-pane" || arg == "-2" {
+            two_pane = true;
+        } else if start_path.is_none() {
+            start_path = Some(PathBuf::from(arg));
+        }
+    }
+
+    (two_pane, start_path)
+}
+
 fn setup_panic_handler() {
     std::panic::set_hook(Box::new(|info| {
         use std::io::Write;
+        let path = std::env::temp_dir().join("fishez-panic.log");
         if let Ok(mut f) = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
-            .open("err.txt")
+            .open(path)
         {
             let _ = writeln!(f, "panic: {:?}", info);
         }
     }));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_args;
+    use std::ffi::OsString;
+    use std::path::PathBuf;
+
+    #[test]
+    fn parses_two_pane_flag_and_start_path() {
+        let (two_pane, path) =
+            parse_args([OsString::from("--two-pane"), OsString::from("/tmp/project")]);
+
+        assert!(two_pane);
+        assert_eq!(path, Some(PathBuf::from("/tmp/project")));
+    }
 }

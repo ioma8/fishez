@@ -709,7 +709,7 @@ impl TerminalRenderer {
         let shortcuts: &[(&str, &str, &str, &str)] = &[
             ("type a-z", "filter instantly", "F3", "quick view"),
             ("Enter", "open", "F4", "VS Code"),
-            ("Ctrl+T", "two-pane mode", "F8", "delete"),
+            ("Ctrl+T", "split panes", "F8", "delete"),
             ("!", "shell command", "F1", "all shortcuts"),
         ];
 
@@ -735,7 +735,7 @@ impl TerminalRenderer {
             Print(sep.clone().with(border).on(bg))
         );
 
-        let dismiss = center("press any key to start  ·  F10 quit");
+        let dismiss = center("press any key to start");
         let _ = queue!(
             &mut self.stdout,
             mv!(13),
@@ -1067,7 +1067,7 @@ fn default_help_entries() -> Vec<(&'static str, &'static str)> {
         ("Tab", "Switch pane"),
         ("Ctrl+T", "Toggle two-pane"),
         ("Esc", "Cancel/close"),
-        ("F10/Ctrl+C", "Quit"),
+        ("Esc/F10/Ctrl+C", "Quit"),
         ("F5", "Copy to"),
         ("F6", "Move to"),
         ("Shift+F6", "Rename"),
