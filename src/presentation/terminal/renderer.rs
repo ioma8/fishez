@@ -721,138 +721,111 @@ impl TerminalRenderer {
         } else {
             draw_column(self, HELP_SECTIONS, sc as u16, single_k);
         }
+
+        let footer = concat!(
+            "fishez v",
+            env!("CARGO_PKG_VERSION"),
+            " · github.com/ioma8/fishez · MIT"
+        );
+        let fx = ((self.columns as usize).saturating_sub(footer.chars().count())) / 2;
+        let _ = queue!(
+            &mut self.stdout,
+            cursor::MoveTo(fx as u16, max_row),
+            Print(footer.with(Color::DarkGrey))
+        );
     }
 
     fn draw_onboarding_banner(&mut self) {
-        // Inner width (excluding │ borders). Row layout:
+        // One narrow single-column box: title, four keys, dismiss hint.
         //  0  ╭──╮
-        //  1  │  │  blank
-        //  2  │  │  title
-        //  3  │  │  subtitle
-        //  4  │  │  blank
-        //  5  ╞══╡
-        //  6  │  │  blank
-        //  7  │  │  shortcut
-        //  8  │  │  shortcut
-        //  9  │  │  shortcut
-        // 10  │  │  shortcut
-        // 11  │  │  blank
-        // 12  ╞══╡
-        // 13  │  │  dismiss
-        // 14  │  │  blank
-        // 15  ╰──╯
-        const IW: usize = 56;
+        //  1  │  │  title
+        //  2  │  │  blank
+        //  3  │  │  key row
+        //  4  │  │  key row
+        //  5  │  │  key row
+        //  6  │  │  key row
+        //  7  │  │  blank
+        //  8  │  │  dismiss
+        //  9  ╰──╯
+        const KEYS: &[(&str, &str)] = &[
+            ("type", "filter files"),
+            ("Enter", "open"),
+            ("Ctrl+T", "split panes"),
+            ("F1", "all shortcuts"),
+        ];
+        const IW: usize = 32;
         const BW: u16 = IW as u16 + 2;
-        const BH: u16 = 16;
+        const BH: u16 = 10;
 
-        if self.columns < BW + 2 || self.rows < BH + 2 {
+        let border = Color::Cyan;
+        let dim_col = Color::DarkGrey;
+        let bg = Color::Black;
+
+        if self.columns < BW || self.rows < BH {
+            // ponytail: tiny terminals get a one-line hint instead of the box
+            let cols = self.columns as usize;
+            let hint: String = "fishez · F1 for shortcuts".chars().take(cols).collect();
+            let pad = cols - hint.chars().count();
+            let padded = format!("{}{}{}", " ".repeat(pad / 2), hint, " ".repeat(pad - pad / 2));
+            let _ = queue!(
+                &mut self.stdout,
+                cursor::MoveTo(0, self.rows / 2),
+                Print(padded.with(dim_col))
+            );
+            let _ = self.stdout.flush();
             return;
         }
 
         let col = (self.columns - BW) / 2;
         let row = (self.rows - BH) / 2;
 
-        let border = Color::Cyan;
-        let key_col = Color::Yellow;
-        let desc_col = Color::Reset;
-        let dim_col = Color::DarkGrey;
-        let bg = Color::Black;
-
         let center = |s: &str| -> String {
-            let pad = IW.saturating_sub(s.len());
+            let pad = IW.saturating_sub(s.chars().count());
             let l = pad / 2;
             format!("{}{}{}", " ".repeat(l), s, " ".repeat(pad - l))
         };
-        let blank = |s: &mut Self, r: u16| {
+        let boxed = |s: &mut Self, r: u16, inner: crossterm::style::StyledContent<String>| {
             let _ = queue!(
                 s.stdout,
                 cursor::MoveTo(col, row + r),
                 Print("│".with(border).on(bg)),
-                Print(" ".repeat(IW).on(bg)),
+                Print(inner),
                 Print("│".with(border).on(bg))
             );
         };
 
         let top = format!("╭{}╮", "─".repeat(IW));
-        let sep = format!("╞{}╡", "═".repeat(IW));
         let bot = format!("╰{}╯", "─".repeat(IW));
 
-        macro_rules! mv {
-            ($r:expr) => {
-                cursor::MoveTo(col, row + $r)
-            };
-        }
-
-        let _ = queue!(&mut self.stdout, mv!(0), Print(top.with(border).on(bg)));
-        blank(self, 1);
-
-        let title = center("f i s h e z");
         let _ = queue!(
             &mut self.stdout,
-            mv!(2),
-            Print("│".with(border).on(bg)),
-            Print(title.bold().with(Color::White).on(bg)),
-            Print("│".with(border).on(bg))
+            cursor::MoveTo(col, row),
+            Print(top.with(border).on(bg))
         );
+        boxed(self, 1, center("f i s h e z").bold().with(Color::White).on(bg));
+        boxed(self, 2, " ".repeat(IW).on(bg));
 
-        let sub = center("a fast terminal file manager");
-        let _ = queue!(
-            &mut self.stdout,
-            mv!(3),
-            Print("│".with(border).on(bg)),
-            Print(sub.with(dim_col).on(bg)),
-            Print("│".with(border).on(bg))
-        );
-
-        blank(self, 4);
-        let _ = queue!(
-            &mut self.stdout,
-            mv!(5),
-            Print(sep.clone().with(border).on(bg))
-        );
-        blank(self, 6);
-
-        // shortcut rows: 3 + key(11) + desc(18) + key(8) + desc(14) + 2 = 56
-        let shortcuts: &[(&str, &str, &str, &str)] = &[
-            ("type a-z", "filter instantly", "F3/Ctrl+P", "quick view"),
-            ("Enter", "open", "F4/Ctrl+O", "editor"),
-            ("Ctrl+T", "split panes", "F8", "delete"),
-            ("!", "shell command", "F1", "all shortcuts"),
-        ];
-
-        for (i, (k1, d1, k2, d2)) in shortcuts.iter().enumerate() {
+        for (i, (key, desc)) in KEYS.iter().enumerate() {
+            boxed(
+                self,
+                3 + i as u16,
+                format!("  {:<9}{:<width$}", key, desc, width = IW - 11).on(bg),
+            );
+            // re-tint the key without a second Print pass: cheap enough to redraw it
             let _ = queue!(
                 &mut self.stdout,
-                mv!(7 + i as u16),
-                Print("│".with(border).on(bg)),
-                Print("   ".on(bg)),
-                Print(format!("{:<11}", k1).with(key_col).on(bg)),
-                Print(format!("{:<18}", d1).with(desc_col).on(bg)),
-                Print(format!("{:<8}", k2).with(key_col).on(bg)),
-                Print(format!("{:<14}", d2).with(desc_col).on(bg)),
-                Print("  ".on(bg)),
-                Print("│".with(border).on(bg))
+                cursor::MoveTo(col + 3, row + 3 + i as u16),
+                Print((*key).with(Color::Yellow).on(bg))
             );
         }
 
-        blank(self, 11);
+        boxed(self, 7, " ".repeat(IW).on(bg));
+        boxed(self, 8, center("press any key to start").with(dim_col).on(bg));
         let _ = queue!(
             &mut self.stdout,
-            mv!(12),
-            Print(sep.clone().with(border).on(bg))
+            cursor::MoveTo(col, row + 9),
+            Print(bot.with(border).on(bg))
         );
-
-        let dismiss = center("press any key to start");
-        let _ = queue!(
-            &mut self.stdout,
-            mv!(13),
-            Print("│".with(border).on(bg)),
-            Print(dismiss.with(dim_col).on(bg)),
-            Print("│".with(border).on(bg))
-        );
-
-        blank(self, 14);
-        let _ = queue!(&mut self.stdout, mv!(15), Print(bot.with(border).on(bg)));
 
         let _ = self.stdout.flush();
     }
@@ -914,6 +887,37 @@ mod tests {
     use crate::application::{AppState, PanelMode, QuickViewMode};
 
     #[test]
+    fn onboarding_banner_fits_and_lists_core_keys() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 24);
+        let mut state = AppState::new(false);
+        state.show_onboarding = true;
+        renderer.draw(&state);
+        let s = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        for needle in [
+            "f i s h e z",
+            "filter files",
+            "Ctrl+T",
+            "all shortcuts",
+            "press any key to start",
+        ] {
+            assert!(s.contains(needle), "missing onboarding content: {needle}");
+        }
+        // box is 34 wide, centered on 80 cols → left border at column 23 (1-based 24)
+        assert!(s.contains("\x1b[8;24H"), "box should be centered: {s}");
+    }
+
+    #[test]
+    fn onboarding_banner_falls_back_to_hint_on_tiny_terminal() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(30, 8);
+        let mut state = AppState::new(false);
+        state.show_onboarding = true;
+        renderer.draw(&state);
+        let s = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(s.contains("F1 for shortcuts"), "missing hint: {s}");
+        assert!(!s.contains("╭"), "box should not render on tiny terminal");
+    }
+
+    #[test]
     fn help_overlay_renders_sections_in_two_columns() {
         let (mut renderer, buffer) = TerminalRenderer::with_test_writer(120, 40);
         let mut state = AppState::new(false);
@@ -932,6 +936,9 @@ mod tests {
         }
         // aliases must be documented
         assert!(s.contains("Ctrl+P") && s.contains("Ctrl+Y"));
+        // footer with version + repo link
+        assert!(s.contains("github.com/ioma8/fishez"));
+        assert!(s.contains(concat!("fishez v", env!("CARGO_PKG_VERSION"))));
         // lw=45, gap=6 → right column starts at sc+51; sc=(120-94)/2=13 → ANSI col 65,
         // first section header row = 2 + ascii logo (6) + 2 → ANSI row 11
         assert!(

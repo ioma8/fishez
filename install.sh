@@ -1,6 +1,6 @@
 #!/bin/sh
-# install.sh — one-line install for fishez
-# Usage: curl -sfL https://ioma8.github.io/fishez/install.sh | sh
+# install.sh — one-line install for fishez (needs a published GitHub release)
+# Usage: curl -sfL https://raw.githubusercontent.com/ioma8/fishez/main/install.sh | sh
 set -eu
 
 REPO="ioma8/fishez"

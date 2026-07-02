@@ -1,14 +1,15 @@
 # fishez README demo. Record with:
 #   cargo build --release
-#   eval "$(bash scripts/demo_setup.sh)"
+#   eval "$(TMPDIR=/tmp bash scripts/demo_setup.sh)"   # short path keeps the header clean
 #   FISHEZ_BIN=/tmp/fishez_target/release/fishez vhs demo.tape
-# Requires vhs + ttyd. The tape sets EDITOR=true so the editor
-# action is visible in-flow without launching an external application.
+# Requires vhs + ttyd, bat (highlighted previews), and edit (the editor demo:
+# brew install edit). vhs cannot send F-keys, so the tape uses the Ctrl
+# aliases (Ctrl+P quick view, Ctrl+O editor).
 
 Output demo.gif
 
 Set Shell bash
-Set FontSize 18
+Set FontSize 20
 Set Width 1200
 Set Height 700
 Set Padding 16
@@ -20,51 +21,54 @@ Type `export FISHEZ_BIN="${FISHEZ_BIN:-fishez}"`
 Enter
 Type `mkdir -p /tmp/fishez-demo-bin && ln -sf "$FISHEZ_BIN" /tmp/fishez-demo-bin/fishez && export PATH="/tmp/fishez-demo-bin:$PATH"`
 Enter
-Type "export TERM=xterm-256color COLORTERM=truecolor BAT_THEME=TwoDark"
-Enter
-Type "export EDITOR=true"
-Enter
 Type `eval "$($FISHEZ_BIN --init)"`
+Enter
+Type "export EDITOR=edit"
 Enter
 Type "clear"
 Enter
 Show
 
-# --- Launch with fz into the staged project ---
+# --- Launch with fz; onboarding card shows ~2s and dismisses itself ---
 Type "fz $FISHEZ_DEMO_DIR"
-Sleep 500ms
+Sleep 300ms
 Enter
-Sleep 2.5s
+Sleep 2.6s
 
-# --- Navigate into source and preview code ---
-Type "src"
-Sleep 900ms
+# --- Star feature 1: type-to-filter, letter by letter ---
+Type@200ms "src"
+Sleep 800ms
 Enter
-Sleep 900ms
+Sleep 600ms
+
+# --- Star feature 2: quick view with syntax highlighting, flip files ---
 Down
-Sleep 500ms
+Sleep 400ms
 Ctrl+P
-Sleep 2s
+Sleep 1.6s
 Right
-Sleep 1.4s
+Sleep 1.6s
 Ctrl+P
 Sleep 500ms
 
 # --- Search project contents with ripgrep ---
 Ctrl+R
-Sleep 700ms
+Sleep 500ms
 Type "parse"
-Sleep 1.2s
+Sleep 700ms
 Enter
 Sleep 1s
-Escape
-Sleep 500ms
 
-# --- Open in editor with the Ctrl alias, then quit back to shell ---
+# --- Open the match in $EDITOR (suspends the TUI), then quit back ---
 Ctrl+O
-Sleep 1.3s
-Escape
-Sleep 700ms
+Sleep 1.8s
+Ctrl+Q
+Sleep 800ms
 
-# --- Hold the final frame ---
-Sleep 2.5s
+# --- Quit; fz drops the shell in the browsed directory ---
+Escape
+Sleep 600ms
+Type "pwd"
+Sleep 300ms
+Enter
+Sleep 2s

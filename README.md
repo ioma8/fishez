@@ -19,7 +19,7 @@ Navigate files at the speed of thought. Preview code, search with fd/ripgrep, an
 ## 🚀 Quick Start
 
 ```bash
-cargo install fishez
+cargo install --git https://github.com/ioma8/fishez
 eval "$(fishez --init)"
 fz ~/projects
 ```
@@ -54,7 +54,7 @@ fishez is a keyboard-driven terminal file manager for developers who live in the
 | **Find Files** | `Ctrl+F` | Find files with `fd` |
 | **Content Search** | `Ctrl+R` | Search file contents with `ripgrep` |
 | **Shell Command** | `!` | Run a shell command; use `{1}` for selected file, `{@}` for all selected |
-| **Favorites** | `Ctrl+D` | Quick-jump to pinned directories |
+| **Favorites** | `Ctrl+D` | Quick-jump to pinned directories (stored in `~/.fishez/favorites.txt`) |
 | **Hidden files** | `Ctrl+H` | Toggle dotfiles |
 | **Filter** | *Start typing* | Instantly filter current directory |
 | **Help** | `F1` | Show all shortcuts |
@@ -177,13 +177,13 @@ Additional docs live under [`docs/`](docs).
 The README demo is a scripted [vhs](https://github.com/charmbracelet/vhs) recording, so it can be re-recorded any time the UI changes:
 
 ```bash
-brew install vhs ttyd          # recording tools
+brew install vhs ttyd bat edit   # recording tools + preview/editor used in the tape
 cargo build --release
-eval "$(bash scripts/demo_setup.sh)"   # stages the demo project, exports FISHEZ_DEMO_DIR
+eval "$(TMPDIR=/tmp bash scripts/demo_setup.sh)"   # stages the demo project, exports FISHEZ_DEMO_DIR
 FISHEZ_BIN=/tmp/fishez_target/release/fishez vhs demo.tape   # target dir is set in .cargo/config.toml
 ```
 
-This rewrites `demo.gif`. The tape sets `EDITOR=true` and uses the `Ctrl+O` alias for the primary `F4` editor action so recording does not depend on terminal F-key handling.
+This rewrites `demo.gif`. The tape sets `EDITOR=edit` for the editor scene and uses the `Ctrl+P`/`Ctrl+O` aliases because vhs cannot send F-keys.
 
 ### CI Integration Tests
 
