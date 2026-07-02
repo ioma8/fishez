@@ -10,11 +10,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2024-orange.svg)](https://www.rust-lang.org/)
 
-Jump through projects, preview files, search with `fd`/`ripgrep`, open in your editor, and leave your shell in exactly the directory you found.
+Browse files fast, filter by just typing, quick-view almost anything, and leave your shell in exactly the directory you found.
 
-**Think `cd` + file manager + quick preview + developer search. Zero config.**
+**Think Total Commander-speed controls for the terminal: `cd` + instant filtering + quick preview + developer search. Zero config.**
 
 <img src="demo.gif" alt="fishez demo" width="900" />
+
+**Start with two keys:** `F3` / `Ctrl+P` quick-views the selected file. `F4` / `Ctrl+O` opens it in your editor.
 
 </div>
 
@@ -119,12 +121,12 @@ fz ~/projects
 
 ## ✨ Why Developers Share It
 
-- **It replaces slow `cd` guessing.** Open `fz`, move visually, quit in the right directory.
-- **It previews before you open.** Code, text, directories, images, and RAW thumbnails from the terminal.
-- **It ships with developer defaults.** `fd`, `ripgrep`, `$EDITOR`, split panes, batch file ops, no plugin setup.
-- **It is safe by default.** Delete moves to trash, copy/move show progress, conflicts ask before overwrite.
+- **Fast browsing beats `cd` guessing.** Open `fz`, move visually, quit in the right directory.
+- **Inline filtering is the superpower.** Start typing and the current directory narrows instantly.
+- **Quick view keeps you in flow.** Preview code, text, directories, images, and RAW thumbnails before opening.
+- **Commander-style controls feel familiar.** Function keys, selection, dual panes, copy/move/delete, no plugin setup.
 
-fishez is a keyboard-driven terminal file manager for developers who live in the terminal. No config file, no plugin hunt, no startup ceremony.
+fishez is a keyboard-driven terminal file manager for developers who want fast file browsing without leaving the terminal.
 
 Press `Ctrl+T` for two panes, `F3` / `Ctrl+P` for quick view, `F4` / `Ctrl+O` for editor, and `F1` for help.
 
@@ -160,7 +162,7 @@ Copy (`F5`) and move (`F6`) run in the background, so the UI stays responsive du
 ## 💪 Why fishez?
 
 ### Speed First
-Written in Rust with zero-copy rendering. Directory listings appear instantly. Preview large files without lag. Your terminal stays responsive.
+Written in Rust with zero-copy rendering. Directory listings, inline filters, and previews stay responsive.
 
 ### Developer-Focused
 - **Syntax-aware previews** via built-in highlighting or optional `bat`

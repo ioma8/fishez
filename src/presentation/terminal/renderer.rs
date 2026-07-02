@@ -749,8 +749,8 @@ impl TerminalRenderer {
         //  9  ╰──╯
         const KEYS: &[(&str, &str)] = &[
             ("type", "filter files"),
-            ("Enter", "open"),
-            ("Ctrl+T", "split panes"),
+            ("F3 / Ctrl+P", "quick view"),
+            ("F4 / Ctrl+O", "edit file"),
             ("F1", "all shortcuts"),
         ];
         const IW: usize = 32;
@@ -818,7 +818,7 @@ impl TerminalRenderer {
             boxed(
                 self,
                 3 + i as u16,
-                format!("  {:<9}{:<width$}", key, desc, width = IW - 11).on(bg),
+                format!("  {:<13}{:<width$}", key, desc, width = IW - 15).on(bg),
             );
             // re-tint the key without a second Print pass: cheap enough to redraw it
             let _ = queue!(
@@ -911,7 +911,10 @@ mod tests {
         for needle in [
             "f i s h e z",
             "filter files",
-            "Ctrl+T",
+            "F3 / Ctrl+P",
+            "quick view",
+            "F4 / Ctrl+O",
+            "edit file",
             "all shortcuts",
             "press any key — shown only once",
         ] {
