@@ -83,9 +83,14 @@ doc-html:
 doc-check:
 	cargo doc --no-deps --document-private-items --quiet
 
-# Install fishez binary
+# Install fishez binary + fz shell function
 install:
 	cargo install --path .
+	@RC="$$HOME/.zshrc"; case "$$SHELL" in */bash) RC="$$HOME/.bashrc";; esac; \
+	if ! grep -q "fishez --init" "$$RC" 2>/dev/null; then \
+		printf '\neval "$$(fishez --init)"  # fz: fishez wrapper that cds to the last viewed dir\n' >> "$$RC"; \
+		echo "Added fz shell function to $$RC (open a new shell to use it)."; \
+	fi
 
 # Uninstall fishez binary
 uninstall:

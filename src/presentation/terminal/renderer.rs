@@ -646,42 +646,40 @@ impl TerminalRenderer {
         );
 
         let max_row = self.rows.saturating_sub(1);
-        let mut draw_column = |s: &mut Self,
-                               sections: &[(&str, &[(&str, &str)])],
-                               x: u16,
-                               key_w: usize| {
-            let mut y = content_start + 2;
-            for (title, entries) in sections {
-                if y >= max_row {
-                    return;
-                }
-                let _ = queue!(
-                    s.stdout,
-                    cursor::MoveTo(x, y),
-                    Print(
-                        (*title)
-                            .with(Color::Cyan)
-                            .attribute(crossterm::style::Attribute::Bold)
-                    )
-                );
-                y += 1;
-                for (key, desc) in entries.iter() {
+        let draw_column =
+            |s: &mut Self, sections: &[(&str, &[(&str, &str)])], x: u16, key_w: usize| {
+                let mut y = content_start + 2;
+                for (title, entries) in sections {
                     if y >= max_row {
                         return;
                     }
-                    let pad = key_w.saturating_sub(key.chars().count());
                     let _ = queue!(
                         s.stdout,
                         cursor::MoveTo(x, y),
-                        Print((*key).with(Color::Yellow)),
-                        Print(" ".repeat(pad + 3)),
-                        Print((*desc).with(Color::Green))
+                        Print(
+                            (*title)
+                                .with(Color::Cyan)
+                                .attribute(crossterm::style::Attribute::Bold)
+                        )
                     );
                     y += 1;
+                    for (key, desc) in entries.iter() {
+                        if y >= max_row {
+                            return;
+                        }
+                        let pad = key_w.saturating_sub(key.chars().count());
+                        let _ = queue!(
+                            s.stdout,
+                            cursor::MoveTo(x, y),
+                            Print((*key).with(Color::Yellow)),
+                            Print(" ".repeat(pad + 3)),
+                            Print((*desc).with(Color::Green))
+                        );
+                        y += 1;
+                    }
+                    y += 1; // blank line between sections
                 }
-                y += 1; // blank line between sections
-            }
-        };
+            };
         if two_col {
             draw_column(self, left, sc as u16, lk);
             draw_column(self, right, (sc + lw + gap) as u16, rk);
@@ -848,7 +846,7 @@ impl TerminalRenderer {
                 columns,
                 rows,
                 stdout: StdoutKind::Test(writer),
-                    logo_png: None,
+                logo_png: None,
                 image_protocol: ImageProtocol::ITerm2,
                 kitty_image_hash: None,
                 loading_frame: 0,
@@ -924,7 +922,9 @@ mod tests {
         let mut state = AppState::new(true);
         state.right_panel.current_path =
             std::path::PathBuf::from("/some/really/long/right/pane/path/beyond/half");
-        state.left_panel.set_notification("Copied 2 files".to_string());
+        state
+            .left_panel
+            .set_notification("Copied 2 files".to_string());
         renderer.draw_two_panes(&state);
         let s = String::from_utf8_lossy(&buffer.borrow()).to_string();
         assert!(

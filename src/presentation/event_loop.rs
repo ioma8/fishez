@@ -18,7 +18,6 @@ use crate::presentation::shortcuts;
 use crate::presentation::terminal::overlays;
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use std::path::PathBuf;
-use std::process::exit;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant};
 use tui_input::Input;
@@ -113,7 +112,7 @@ pub fn run(
                         )
                     {
                         renderer.reset_terminal();
-                        exit(0);
+                        return;
                     }
                     route_input(
                         ev,

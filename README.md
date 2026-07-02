@@ -25,6 +25,16 @@ fishez ~/projects
 
 Press `Ctrl+T` to split into two panes. Press `Esc` to back out of overlays, and from a clean normal state it quits.
 
+### cd on exit
+
+Add this line to your `~/.zshrc` / `~/.bashrc` (the [install script](install.sh) and `make install` do it for you):
+
+```bash
+eval "$(fishez --init)"
+```
+
+It defines `fz`, a wrapper that launches fishez and — when you quit — drops your shell in the directory you were browsing. Use `fz` instead of `fishez` and stop typing `cd`.
+
 ## ✨ What is fishez?
 
 fishez is a keyboard-driven terminal file manager for developers who live in the terminal. No config file, no plugin hunt, no startup ceremony.

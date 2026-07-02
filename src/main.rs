@@ -22,10 +22,26 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use tui_input::Input;
 
+/// Shell function installed via `eval "$(fishez --init)"` (bash/zsh).
+const FZ_INIT: &str = r#"fz() {
+  local tmp
+  tmp="$(mktemp)"
+  command fishez --cwd-file "$tmp" "$@"
+  if [ -s "$tmp" ]; then
+    cd "$(cat "$tmp")" || true
+  fi
+  rm -f "$tmp"
+}"#;
+
 fn main() {
     setup_panic_handler();
 
-    let (two_pane, start_path) = parse_args(env::args_os().skip(1));
+    let args = parse_args(env::args_os().skip(1));
+    if args.print_init {
+        println!("{FZ_INIT}");
+        return;
+    }
+    let (two_pane, start_path) = (args.two_pane, args.start_path);
 
     // Initialize infrastructure (adapters)
     let fs = StdFileSystem;
@@ -65,6 +81,8 @@ fn main() {
     let mut favorites_items = load_favorites();
     let mut favorites_selected: usize = 0;
 
+    let cwd_file = args.cwd_file;
+
     // Initial draw and run event loop
     overlays::draw(&mut renderer, &state);
     run(
@@ -92,21 +110,45 @@ fn main() {
         &mut favorites_items,
         &mut favorites_selected,
     );
+
+    if let Some(path) = cwd_file {
+        write_cwd_file(&path, &state.active_panel().current_path);
+    }
 }
 
-fn parse_args(args: impl IntoIterator<Item = OsString>) -> (bool, Option<PathBuf>) {
-    let mut two_pane = false;
-    let mut start_path = None;
+struct CliArgs {
+    two_pane: bool,
+    start_path: Option<PathBuf>,
+    cwd_file: Option<PathBuf>,
+    print_init: bool,
+}
 
-    for arg in args {
+fn parse_args(args: impl IntoIterator<Item = OsString>) -> CliArgs {
+    let mut parsed = CliArgs {
+        two_pane: false,
+        start_path: None,
+        cwd_file: None,
+        print_init: false,
+    };
+
+    let mut args = args.into_iter();
+    while let Some(arg) = args.next() {
         if arg == "--two-pane" || arg == "-2" {
-            two_pane = true;
-        } else if start_path.is_none() {
-            start_path = Some(PathBuf::from(arg));
+            parsed.two_pane = true;
+        } else if arg == "--init" {
+            parsed.print_init = true;
+        } else if arg == "--cwd-file" {
+            parsed.cwd_file = args.next().map(PathBuf::from);
+        } else if parsed.start_path.is_none() {
+            parsed.start_path = Some(PathBuf::from(arg));
         }
     }
 
-    (two_pane, start_path)
+    parsed
+}
+
+fn write_cwd_file(file: &std::path::Path, dir: &std::path::Path) {
+    let _ = std::fs::write(file, dir.display().to_string());
 }
 
 fn setup_panic_handler() {
@@ -131,10 +173,33 @@ mod tests {
 
     #[test]
     fn parses_two_pane_flag_and_start_path() {
-        let (two_pane, path) =
-            parse_args([OsString::from("--two-pane"), OsString::from("/tmp/project")]);
+        let args = parse_args([OsString::from("--two-pane"), OsString::from("/tmp/project")]);
 
-        assert!(two_pane);
-        assert_eq!(path, Some(PathBuf::from("/tmp/project")));
+        assert!(args.two_pane);
+        assert_eq!(args.start_path, Some(PathBuf::from("/tmp/project")));
+        assert_eq!(args.cwd_file, None);
+        assert!(!args.print_init);
+    }
+
+    #[test]
+    fn parses_cwd_file_and_init() {
+        let args = parse_args([
+            OsString::from("--cwd-file"),
+            OsString::from("/tmp/out"),
+            OsString::from("--init"),
+        ]);
+
+        assert_eq!(args.cwd_file, Some(PathBuf::from("/tmp/out")));
+        assert!(args.print_init);
+        assert_eq!(args.start_path, None);
+    }
+
+    #[test]
+    fn write_cwd_file_writes_panel_dir() {
+        let file = std::env::temp_dir().join("fishez-cwd-test");
+        super::write_cwd_file(&file, &PathBuf::from("/some/dir"));
+
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "/some/dir");
+        let _ = std::fs::remove_file(&file);
     }
 }
