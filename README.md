@@ -58,7 +58,7 @@ The installer downloads the latest GitHub release and adds the `fz` wrapper to `
 Requires Rust and CMake.
 
 ```bash
-cargo install --git https://github.com/ioma8/fishez
+cargo install fishez
 eval "$(fishez --init)"
 fz
 ```
