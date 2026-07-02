@@ -5,7 +5,7 @@ use fishez::domain::{EntryKind, FileEntry};
 use fishez::infrastructure::favorites_adapter::save_favorites;
 use fishez::infrastructure::{FdSearchAdapter, RipGrepAdapter, StdFileSystem, SystemOpenAdapter};
 use fishez::infrastructure::{add_favorite, load_favorites};
-use fishez::test_support::{CwdGuard, create_temp_dir};
+use fishez::test_support::{CwdGuard, HomeGuard, create_temp_dir};
 use std::fs;
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::process::Command;
@@ -103,20 +103,9 @@ fn integration_quick_view_text() {
     let file_path = base.join("readme.txt");
     fs::write(&file_path, "hello world").unwrap();
 
-    let entry = FileEntry::new(
-        file_path.clone(),
-        "readme.txt".to_string(),
-        EntryKind::File,
-        0,
-    );
-    let mut panel = PanelState::new();
-    panel.entries.push(entry);
-    panel.cursor = 0;
-
-    quick_view::open(&mut panel, 40);
     assert!(matches!(
-        panel.mode,
-        PanelMode::QuickView(QuickViewMode::Text { .. })
+        quick_view::preview(file_path, 40),
+        QuickViewMode::Text { .. }
     ));
 }
 
@@ -125,15 +114,9 @@ fn integration_quick_view_directory() {
     let base = create_temp_dir("quick_view_dir");
     fs::write(base.join("file.txt"), "data").unwrap();
 
-    let entry = FileEntry::new(base.clone(), "docs".to_string(), EntryKind::Dir, 0);
-    let mut panel = PanelState::new();
-    panel.entries.push(entry);
-    panel.cursor = 0;
-
-    quick_view::open(&mut panel, 40);
     assert!(matches!(
-        panel.mode,
-        PanelMode::QuickView(QuickViewMode::Directory { .. })
+        quick_view::preview(base, 40),
+        QuickViewMode::Directory { .. }
     ));
 }
 
@@ -142,6 +125,7 @@ fn integration_favorites_persistence() {
     let _guard = CWD_LOCK.lock().unwrap();
     let base = create_temp_dir("favorites_integration");
     let _cwd = CwdGuard::change_to(&base);
+    let _home = HomeGuard::set(&base);
 
     let mut items = vec![];
     assert!(add_favorite(&mut items, Path::new("/tmp/integration")));
@@ -150,6 +134,8 @@ fn integration_favorites_persistence() {
     assert_eq!(loaded, vec!["/tmp/integration".to_string()]);
 
     save_favorites(&["/tmp/a".to_string(), "/tmp/b".to_string()]);
+    assert!(!base.join("favorites.txt").exists());
+    assert!(base.join(".fishez").join("favorites.txt").exists());
     let loaded = load_favorites();
     assert_eq!(loaded, vec!["/tmp/a".to_string(), "/tmp/b".to_string()]);
 }

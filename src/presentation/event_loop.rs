@@ -70,7 +70,7 @@ pub fn run(
                 *favorites_selected,
             );
         }
-        if event::poll(std::time::Duration::from_millis(100)).unwrap() {
+        if event::poll(std::time::Duration::from_millis(15)).unwrap() {
             match event::read().unwrap() {
                 Event::Key(ev) if ev.kind == event::KeyEventKind::Press => {
                     if app_state.show_onboarding {
@@ -707,7 +707,7 @@ fn handle_mode_input(
             renderer,
             sender,
         ),
-        PanelMode::QuickView(_) => handle_quick_view_mode(event, app_state, renderer),
+        PanelMode::QuickView(_) => handle_quick_view_mode(event, app_state, renderer, sender),
     }
 }
 
@@ -778,7 +778,7 @@ fn handle_async_messages(
     fs_adapter: &StdFileSystem,
     transfer_state: &mut Option<TransferUiState>,
 ) {
-    if let Ok(message) = receiver.try_recv() {
+    while let Ok(message) = receiver.try_recv() {
         match message {
             Message::DrawFiles {
                 pane,
@@ -793,13 +793,18 @@ fn handle_async_messages(
                 navigate::replace_entries_from_search(panel, files, &base_path);
                 overlays::draw(renderer, app_state);
             }
-            Message::QuickViewResult { pane, mode } => {
+            Message::QuickViewResult {
+                pane,
+                generation,
+                mode,
+            } => {
                 let panel = match pane {
                     ActivePane::Left => &mut app_state.left_panel,
                     ActivePane::Right => &mut app_state.right_panel,
                 };
-                panel.mode = PanelMode::QuickView(mode);
-                overlays::draw(renderer, app_state);
+                if apply_quick_view_result(panel, generation, mode) {
+                    overlays::draw(renderer, app_state);
+                }
             }
             Message::Transfer(event) => {
                 handle_transfer_event(event, app_state, renderer, fs_adapter, transfer_state);
@@ -831,6 +836,19 @@ fn handle_async_messages(
                 }
             }
         }
+    }
+}
+
+fn apply_quick_view_result(
+    panel: &mut PanelState,
+    generation: u64,
+    mode: crate::application::QuickViewMode,
+) -> bool {
+    if panel.quick_view_generation == generation {
+        panel.mode = PanelMode::QuickView(mode);
+        true
+    } else {
+        false
     }
 }
 
@@ -992,6 +1010,20 @@ mod tests {
         // A result for a superseded selection (the user toggled again before this arrived).
         assert!(!apply_selection_total_result(&mut panel, 4, 999));
         assert_eq!(panel.selection_total, SizeFigure::Computing(5));
+    }
+
+    #[test]
+    fn stale_quick_view_result_is_discarded() {
+        let mut panel = PanelState::new();
+        panel.quick_view_generation = 2;
+        panel.mode = PanelMode::Normal;
+
+        assert!(!apply_quick_view_result(
+            &mut panel,
+            1,
+            crate::application::QuickViewMode::NotSupported
+        ));
+        assert_eq!(panel.mode, PanelMode::Normal);
     }
 
     #[test]

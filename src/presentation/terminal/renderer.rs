@@ -13,7 +13,7 @@ use image::{GenericImageView, ImageFormat};
 use std::collections::hash_map::DefaultHasher;
 use std::fs::OpenOptions;
 use std::hash::{Hash, Hasher};
-use std::io::{Cursor, Read, Write};
+use std::io::{BufWriter, Cursor, Read, Write};
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
 use std::time::{Duration, Instant};
@@ -30,23 +30,44 @@ use std::rc::Rc;
 #[cfg(test)]
 pub(crate) struct TestWriter {
     buffer: Rc<RefCell<Vec<u8>>>,
+    pending: Vec<u8>,
+    buffered: bool,
 }
 
 #[cfg(test)]
 impl TestWriter {
     fn new(buffer: Rc<RefCell<Vec<u8>>>) -> Self {
-        Self { buffer }
+        Self {
+            buffer,
+            pending: Vec::new(),
+            buffered: false,
+        }
+    }
+
+    fn buffered(buffer: Rc<RefCell<Vec<u8>>>) -> Self {
+        Self {
+            buffer,
+            pending: Vec::new(),
+            buffered: true,
+        }
     }
 }
 
 #[cfg(test)]
 impl Write for TestWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.buffer.borrow_mut().extend_from_slice(buf);
+        if self.buffered {
+            self.pending.extend_from_slice(buf);
+        } else {
+            self.buffer.borrow_mut().extend_from_slice(buf);
+        }
         Ok(buf.len())
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
+        if self.buffered {
+            self.buffer.borrow_mut().extend(self.pending.drain(..));
+        }
         Ok(())
     }
 }
@@ -65,7 +86,7 @@ enum ImageProtocol {
 }
 
 pub(crate) enum StdoutKind {
-    Real(std::io::Stdout),
+    Real(BufWriter<std::io::Stdout>),
     #[cfg(test)]
     Test(TestWriter),
 }
@@ -116,7 +137,7 @@ impl TerminalRenderer {
         Self {
             columns,
             rows,
-            stdout: StdoutKind::Real(std::io::stdout()),
+            stdout: StdoutKind::Real(BufWriter::with_capacity(256 * 1024, std::io::stdout())),
             logo_png,
             image_protocol: detect_image_protocol(),
             kitty_image_hash: None,
@@ -837,10 +858,27 @@ impl TerminalRenderer {
 
 #[cfg(test)]
 impl TerminalRenderer {
-    fn with_test_writer(columns: u16, rows: u16) -> (Self, Rc<RefCell<Vec<u8>>>) {
+    pub(crate) fn with_test_writer(columns: u16, rows: u16) -> (Self, Rc<RefCell<Vec<u8>>>) {
         let buffer = Rc::new(RefCell::new(Vec::new()));
         let writer = TestWriter::new(buffer.clone());
+        Self::with_writer(columns, rows, writer, buffer)
+    }
 
+    pub(crate) fn with_buffered_test_writer(
+        columns: u16,
+        rows: u16,
+    ) -> (Self, Rc<RefCell<Vec<u8>>>) {
+        let buffer = Rc::new(RefCell::new(Vec::new()));
+        let writer = TestWriter::buffered(buffer.clone());
+        Self::with_writer(columns, rows, writer, buffer)
+    }
+
+    fn with_writer(
+        columns: u16,
+        rows: u16,
+        writer: TestWriter,
+        buffer: Rc<RefCell<Vec<u8>>>,
+    ) -> (Self, Rc<RefCell<Vec<u8>>>) {
         (
             TerminalRenderer {
                 columns,

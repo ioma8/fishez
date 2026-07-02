@@ -1,12 +1,13 @@
 //! Favorites persistence adapter.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+const CONFIG_DIR: &str = ".fishez";
 const FAVORITES_FILE: &str = "favorites.txt";
 
 /// Load favorites from persistent storage.
 pub fn load_favorites() -> Vec<String> {
-    std::fs::read_to_string(FAVORITES_FILE)
+    std::fs::read_to_string(favorites_path())
         .unwrap_or_default()
         .lines()
         .filter(|s| !s.is_empty())
@@ -16,7 +17,11 @@ pub fn load_favorites() -> Vec<String> {
 
 /// Save favorites to persistent storage.
 pub fn save_favorites(items: &[String]) {
-    let _ = std::fs::write(FAVORITES_FILE, items.join("\n"));
+    let path = favorites_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(path, items.join("\n"));
 }
 
 /// Add a path to favorites if not already present.
@@ -31,10 +36,23 @@ pub fn add_favorite(items: &mut Vec<String>, path: &Path) -> bool {
     }
 }
 
+fn favorites_path() -> PathBuf {
+    home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(CONFIG_DIR)
+        .join(FAVORITES_FILE)
+}
+
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{CwdGuard, create_temp_dir};
+    use crate::test_support::{CwdGuard, HomeGuard, create_temp_dir};
     use std::fs;
     use std::sync::Mutex;
 
@@ -45,6 +63,7 @@ mod tests {
         let _guard = CWD_LOCK.lock().unwrap();
         let base = create_temp_dir("favorites_missing");
         let _cwd = CwdGuard::change_to(&base);
+        let _home = HomeGuard::set(&base);
 
         let favorites = load_favorites();
         assert!(favorites.is_empty());
@@ -55,9 +74,12 @@ mod tests {
         let _guard = CWD_LOCK.lock().unwrap();
         let base = create_temp_dir("favorites_roundtrip");
         let _cwd = CwdGuard::change_to(&base);
+        let _home = HomeGuard::set(&base);
 
         let items = vec!["/tmp/a".to_string(), "/tmp/b".to_string()];
         save_favorites(&items);
+        assert!(!base.join("favorites.txt").exists());
+        assert!(base.join(".fishez").join("favorites.txt").exists());
         let loaded = load_favorites();
         assert_eq!(loaded, items);
     }
@@ -67,6 +89,7 @@ mod tests {
         let _guard = CWD_LOCK.lock().unwrap();
         let base = create_temp_dir("favorites_add");
         let _cwd = CwdGuard::change_to(&base);
+        let _home = HomeGuard::set(&base);
 
         let mut items = vec![];
         let path = Path::new("/tmp/test");
@@ -81,8 +104,10 @@ mod tests {
         let _guard = CWD_LOCK.lock().unwrap();
         let base = create_temp_dir("favorites_empty_lines");
         let _cwd = CwdGuard::change_to(&base);
+        let _home = HomeGuard::set(&base);
 
-        fs::write("favorites.txt", "\n/a\n\n/b\n").unwrap();
+        fs::create_dir(base.join(".fishez")).unwrap();
+        fs::write(base.join(".fishez").join("favorites.txt"), "\n/a\n\n/b\n").unwrap();
         let loaded = load_favorites();
         assert_eq!(loaded, vec!["/a".to_string(), "/b".to_string()]);
     }

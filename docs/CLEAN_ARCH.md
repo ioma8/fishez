@@ -127,7 +127,7 @@ src/
 - `Ctrl+D` opens favorites list
 - `Ctrl+Shift+D` adds current directory to favorites
 - Navigate with arrow keys, select with `Enter`
-- Stored in `favorites.txt`
+- Stored in `~/.fishez/favorites.txt`
 
 ---
 

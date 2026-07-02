@@ -52,7 +52,7 @@ fn draw_delete_prompt(renderer: &mut TerminalRenderer, paths: &[PathBuf]) {
         terminal::Clear(ClearType::UntilNewLine),
         Print(prompt.red().bold()),
     );
-    let _ = std::io::stdout().flush();
+    let _ = renderer.writer().flush();
 }
 
 /// Draw with an in-progress transfer overlay: progress line, or a conflict prompt on top of it.
@@ -98,7 +98,7 @@ fn draw_transfer_progress(renderer: &mut TerminalRenderer, job: &TransferUiState
         terminal::Clear(ClearType::UntilNewLine),
         Print(prompt.cyan().bold()),
     );
-    let _ = std::io::stdout().flush();
+    let _ = renderer.writer().flush();
 }
 
 fn draw_conflict_prompt(renderer: &mut TerminalRenderer, path: &Path) {
@@ -113,7 +113,7 @@ fn draw_conflict_prompt(renderer: &mut TerminalRenderer, path: &Path) {
         terminal::Clear(ClearType::UntilNewLine),
         Print(prompt.red().bold()),
     );
-    let _ = std::io::stdout().flush();
+    let _ = renderer.writer().flush();
 }
 
 /// Draw with find prompt overlay.
@@ -207,7 +207,7 @@ fn draw_input_prompt(renderer: &mut TerminalRenderer, label: &str, input: &Input
         }
     }
     let _ = queue!(renderer.writer(), Print("  [esc]".dark_grey()));
-    let _ = std::io::stdout().flush();
+    let _ = renderer.writer().flush();
 }
 
 /// Draw a floating context menu on top of the current view.
@@ -248,7 +248,7 @@ pub fn draw_context_menu(renderer: &mut TerminalRenderer, ctx: &ContextMenuState
         cursor::MoveTo(col, row + height - 1),
         Print(bot.white())
     );
-    let _ = std::io::stdout().flush();
+    let _ = renderer.writer().flush();
 }
 
 /// Draw favorites overlay or main UI.
@@ -308,5 +308,23 @@ fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], sel
         );
     }
 
-    let _ = std::io::stdout().flush();
+    let _ = renderer.writer().flush();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::AppState;
+
+    #[test]
+    fn delete_overlay_flushes_renderer_writer() {
+        let (mut renderer, buffer) = TerminalRenderer::with_buffered_test_writer(80, 20);
+        let state = AppState::new(false);
+        let paths = vec![PathBuf::from("old.txt")];
+
+        draw_with_delete(&mut renderer, &state, Some(&paths));
+
+        let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(out.contains("Delete: old.txt? [y/n]"), "got: {out}");
+    }
 }

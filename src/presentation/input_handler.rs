@@ -89,6 +89,7 @@ pub enum Message {
     },
     QuickViewResult {
         pane: ActivePane,
+        generation: u64,
         mode: QuickViewMode,
     },
     Transfer(transfer::TransferEvent),
@@ -106,6 +107,7 @@ pub enum Message {
 
 const MAX_QUERY_LEN: usize = 64;
 const MAX_REPEAT_RUN: usize = 16;
+const SYNC_PREVIEW_MAX: u64 = 1024 * 1024;
 
 #[derive(PartialEq)]
 struct PanelUiState {
@@ -247,6 +249,16 @@ pub fn schedule_quick_view(
     sender: &Sender<Message>,
 ) {
     if let Some(path) = panel.get_selected_path() {
+        panel.quick_view_generation += 1;
+        let generation = panel.quick_view_generation;
+        let small = std::fs::metadata(&path)
+            .map(|metadata| metadata.is_file() && metadata.len() <= SYNC_PREVIEW_MAX)
+            .unwrap_or(false);
+        if small && !quick_view::looks_like_image(&path) {
+            panel.mode = PanelMode::QuickView(quick_view::preview(path, columns));
+            return;
+        }
+
         let file_name = path
             .file_name()
             .and_then(|name| name.to_str())
@@ -256,7 +268,11 @@ pub fn schedule_quick_view(
         let sender = sender.clone();
         thread::spawn(move || {
             let mode = quick_view::preview(path, columns);
-            let _ = sender.send(Message::QuickViewResult { pane, mode });
+            let _ = sender.send(Message::QuickViewResult {
+                pane,
+                generation,
+                mode,
+            });
         });
     }
 }
@@ -342,7 +358,9 @@ pub fn handle_quick_view_mode(
     event: KeyEvent,
     state: &mut AppState,
     renderer: &TerminalRenderer,
+    sender: &Sender<Message>,
 ) -> bool {
+    let pane = state.active_pane;
     let panel = state.active_panel_mut();
     let visible_rows = renderer.visible_rows();
     let before = PanelUiState::capture(panel);
@@ -365,11 +383,11 @@ pub fn handle_quick_view_mode(
         ),
         KeyCode::Left => {
             navigate::move_cursor(panel, -1, visible_rows);
-            quick_view::open(panel, renderer.columns);
+            schedule_quick_view(panel, pane, renderer.columns, sender);
         }
         KeyCode::Right => {
             navigate::move_cursor(panel, 1, visible_rows);
-            quick_view::open(panel, renderer.columns);
+            schedule_quick_view(panel, pane, renderer.columns, sender);
         }
         KeyCode::Esc | KeyCode::F(3) => panel.mode = PanelMode::Normal,
         KeyCode::Char('p') if event.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -472,6 +490,8 @@ pub fn handle_shell_input(
             let cwd = state.active_panel().current_path.clone();
             let pane = state.active_pane;
             let panel = state.active_panel_mut();
+            panel.quick_view_generation += 1;
+            let generation = panel.quick_view_generation;
             panel.mode = PanelMode::QuickView(QuickViewMode::Loading {
                 message: raw.clone(),
             });
@@ -480,6 +500,7 @@ pub fn handle_shell_input(
                 let lines = run_shell_command(&expanded, &cwd);
                 let _ = tx.send(Message::QuickViewResult {
                     pane,
+                    generation,
                     mode: QuickViewMode::Text { lines, start: 0 },
                 });
             });
@@ -1248,7 +1269,10 @@ pub fn handle_transfer_input(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::{EntryKind, FileEntry};
+    use crate::test_support::create_temp_dir;
     use crossterm::event::KeyEvent;
+    use std::sync::mpsc;
 
     #[test]
     fn test_validate_query_accepts_trimmed() {
@@ -1280,6 +1304,29 @@ mod tests {
         let long = "a".repeat(MAX_REPEAT_RUN);
         let result = validate_query(&long);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn schedule_quick_view_previews_small_text_immediately() {
+        let base = create_temp_dir("schedule_quick_view_small_text");
+        let file_path = base.join("note.txt");
+        std::fs::write(&file_path, "hello world").unwrap();
+        let mut panel = PanelState::new();
+        panel.entries = vec![FileEntry::new(
+            file_path.clone(),
+            "note.txt".to_string(),
+            EntryKind::File,
+            11,
+        )];
+        let (tx, rx) = mpsc::channel();
+
+        schedule_quick_view(&mut panel, ActivePane::Left, 80, &tx);
+
+        assert!(matches!(
+            panel.mode,
+            PanelMode::QuickView(QuickViewMode::Text { .. })
+        ));
+        assert!(rx.try_recv().is_err());
     }
 
     #[test]

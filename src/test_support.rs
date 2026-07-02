@@ -32,6 +32,40 @@ impl Drop for CwdGuard {
     }
 }
 
+pub struct HomeGuard {
+    home: Option<std::ffi::OsString>,
+    userprofile: Option<std::ffi::OsString>,
+}
+
+impl HomeGuard {
+    pub fn set(path: &Path) -> Self {
+        let guard = Self {
+            home: std::env::var_os("HOME"),
+            userprofile: std::env::var_os("USERPROFILE"),
+        };
+        unsafe {
+            std::env::set_var("HOME", path);
+            std::env::remove_var("USERPROFILE");
+        }
+        guard
+    }
+}
+
+impl Drop for HomeGuard {
+    fn drop(&mut self) {
+        unsafe {
+            match &self.home {
+                Some(value) => std::env::set_var("HOME", value),
+                None => std::env::remove_var("HOME"),
+            }
+            match &self.userprofile {
+                Some(value) => std::env::set_var("USERPROFILE", value),
+                None => std::env::remove_var("USERPROFILE"),
+            }
+        }
+    }
+}
+
 /// Shared mock for FileSystemPort. Configurable entries and optional list_dir error.
 pub struct MockFileSystem {
     pub entries: Vec<FileEntry>,

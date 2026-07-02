@@ -6,16 +6,13 @@ use image::{DynamicImage, codecs::jpeg::JpegEncoder, imageops, load_from_memory}
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 const MIN_WRAP_WIDTH: u16 = 20;
 const DIR_PREVIEW_LIMIT: usize = 20;
-
-pub fn open(panel: &mut PanelState, wrap_width: u16) {
-    if let Some(path) = panel.get_selected_path() {
-        panel.mode = PanelMode::QuickView(preview(path, wrap_width));
-    }
-}
+const TEXT_PREVIEW_MAX_BYTES: u64 = 1024 * 1024;
+const TEXT_PREVIEW_MAX_LINES: usize = 5_000;
 
 pub fn scroll(panel: &mut PanelState, direction: isize, rows: u16, header: u16, footer: u16) {
     if let PanelMode::QuickView(QuickViewMode::Text { lines, start }) = &mut panel.mode {
@@ -53,43 +50,89 @@ fn get_type(path: &Path) -> FileType {
         .map(|ext| ext.to_ascii_lowercase());
     let extension_type = classify_extension(extension.as_deref());
 
-    if matches!(extension_type, FileType::Image) {
-        return FileType::Image;
+    if matches!(extension_type, FileType::Image | FileType::Text) {
+        return extension_type;
     }
 
-    if let Some(mime) = tree_magic_mini::from_filepath(path) {
-        match mime.split('/').next() {
-            Some("text") => FileType::Text,
-            Some("image") => FileType::Image,
-            _ => extension_type,
-        }
+    if sniff_is_text(path) {
+        FileType::Text
     } else {
-        extension_type
+        FileType::Other
     }
+}
+
+pub fn looks_like_image(path: &Path) -> bool {
+    if raw_image::supports_path(path) {
+        return true;
+    }
+    let extension = path
+        .extension()
+        .and_then(std::ffi::OsStr::to_str)
+        .map(|ext| ext.to_ascii_lowercase());
+    matches!(classify_extension(extension.as_deref()), FileType::Image)
+}
+
+fn sniff_is_text(path: &Path) -> bool {
+    let mut buf = [0u8; 8192];
+    let Ok(mut file) = fs::File::open(path) else {
+        return false;
+    };
+    let Ok(n) = file.read(&mut buf) else {
+        return false;
+    };
+    n > 0 && !buf[..n].contains(&0)
 }
 
 fn classify_extension(extension: Option<&str>) -> FileType {
     match extension {
-        Some("txt") | Some("md") | Some("rs") | Some("toml") => FileType::Text,
+        Some(
+            "txt" | "md" | "markdown" | "rs" | "toml" | "json" | "yaml" | "yml" | "js" | "ts"
+            | "jsx" | "tsx" | "py" | "rb" | "go" | "c" | "h" | "cpp" | "hpp" | "java" | "kt"
+            | "swift" | "sh" | "bash" | "zsh" | "fish" | "css" | "scss" | "html" | "xml" | "svg"
+            | "sql" | "lock" | "cfg" | "conf" | "ini" | "env" | "gitignore" | "log" | "csv" | "tsv",
+        ) => FileType::Text,
         Some("png") | Some("jpg") | Some("jpeg") | Some("gif") => FileType::Image,
         _ => FileType::Other,
     }
 }
 
 fn preview_text(path: &Path, wrap_width: u16) -> QuickViewMode {
-    if let Ok(content) = fs::read_to_string(path) {
-        let width = wrap_width.saturating_sub(4).max(MIN_WRAP_WIDTH) as usize;
-        let lines: Vec<String> = textwrap::wrap(&content, width)
-            .into_iter()
-            .map(|l| l.to_string())
-            .collect();
-        QuickViewMode::Text {
-            lines: highlight(lines),
-            start: 0,
-        }
-    } else {
-        QuickViewMode::NotSupported
+    let Ok(metadata) = fs::metadata(path) else {
+        return QuickViewMode::NotSupported;
+    };
+    let Ok(file) = fs::File::open(path) else {
+        return QuickViewMode::NotSupported;
+    };
+
+    let mut buf = Vec::new();
+    if file
+        .take(TEXT_PREVIEW_MAX_BYTES)
+        .read_to_end(&mut buf)
+        .is_err()
+    {
+        return QuickViewMode::NotSupported;
     }
+
+    let mut capped = metadata.len() > TEXT_PREVIEW_MAX_BYTES;
+    let mut content = String::from_utf8_lossy(&buf).into_owned();
+    if capped && let Some(last_newline) = content.rfind('\n') {
+        content.truncate(last_newline);
+    }
+
+    let width = wrap_width.saturating_sub(4).max(MIN_WRAP_WIDTH) as usize;
+    let mut lines: Vec<String> = textwrap::wrap(&content, width)
+        .into_iter()
+        .map(|l| l.to_string())
+        .collect();
+    if lines.len() > TEXT_PREVIEW_MAX_LINES {
+        lines.truncate(TEXT_PREVIEW_MAX_LINES);
+        capped = true;
+    }
+    let mut lines = highlight(lines);
+    if capped {
+        lines.push("… preview truncated".to_string());
+    }
+    QuickViewMode::Text { lines, start: 0 }
 }
 
 fn highlight(lines: Vec<String>) -> Vec<String> {
@@ -183,16 +226,18 @@ fn preview_image(path: &Path, wrap_width: u16) -> QuickViewMode {
     let Ok(buf) = fs::read(path) else {
         return QuickViewMode::NotSupported;
     };
-    let thumb = extract_thumbnail(path);
-    let pixels = thumb
-        .map(|t| t.to_rgb8())
-        .or_else(|| load_from_memory(&buf).ok().map(|i| i.to_rgb8()));
-    if pixels.is_some() {
-        let target = terminal_pixel_limit(wrap_width);
-        let image_bytes = downscale_image_if_needed(&buf, target).unwrap_or(buf);
-        QuickViewMode::Image(image_bytes)
-    } else {
-        QuickViewMode::NotSupported
+    let Some(img) = extract_thumbnail(path).or_else(|| load_from_memory(&buf).ok()) else {
+        return QuickViewMode::NotSupported;
+    };
+    let target = terminal_pixel_limit(wrap_width);
+    if img.width() <= target && img.height() <= target {
+        return QuickViewMode::Image(buf);
+    }
+    let resized = imageops::thumbnail(&img, target, target);
+    let mut output = Vec::new();
+    match JpegEncoder::new_with_quality(&mut output, 80).encode_image(&resized) {
+        Ok(_) => QuickViewMode::Image(output),
+        Err(_) => QuickViewMode::Image(buf),
     }
 }
 
@@ -201,19 +246,6 @@ fn terminal_pixel_limit(wrap_width: u16) -> u32 {
     const MAX_SIDE: u32 = 2048;
     let side = wrap_width as u32 * PIXELS_PER_COLUMN;
     side.min(MAX_SIDE)
-}
-
-fn downscale_image_if_needed(bytes: &[u8], max_side: u32) -> Option<Vec<u8>> {
-    let img = image::load_from_memory(bytes).ok()?;
-    if img.width() <= max_side && img.height() <= max_side {
-        return None;
-    }
-    let resized = imageops::thumbnail(&img, max_side, max_side);
-    let mut output = Vec::new();
-    let _ = JpegEncoder::new_with_quality(&mut output, 80)
-        .encode_image(&resized)
-        .ok()?;
-    Some(output)
 }
 
 fn extract_thumbnail(path: &Path) -> Option<DynamicImage> {
@@ -334,6 +366,66 @@ mod tests {
         let file_path = base.join("data.bin");
         fs::write(&file_path, [0u8, 159, 146, 150]).unwrap();
         assert!(matches!(get_type(&file_path), FileType::Other));
+    }
+
+    #[test]
+    fn test_get_type_extensionless_ascii_is_text() {
+        let base = create_temp_dir("quick_view_type_extensionless");
+        let file_path = base.join("Makefile");
+        fs::write(&file_path, "all:\n\tcargo test\n").unwrap();
+
+        assert!(matches!(get_type(&file_path), FileType::Text));
+    }
+
+    #[test]
+    fn test_get_type_nul_prefixed_file_is_other() {
+        let base = create_temp_dir("quick_view_type_nul");
+        let file_path = base.join("blob");
+        fs::write(&file_path, [0u8, 0u8, b'a']).unwrap();
+
+        assert!(matches!(get_type(&file_path), FileType::Other));
+    }
+
+    #[test]
+    fn test_preview_text_caps_large_files() {
+        let base = create_temp_dir("quick_view_large_text");
+        let file_path = base.join("large.txt");
+        fs::write(&file_path, "word ".repeat(420_000)).unwrap();
+
+        let mode = preview_text(&file_path, 80);
+
+        if let QuickViewMode::Text { lines, .. } = mode {
+            assert!(lines.len() <= TEXT_PREVIEW_MAX_LINES + 1);
+            assert_eq!(
+                lines.last().map(String::as_str),
+                Some("… preview truncated")
+            );
+        } else {
+            panic!("Expected QuickView Text mode");
+        }
+    }
+
+    #[test]
+    fn test_preview_text_keeps_capped_single_line_content() {
+        let base = create_temp_dir("quick_view_large_single_line");
+        let file_path = base.join("large.json");
+        fs::write(
+            &file_path,
+            "x".repeat((TEXT_PREVIEW_MAX_BYTES + 10) as usize),
+        )
+        .unwrap();
+
+        let mode = preview_text(&file_path, 80);
+
+        if let QuickViewMode::Text { lines, .. } = mode {
+            assert!(lines.iter().any(|line| line.contains('x')));
+            assert_eq!(
+                lines.last().map(String::as_str),
+                Some("… preview truncated")
+            );
+        } else {
+            panic!("Expected QuickView Text mode");
+        }
     }
 
     #[test]
