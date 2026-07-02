@@ -39,11 +39,9 @@ sudo pacman -S fd ripgrep bat
 
 ```bash
 brew install ioma8/tap/fishez
-eval "$(fishez --init)"
-fz ~/projects
 ```
 
-That is it. `fz` opens fishez, and when you quit, your shell lands in the directory you were browsing.
+Then enable the `fz` shell wrapper below.
 
 ### One-line binary installer
 
@@ -59,11 +57,47 @@ Requires Rust and CMake.
 
 ```bash
 cargo install fishez
-eval "$(fishez --init)"
-fz
 ```
 
-Use `fishez` directly if you want to browse without changing the parent shell directory.
+### Enable `fz`
+
+`fz` is a tiny shell function around `fishez`. It opens the file manager and, when you quit, changes your shell into the directory you were browsing. Use `fishez` directly if you want to browse without changing the parent shell directory.
+
+Append the setup line to your shell rc file:
+
+```bash
+# zsh
+echo 'eval "$(fishez --init)"' >> ~/.zshrc
+source ~/.zshrc
+
+# bash
+echo 'eval "$(fishez --init)"' >> ~/.bashrc
+source ~/.bashrc
+
+# bash login shells, common on older macOS setups
+echo 'eval "$(fishez --init)"' >> ~/.bash_profile
+source ~/.bash_profile
+```
+
+Fish uses a native function instead:
+
+```fish
+function fz
+    set tmp (mktemp)
+    command fishez --cwd-file $tmp $argv
+    if test -s $tmp
+        cd (cat $tmp)
+    end
+    rm -f $tmp
+end
+funcsave fz
+```
+
+Now run:
+
+```bash
+fz ~/projects
+```
 
 ## ✨ Why Developers Share It
 
