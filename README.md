@@ -4,7 +4,7 @@
 
 # fishez
 
-**A terminal file manager that feels like a command-line superpower.**
+**A lightning-fast terminal file manager built for developers**
 
 [![CI](https://github.com/ioma8/fishez/actions/workflows/ci.yml/badge.svg)](https://github.com/ioma8/fishez/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -19,6 +19,21 @@ Jump through projects, preview files, search with `fd`/`ripgrep`, open in your e
 </div>
 
 ## 🚀 Install
+
+### Recommended prerequisites
+
+fishez works standalone, but these make it feel complete:
+
+```bash
+# macOS
+brew install fd ripgrep bat
+
+# Ubuntu/Debian
+sudo apt install fd-find ripgrep bat
+
+# Arch
+sudo pacman -S fd ripgrep bat
+```
 
 ### Homebrew, recommended
 
