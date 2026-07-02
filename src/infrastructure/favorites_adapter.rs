@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 const CONFIG_DIR: &str = ".fishez";
 const FAVORITES_FILE: &str = "favorites.txt";
+const ONBOARDED_FILE: &str = "onboarded";
 
 /// Load favorites from persistent storage.
 pub fn load_favorites() -> Vec<String> {
@@ -33,6 +34,20 @@ pub fn add_favorite(items: &mut Vec<String>, path: &Path) -> bool {
         true
     } else {
         false
+    }
+}
+
+/// True after the first onboarding card dismissal.
+pub fn is_onboarded() -> bool {
+    home_dir().is_none_or(|h| h.join(CONFIG_DIR).join(ONBOARDED_FILE).exists())
+}
+
+/// Persist that the first-run onboarding card was dismissed.
+pub fn mark_onboarded() {
+    if let Some(home) = home_dir() {
+        let dir = home.join(CONFIG_DIR);
+        let _ = std::fs::create_dir_all(&dir);
+        let _ = std::fs::write(dir.join(ONBOARDED_FILE), "");
     }
 }
 
@@ -110,5 +125,19 @@ mod tests {
         fs::write(base.join(".fishez").join("favorites.txt"), "\n/a\n\n/b\n").unwrap();
         let loaded = load_favorites();
         assert_eq!(loaded, vec!["/a".to_string(), "/b".to_string()]);
+    }
+
+    #[test]
+    fn test_onboarded_marker_round_trip() {
+        let _guard = CWD_LOCK.lock().unwrap();
+        let base = create_temp_dir("onboarded_marker");
+        let _home = HomeGuard::set(&base);
+
+        assert!(!is_onboarded());
+
+        mark_onboarded();
+
+        assert!(is_onboarded());
+        assert!(base.join(".fishez").join("onboarded").exists());
     }
 }

@@ -766,7 +766,12 @@ impl TerminalRenderer {
             let cols = self.columns as usize;
             let hint: String = "fishez · F1 for shortcuts".chars().take(cols).collect();
             let pad = cols - hint.chars().count();
-            let padded = format!("{}{}{}", " ".repeat(pad / 2), hint, " ".repeat(pad - pad / 2));
+            let padded = format!(
+                "{}{}{}",
+                " ".repeat(pad / 2),
+                hint,
+                " ".repeat(pad - pad / 2)
+            );
             let _ = queue!(
                 &mut self.stdout,
                 cursor::MoveTo(0, self.rows / 2),
@@ -802,7 +807,11 @@ impl TerminalRenderer {
             cursor::MoveTo(col, row),
             Print(top.with(border).on(bg))
         );
-        boxed(self, 1, center("f i s h e z").bold().with(Color::White).on(bg));
+        boxed(
+            self,
+            1,
+            center("f i s h e z").bold().with(Color::White).on(bg),
+        );
         boxed(self, 2, " ".repeat(IW).on(bg));
 
         for (i, (key, desc)) in KEYS.iter().enumerate() {
@@ -820,7 +829,13 @@ impl TerminalRenderer {
         }
 
         boxed(self, 7, " ".repeat(IW).on(bg));
-        boxed(self, 8, center("press any key to start").with(dim_col).on(bg));
+        boxed(
+            self,
+            8,
+            center("press any key — shown only once")
+                .with(dim_col)
+                .on(bg),
+        );
         let _ = queue!(
             &mut self.stdout,
             cursor::MoveTo(col, row + 9),
@@ -898,7 +913,7 @@ mod tests {
             "filter files",
             "Ctrl+T",
             "all shortcuts",
-            "press any key to start",
+            "press any key — shown only once",
         ] {
             assert!(s.contains(needle), "missing onboarding content: {needle}");
         }

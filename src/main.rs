@@ -12,7 +12,7 @@ mod test_support;
 use application::AppState;
 use application::use_cases::navigate;
 use infrastructure::{
-    StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, load_favorites,
+    StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, is_onboarded, load_favorites,
 };
 use presentation::input_handler::{ContextMenuState, CopyMoveState, Message, TransferUiState};
 use presentation::{TerminalRenderer, overlays, run};
@@ -51,6 +51,7 @@ fn main() {
 
     // Initialize application state
     let mut state = AppState::new(two_pane);
+    state.show_onboarding = !is_onboarded();
     if let Some(path) = start_path {
         state.left_panel.current_path = path.clone();
         state.right_panel.current_path = path;

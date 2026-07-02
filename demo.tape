@@ -21,6 +21,12 @@ Type `export FISHEZ_BIN="${FISHEZ_BIN:-fishez}"`
 Enter
 Type `mkdir -p /tmp/fishez-demo-bin && ln -sf "$FISHEZ_BIN" /tmp/fishez-demo-bin/fishez && export PATH="/tmp/fishez-demo-bin:$PATH"`
 Enter
+Type `export HOME=$(mktemp -d)`
+Enter
+# NO_COLOR (inherited from the recording user's shell) makes crossterm strip
+# all colors — the TUI records monochrome. TERM/COLORTERM are already correct.
+Type "unset NO_COLOR; export BAT_THEME=TwoDark"
+Enter
 Type `eval "$($FISHEZ_BIN --init)"`
 Enter
 Type "export EDITOR=edit"
@@ -29,11 +35,11 @@ Type "clear"
 Enter
 Show
 
-# --- Launch with fz; onboarding card shows ~2s and dismisses itself ---
+# --- Launch with fz; first typed key dismisses onboarding and filters ---
 Type "fz $FISHEZ_DEMO_DIR"
 Sleep 300ms
 Enter
-Sleep 2.6s
+Sleep 2s
 
 # --- Star feature 1: type-to-filter, letter by letter ---
 Type@200ms "src"

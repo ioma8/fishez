@@ -4,7 +4,9 @@ use crate::application::ports::ClipboardPort;
 use crate::application::use_cases::navigate;
 use crate::application::use_cases::transfer::TransferEvent;
 use crate::application::{ActivePane, AppState, PanelMode, PanelState, SizeFigure};
-use crate::infrastructure::{StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter};
+use crate::infrastructure::{
+    StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, mark_onboarded,
+};
 use crate::presentation::TerminalRenderer;
 use crate::presentation::input_handler::{
     ContextMenuAction, ContextMenuResponse, ContextMenuState, CopyMoveState, Message, MouseOutcome,
@@ -19,7 +21,6 @@ use crate::presentation::terminal::overlays;
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
-use std::time::{Duration, Instant};
 use tui_input::Input;
 
 #[allow(clippy::too_many_arguments)]
@@ -48,33 +49,12 @@ pub fn run(
     favorites_items: &mut Vec<String>,
     favorites_selected: &mut usize,
 ) {
-    let onboarding_start = Instant::now();
     loop {
-        if app_state.show_onboarding && onboarding_start.elapsed() > Duration::from_secs(2) {
-            app_state.show_onboarding = false;
-            redraw_current_view(
-                renderer,
-                app_state,
-                delete_paths,
-                find_filter,
-                ripgrep_filter,
-                shell_command,
-                rename_input,
-                new_folder_input,
-                copy_dest,
-                transfer_state,
-                move_dest,
-                context_menu,
-                *favorites_active,
-                favorites_items,
-                *favorites_selected,
-            );
-        }
         if event::poll(std::time::Duration::from_millis(15)).unwrap() {
             match event::read().unwrap() {
                 Event::Key(ev) if ev.kind == event::KeyEventKind::Press => {
-                    if app_state.show_onboarding {
-                        app_state.show_onboarding = false;
+                    if dismiss_onboarding(app_state) {
+                        mark_onboarded();
                         redraw_current_view(
                             renderer,
                             app_state,
@@ -92,7 +72,6 @@ pub fn run(
                             favorites_items,
                             *favorites_selected,
                         );
-                        continue;
                     }
                     if is_quit(ev)
                         || should_quit_with_escape(
@@ -253,6 +232,14 @@ pub fn run(
             );
         }
     }
+}
+
+fn dismiss_onboarding(app_state: &mut AppState) -> bool {
+    if !app_state.show_onboarding {
+        return false;
+    }
+    app_state.show_onboarding = false;
+    true
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -993,6 +980,16 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(10));
 
         assert!(clear_expired_notification(&mut state, 1));
+    }
+
+    #[test]
+    fn dismiss_onboarding_only_reports_when_visible() {
+        let mut state = AppState::new(false);
+        state.show_onboarding = true;
+
+        assert!(dismiss_onboarding(&mut state));
+        assert!(!state.show_onboarding);
+        assert!(!dismiss_onboarding(&mut state));
     }
 
     #[test]
