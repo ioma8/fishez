@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            asset: fishez-macos-aarch64
+          - os: macos-13
+            asset: fishez-macos-x86_64
+          - os: ubuntu-24.04
+            asset: fishez-linux-x86_64
+          - os: ubuntu-24.04-arm
+            asset: fishez-linux-aarch64
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            fd-find \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxcb1-dev \
+            ripgrep \
+            xdg-utils
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Package binary
+        run: |
+          cp /tmp/fishez_target/release/fishez "${{ matrix.asset }}"
+          chmod +x "${{ matrix.asset }}"
+          ls -lh "${{ matrix.asset }}"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset }}
+          generate_release_notes: true

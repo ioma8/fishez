@@ -1,5 +1,5 @@
 #!/bin/sh
-# install.sh — one-line install for fishez (needs a published GitHub release)
+# install.sh — one-line install for fishez
 # Usage: curl -sfL https://raw.githubusercontent.com/ioma8/fishez/main/install.sh | sh
 set -eu
 
@@ -17,6 +17,7 @@ case "$OS" in
   *)
     echo "Unsupported OS: $OS"
     echo "Try: cargo install fishez"
+    echo 'Then add eval "$(fishez --init)" to your shell rc for fz.'
     exit 1
     ;;
 esac
@@ -27,6 +28,7 @@ case "$ARCH" in
   *)
     echo "Unsupported architecture: $ARCH"
     echo "Try: cargo install fishez"
+    echo 'Then add eval "$(fishez --init)" to your shell rc for fz.'
     exit 1
     ;;
 esac

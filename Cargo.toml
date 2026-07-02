@@ -2,6 +2,22 @@
 name = "fishez"
 version = "0.2.0"
 edition = "2024"
+description = "Lightning-fast terminal file manager for developers: type-to-filter, quick view, fd/ripgrep, cd-on-exit"
+license = "MIT"
+repository = "https://github.com/ioma8/fishez"
+readme = "README.md"
+keywords = ["file-manager", "tui", "terminal", "crossterm"]
+categories = ["command-line-utilities", "filesystem"]
+exclude = [
+    "demo.gif",
+    "demo.tape",
+    "docs/",
+    "openspec/",
+    "scripts/",
+    "tests/",
+    "*.md",
+    "!README.md",
+]
 
 [dependencies]
 base64 = "0.22.1"
@@ -14,5 +30,5 @@ little_exif = "0.6.2"
 resvg = "0.44"
 textwrap = "0.16.2"
 trash = "5.2.0"
-jpgfromrawlib = { package = "jpgfromraw", git = "https://github.com/ioma8/jpgfromrawlib" }
+jpgfromrawlib = { package = "jpgfromraw-lib", version = "0.7" }
 tokio = { version = "1", features = ["rt"] }

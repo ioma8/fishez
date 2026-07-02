@@ -6,6 +6,7 @@ set -e
 
 VERSION=${1:-0.2.0}
 PREV_VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+TAG="v$VERSION"
 
 if [ "$PREV_VERSION" == "$VERSION" ]; then
     echo "Error: Version $VERSION is already set in Cargo.toml"
@@ -15,6 +16,11 @@ fi
 echo "📦 Releasing Fishez version $VERSION"
 echo "Previous version: $PREV_VERSION"
 echo ""
+
+if [ -n "$(git status --porcelain)" ]; then
+    echo "Error: working tree must be clean before release"
+    exit 1
+fi
 
 # 1. Update version in Cargo.toml
 echo "📝 Updating version in Cargo.toml..."
@@ -46,28 +52,37 @@ if ! grep -q "\[$VERSION\]" CHANGELOG.md; then
     rm CHANGELOG.md.bak
 fi
 
-# 4. Create git tag
-echo "🏷️  Creating git tag $VERSION..."
-git tag -a "$VERSION" -m "Release fishez $VERSION"
+# 4. Refresh lockfile and create release commit
+echo "🔒 Refreshing Cargo.lock..."
+cargo check
 
-# 5. Show changes
+echo "💾 Creating release commit..."
+git add Cargo.toml Cargo.lock CHANGELOG.md
+git commit -m "Release $TAG"
+
+# 5. Create git tag
+echo "🏷️  Creating git tag $TAG..."
+git tag -a "$TAG" -m "Release fishez $VERSION"
+
+# 6. Show changes
 echo ""
 echo "📋 Summary of changes:"
 echo "  - Version updated: $PREV_VERSION -> $VERSION"
 echo "  - CHANGELOG.md updated"
-echo "  - Git tag created: $VERSION"
+echo "  - Release commit created"
+echo "  - Git tag created: $TAG"
 
-# 6. Show instructions for pushing
+# 7. Show instructions for pushing
 echo ""
 echo "🚀 To complete the release, push the changes and tag:"
 echo "  git push origin main"
-echo "  git push origin $VERSION"
+echo "  git push origin $TAG"
 
-# 7. Verify release pipeline will run
+# 8. Verify release pipeline will run
 echo ""
-echo "✅ GitLab CI will automatically:"
+echo "✅ GitHub Actions will automatically:"
 echo "  - Build release binary"
 echo "  - Run all tests"
 echo "  - Generate documentation"
 echo "  - Create release with binary artifacts"
-echo "  - Create GitLab release page"
+echo "  - Create GitHub release page"

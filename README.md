@@ -19,12 +19,16 @@ Navigate files at the speed of thought. Preview code, search with fd/ripgrep, an
 ## 🚀 Quick Start
 
 ```bash
-cargo install --git https://github.com/ioma8/fishez
+brew install ioma8/tap/fishez
+curl -sfL https://raw.githubusercontent.com/ioma8/fishez/main/install.sh | sh
+cargo install fishez
 eval "$(fishez --init)"
 fz ~/projects
 ```
 
 `fz` launches fishez and, when you quit, drops your shell into the directory you were browsing. Use `fishez ~/projects` directly when you want to launch without changing the parent shell directory.
+
+The curl installer adds the `fz` wrapper to `.zshrc` / `.bashrc` when possible. Homebrew and Cargo only install the binary; add the `eval "$(fishez --init)"` line yourself for those paths.
 
 Press `Ctrl+T` to split into two panes. Press `Esc` to back out of overlays, and from a clean normal state it quits.
 
