@@ -3,6 +3,7 @@
 use crate::application::ports::FileSystemPort;
 use crate::application::state::{PanelMode, PanelState, SizeFigure};
 use crate::domain::{EntryKind, FileEntry};
+use std::cmp::Ordering;
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 
 /// Refreshes the panel entries from the file system.
@@ -31,7 +32,11 @@ pub fn refresh_entries(fs: &dyn FileSystemPort, panel: &mut PanelState) {
     }
 
     // List directory contents
-    if let Ok(entries) = fs.list_dir(&panel.current_path) {
+    if let Ok(mut entries) = fs.list_dir(&panel.current_path) {
+        if !panel.show_hidden {
+            entries.retain(|entry| !entry.name.starts_with('.'));
+        }
+        sort_entries(&mut entries);
         if panel.filter_string.is_empty() {
             panel.entries.extend(entries);
         } else {
@@ -46,6 +51,19 @@ pub fn refresh_entries(fs: &dyn FileSystemPort, panel: &mut PanelState) {
 
     panel.cursor = 0;
     panel.scroll = 0;
+}
+
+fn sort_entries(entries: &mut [FileEntry]) {
+    entries.sort_by(|a, b| match (a.name.as_str(), b.name.as_str()) {
+        ("..", "..") => Ordering::Equal,
+        ("..", _) => Ordering::Less,
+        (_, "..") => Ordering::Greater,
+        _ => match (a.is_dir(), b.is_dir()) {
+            (true, false) => Ordering::Less,
+            (false, true) => Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        },
+    });
 }
 
 /// Moves the cursor up or down.
@@ -337,6 +355,81 @@ mod tests {
         // Should have ".." entry plus 3 mock entries
         assert_eq!(panel.entries.len(), 4);
         assert_eq!(panel.entries[0].name, "..");
+    }
+
+    #[test]
+    fn test_refresh_entries_hides_dotfiles_when_disabled() {
+        let fs = MockFileSystem::with_entries(vec![
+            FileEntry::new(
+                PathBuf::from("/home/user/.env"),
+                ".env".to_string(),
+                EntryKind::File,
+                10,
+            ),
+            FileEntry::new(
+                PathBuf::from("/home/user/visible.txt"),
+                "visible.txt".to_string(),
+                EntryKind::File,
+                10,
+            ),
+        ]);
+        let mut panel = PanelState::new();
+        panel.current_path = PathBuf::from("/home/user");
+
+        panel.show_hidden = false;
+        refresh_entries(&fs, &mut panel);
+        assert!(!panel.entries.iter().any(|entry| entry.name == ".env"));
+        assert!(
+            panel
+                .entries
+                .iter()
+                .any(|entry| entry.name == "visible.txt")
+        );
+
+        panel.show_hidden = true;
+        refresh_entries(&fs, &mut panel);
+        assert!(panel.entries.iter().any(|entry| entry.name == ".env"));
+    }
+
+    #[test]
+    fn test_refresh_entries_sorts_dirs_first_case_insensitive() {
+        let fs = MockFileSystem::with_entries(vec![
+            FileEntry::new(
+                PathBuf::from("/home/user/zeta.txt"),
+                "zeta.txt".to_string(),
+                EntryKind::File,
+                10,
+            ),
+            FileEntry::new(
+                PathBuf::from("/home/user/Beta"),
+                "Beta".to_string(),
+                EntryKind::Dir,
+                0,
+            ),
+            FileEntry::new(
+                PathBuf::from("/home/user/alpha.txt"),
+                "alpha.txt".to_string(),
+                EntryKind::File,
+                10,
+            ),
+            FileEntry::new(
+                PathBuf::from("/home/user/Alpha"),
+                "Alpha".to_string(),
+                EntryKind::Dir,
+                0,
+            ),
+        ]);
+        let mut panel = PanelState::new();
+        panel.current_path = PathBuf::from("/home/user");
+
+        refresh_entries(&fs, &mut panel);
+
+        let names: Vec<_> = panel
+            .entries
+            .iter()
+            .map(|entry| entry.name.as_str())
+            .collect();
+        assert_eq!(names, vec!["..", "Alpha", "Beta", "alpha.txt", "zeta.txt"]);
     }
 
     #[test]

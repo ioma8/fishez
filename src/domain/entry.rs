@@ -1,6 +1,7 @@
 //! Domain entity representing a file or directory entry.
 
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 /// Represents the kind of file system entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,6 +18,7 @@ pub struct FileEntry {
     pub kind: EntryKind,
     #[allow(dead_code)]
     pub size: u64,
+    pub modified: Option<SystemTime>,
 }
 
 impl FileEntry {
@@ -27,6 +29,7 @@ impl FileEntry {
             name,
             kind,
             size,
+            modified: None,
         }
     }
 

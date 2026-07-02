@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2024-orange.svg)](https://www.rust-lang.org/)
 
-Navigate files at the speed of thought. Preview code with syntax highlighting. Search instantly with ripgrep. Open in VS Code with one keystroke.
+Navigate files at the speed of thought. Preview code, search with fd/ripgrep, and open in your editor with one keystroke.
 
 <img src="demo.gif" alt="fishez demo" width="900" />
 
@@ -20,20 +20,19 @@ Navigate files at the speed of thought. Preview code with syntax highlighting. S
 
 ```bash
 cargo install fishez
-fishez ~/projects
+eval "$(fishez --init)"
+fz ~/projects
 ```
+
+`fz` launches fishez and, when you quit, drops your shell into the directory you were browsing. Use `fishez ~/projects` directly when you want to launch without changing the parent shell directory.
 
 Press `Ctrl+T` to split into two panes. Press `Esc` to back out of overlays, and from a clean normal state it quits.
 
-### cd on exit
-
-Add this line to your `~/.zshrc` / `~/.bashrc` (the [install script](install.sh) and `make install` do it for you):
+Add this line to your `~/.zshrc` / `~/.bashrc` if you want `fz` available permanently:
 
 ```bash
 eval "$(fishez --init)"
 ```
-
-It defines `fz`, a wrapper that launches fishez and — when you quit — drops your shell in the directory you were browsing. Use `fz` instead of `fishez` and stop typing `cd`.
 
 ## ✨ What is fishez?
 
@@ -44,18 +43,19 @@ fishez is a keyboard-driven terminal file manager for developers who live in the
 | Feature | Shortcut | Description |
 |---------|----------|-------------|
 | **Navigate** | `↑↓` / `Enter` / `Backspace` | Move through directories instantly |
-| **Quick View** | `F3` / `Ctrl+P` | Preview files with syntax highlighting |
+| **Quick View** | `F3` / `Ctrl+P` | Preview files with built-in highlighting or optional `bat` |
 | **Multi-select** | `Space` | Batch operations on multiple files |
 | **Copy** | `F5` / `Ctrl+Y` | Copy selected file(s) to opposite pane or prompted destination, with background progress and overwrite prompts |
 | **Move** | `F6` | Move selected file(s) to opposite pane or prompted destination, with background progress and overwrite prompts |
 | **Rename** | `Shift+F6` | Inline rename of file or directory under cursor |
 | **New Folder** | `F7` | Create a new directory in current pane |
 | **Delete** | `F8` / `Ctrl+W` | Move to trash (safe delete) |
-| **Open in VS Code** | `F4` | Jump straight into your editor |
+| **Open in editor** | `F4` / `Ctrl+O` | Uses `$EDITOR`, then falls back to VS Code |
 | **Find Files** | `Ctrl+F` | Find files with `fd` |
 | **Content Search** | `Ctrl+R` | Search file contents with `ripgrep` |
 | **Shell Command** | `!` | Run a shell command; use `{1}` for selected file, `{@}` for all selected |
 | **Favorites** | `Ctrl+D` | Quick-jump to pinned directories |
+| **Hidden files** | `Ctrl+H` | Toggle dotfiles |
 | **Filter** | *Start typing* | Instantly filter current directory |
 | **Help** | `F1` | Show all shortcuts |
 
@@ -73,8 +73,8 @@ Copy (`F5`) and move (`F6`) run in the background, so the UI stays responsive du
 Written in Rust with zero-copy rendering. Directory listings appear instantly. Preview large files without lag. Your terminal stays responsive.
 
 ### Developer-Focused
-- **Syntax highlighting** in quick view for code files
-- **One-key VS Code integration** (`F4`)
+- **Syntax-aware previews** via built-in highlighting or optional `bat`
+- **One-key editor integration** (`F4` / `Ctrl+O`) using `$EDITOR`, with VS Code fallback
 - **ripgrep-powered search** finds content across thousands of files in seconds
 - **fd integration** for blazing-fast fuzzy file search
 - **Raw image previews** via the `jpgfromrawlib`-supported camera formats directly in quick view
@@ -85,26 +85,20 @@ Built with maintainability in mind using Clean Architecture principles. Domain l
 ### Cross-Platform
 Works on macOS, Linux, and Windows. Uses native system commands for opening files and integrates with your existing toolchain.
 
-## 🥊 vs. The Competition
+## 🥊 Why not yazi/ranger/nnn?
 
-| Feature | fishez | ranger | nnn | lf |
-|---------|--------|--------|-----|-----|
-| **Startup time** | ⚡ Instant | Slow (Python) | Fast | Fast |
-| **Built-in preview** | ✅ Syntax highlighted | ✅ | ❌ External | ❌ External |
-| **VS Code integration** | ✅ One key | ❌ Config needed | ❌ Config needed | ❌ Config needed |
-| **ripgrep search** | ✅ Built-in | ❌ | ❌ | ❌ |
-| **fd search** | ✅ Built-in | ❌ | ❌ | ❌ |
-| **Zero config** | ✅ | ❌ | ⚠️ Minimal | ❌ |
-| **Image preview** | ✅ iTerm2/kitty | ✅ | ❌ | ❌ |
-| **Memory footprint** | ~5MB | ~50MB+ | ~3MB | ~4MB |
+Use those if you want a highly configurable file manager. Use fishez when you want:
+
+- Zero-config developer defaults.
+- `fz` cd-on-exit as the core workflow.
+- fd, ripgrep, and editor actions built into the default keymap.
+- Quick previews without writing a config file first.
 
 ## 🏆 The Unfair Advantage
 
 **fishez is built for the modern developer workflow.**
 
-While other file managers try to be general-purpose, fishez optimizes for one thing: getting developers to their files faster. The combination of instant preview with syntax highlighting, one-key VS Code opening, and ripgrep/fd integration means you spend less time navigating and more time coding.
-
-No rc files to configure. No plugins to install. No learning curve. It just works.
+While other file managers try to be general-purpose, fishez optimizes for one thing: getting developers to their files faster. The combination of instant preview, one-key editor opening, and ripgrep/fd integration means you spend less time navigating and more time coding.
 
 ## 📦 Requirements
 
@@ -112,17 +106,18 @@ fishez works standalone but shines with these tools installed:
 
 - **[fd](https://github.com/sharkdp/fd)** — Fast file search (`Ctrl+F`)
 - **[ripgrep](https://github.com/BurntSushi/ripgrep)** — Content search (`Ctrl+R`)
-- **VS Code CLI** — Editor integration (`F4`)
+- **[bat](https://github.com/sharkdp/bat)** — Optional colorized text previews
+- **`$EDITOR` or VS Code CLI** — Editor integration (`F4` / `Ctrl+O`)
 
 ```bash
 # macOS
-brew install fd ripgrep
+brew install fd ripgrep bat
 
 # Ubuntu/Debian
-sudo apt install fd-find ripgrep
+sudo apt install fd-find ripgrep bat
 
 # Arch
-sudo pacman -S fd ripgrep
+sudo pacman -S fd ripgrep bat
 ```
 
 ## ⌨️ All Shortcuts
@@ -146,9 +141,10 @@ Favorites (Ctrl+D)            Ctrl+Enter  Copy path
 ↑/↓         Navigate
 Enter       Jump to favorite  Search & Tools
 Ctrl+Shift+D  Add current dir ─────────────────────────
-                              F4          Open in VS Code
+                              F4/Ctrl+O   Open in editor
                               Ctrl+F      fd file search
                               Ctrl+R      ripgrep search
+                              Ctrl+H      Toggle hidden files
                               !           Shell command
                               F1          Show help
                               Esc/F10/Ctrl+C  Quit
@@ -183,11 +179,11 @@ The README demo is a scripted [vhs](https://github.com/charmbracelet/vhs) record
 ```bash
 brew install vhs ttyd          # recording tools
 cargo build --release
-eval "$(scripts/demo_setup.sh)"   # stages the demo project, exports FISHEZ_DEMO_DIR
+eval "$(bash scripts/demo_setup.sh)"   # stages the demo project, exports FISHEZ_DEMO_DIR
 FISHEZ_BIN=/tmp/fishez_target/release/fishez vhs demo.tape   # target dir is set in .cargo/config.toml
 ```
 
-This rewrites `demo.gif`. Note: vhs cannot send F-keys, which is why `demo.tape` uses the `Ctrl+P` / `Ctrl+Y` aliases.
+This rewrites `demo.gif`. The tape sets `EDITOR=true` and uses the `Ctrl+O` alias for the primary `F4` editor action so recording does not depend on terminal F-key handling.
 
 ### CI Integration Tests
 

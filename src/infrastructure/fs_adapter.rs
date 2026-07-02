@@ -18,10 +18,11 @@ impl FileSystemPort for StdFileSystem {
             let file_name = entry.file_name().to_string_lossy().to_string();
             let file_path = entry.path();
             let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
+            let metadata = entry.metadata().ok();
             let size = if is_dir {
                 0
             } else {
-                entry.metadata().map(|m| m.len()).unwrap_or(0)
+                metadata.as_ref().map(|m| m.len()).unwrap_or(0)
             };
 
             let kind = if is_dir {
@@ -36,7 +37,9 @@ impl FileSystemPort for StdFileSystem {
                 file_name
             };
 
-            result.push(FileEntry::new(file_path, display_name, kind, size));
+            let mut file_entry = FileEntry::new(file_path, display_name, kind, size);
+            file_entry.modified = metadata.and_then(|m| m.modified().ok());
+            result.push(file_entry);
         }
 
         Ok(result)

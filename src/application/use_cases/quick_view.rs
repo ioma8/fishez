@@ -8,6 +8,7 @@ use little_exif::metadata::Metadata;
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 const MIN_WRAP_WIDTH: u16 = 20;
 const DIR_PREVIEW_LIMIT: usize = 20;
@@ -97,6 +98,10 @@ fn classify_extension(extension: Option<&str>) -> FileType {
 }
 
 fn preview_text(path: &Path, wrap_width: u16) -> QuickViewMode {
+    if let Some(lines) = preview_text_with_bat(path, wrap_width) {
+        return QuickViewMode::Text { lines, start: 0 };
+    }
+
     let Ok(metadata) = fs::metadata(path) else {
         return QuickViewMode::NotSupported;
     };
@@ -133,6 +138,34 @@ fn preview_text(path: &Path, wrap_width: u16) -> QuickViewMode {
         lines.push("… preview truncated".to_string());
     }
     QuickViewMode::Text { lines, start: 0 }
+}
+
+fn preview_text_with_bat(path: &Path, wrap_width: u16) -> Option<Vec<String>> {
+    if fs::metadata(path).ok()?.len() > TEXT_PREVIEW_MAX_BYTES {
+        return None;
+    }
+    let output = Command::new("bat")
+        .args([
+            "--color=always",
+            "--plain",
+            "--paging=never",
+            "--wrap=character",
+            "--terminal-width",
+            &wrap_width.to_string(),
+        ])
+        .arg(path)
+        .output()
+        .ok()?;
+    (output.status.success() && !output.stdout.is_empty())
+        .then(|| bat_lines_from_output(&output.stdout))
+}
+
+fn bat_lines_from_output(output: &[u8]) -> Vec<String> {
+    String::from_utf8_lossy(output)
+        .lines()
+        .take(TEXT_PREVIEW_MAX_LINES)
+        .map(String::from)
+        .collect()
 }
 
 fn highlight(lines: Vec<String>) -> Vec<String> {
@@ -426,6 +459,23 @@ mod tests {
         } else {
             panic!("Expected QuickView Text mode");
         }
+    }
+
+    #[test]
+    fn test_bat_lines_are_split_and_capped() {
+        let output = (0..TEXT_PREVIEW_MAX_LINES + 10)
+            .map(|i| format!("line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let lines = bat_lines_from_output(output.as_bytes());
+
+        assert_eq!(lines.len(), TEXT_PREVIEW_MAX_LINES);
+        assert_eq!(lines[0], "line 0");
+        assert_eq!(
+            lines.last().map(String::as_str),
+            Some(format!("line {}", TEXT_PREVIEW_MAX_LINES - 1).as_str())
+        );
     }
 
     #[test]

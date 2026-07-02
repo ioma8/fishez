@@ -2,6 +2,7 @@
 
 use crate::application::{AppState, PanelMode};
 use crate::infrastructure::{VsCodeAdapter, add_favorite};
+use crate::presentation::TerminalRenderer;
 use crate::presentation::input_handler::{CopyMoveState, Message, schedule_size_jobs};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::path::PathBuf;
@@ -13,6 +14,7 @@ use tui_input::Input;
 pub fn handle(
     event: KeyEvent,
     app_state: &mut AppState,
+    renderer: &mut TerminalRenderer,
     vscode_adapter: &VsCodeAdapter,
     delete_paths: &mut Option<Vec<PathBuf>>,
     find_filter: &mut Option<Input>,
@@ -55,10 +57,14 @@ pub fn handle(
     if let Some(needs_redraw) = handle_two_pane_toggle(event, app_state) {
         return Some(needs_redraw);
     }
-    if let Some(needs_redraw) = handle_vscode(event, app_state, vscode_adapter) {
+    if let Some(needs_redraw) = handle_vscode(event, app_state, renderer, vscode_adapter) {
         return Some(needs_redraw);
     }
     handle_selection(event, app_state, sender)
+}
+
+pub fn is_hidden_toggle(event: KeyEvent) -> bool {
+    event.code == KeyCode::Char('h') && event.modifiers.contains(KeyModifiers::CONTROL)
 }
 
 fn handle_delete(
@@ -209,12 +215,21 @@ fn handle_two_pane_toggle(event: KeyEvent, app_state: &mut AppState) -> Option<b
 fn handle_vscode(
     event: KeyEvent,
     app_state: &mut AppState,
+    renderer: &mut TerminalRenderer,
     vscode_adapter: &VsCodeAdapter,
 ) -> Option<bool> {
-    if event.code == KeyCode::F(4) {
+    if event.code == KeyCode::F(4)
+        || (event.code == KeyCode::Char('o') && event.modifiers.contains(KeyModifiers::CONTROL))
+    {
         let panel = app_state.active_panel_mut();
         if let Some(entry) = panel.selected_entry() {
-            vscode_adapter.open(&entry.path);
+            let path = entry.path.clone();
+            // Terminal editors need the TTY to themselves: suspend, block, resume.
+            if let Some(parts) = vscode_adapter.terminal_editor() {
+                renderer.suspend(|| vscode_adapter.open_in_terminal(&parts, &path));
+                return Some(true);
+            }
+            vscode_adapter.open(&path);
         }
         return Some(false);
     }

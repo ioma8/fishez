@@ -166,6 +166,20 @@ impl TerminalRenderer {
         let _ = self.stdout.flush();
     }
 
+    /// Hands the terminal to another TUI process for the duration of `f`,
+    /// then restores raw mode, mouse capture, and current size.
+    pub fn suspend<T>(&mut self, f: impl FnOnce() -> T) -> T {
+        self.reset_terminal();
+        let result = f();
+        let _ = enable_raw_mode();
+        let _ = execute!(std::io::stdout(), EnableMouseCapture);
+        if let Ok((cols, rows)) = terminal::size() {
+            self.update_size(cols, rows);
+        }
+        self.kitty_image_hash = None;
+        result
+    }
+
     pub fn draw(&mut self, state: &AppState) {
         let panel = state.active_panel();
         let _ = queue!(&mut self.stdout, cursor::DisableBlinking, cursor::Hide);
@@ -800,8 +814,8 @@ impl TerminalRenderer {
 
         // shortcut rows: 3 + key(11) + desc(18) + key(8) + desc(14) + 2 = 56
         let shortcuts: &[(&str, &str, &str, &str)] = &[
-            ("type a-z", "filter instantly", "F3", "quick view"),
-            ("Enter", "open", "F4", "VS Code"),
+            ("type a-z", "filter instantly", "F3/Ctrl+P", "quick view"),
+            ("Enter", "open", "F4/Ctrl+O", "editor"),
             ("Ctrl+T", "split panes", "F8", "delete"),
             ("!", "shell command", "F1", "all shortcuts"),
         ];
@@ -1275,6 +1289,7 @@ const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
             ("a-z 0-9", "Filter instantly (Esc clears)"),
             ("Tab", "Switch pane"),
             ("Ctrl+T", "Toggle two panes"),
+            ("Ctrl+H", "Toggle hidden files"),
         ],
     ),
     (
@@ -1309,7 +1324,7 @@ const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
             ("Ctrl+F", "Find files (fd)"),
             ("Ctrl+R", "Search contents (rg)"),
             ("!", "Shell command ({1}, {@})"),
-            ("F4", "Open in VS Code"),
+            ("F4 / Ctrl+O", "Open in editor"),
             ("Ctrl+Enter", "Copy path (+Shift: absolute)"),
         ],
     ),

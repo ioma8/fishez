@@ -53,6 +53,7 @@ pub struct PanelState {
     pub selection_total: SizeFigure,
     pub selection_total_generation: u64,
     pub selection_cancel: Option<Arc<AtomicBool>>,
+    pub show_hidden: bool,
     /// Session-lifetime cache of already-computed directory totals, keyed by path, so
     /// revisiting a directory shows its real size instantly instead of recomputing.
     /// Can go stale if the directory's contents change between visits.
@@ -84,6 +85,7 @@ impl PanelState {
             selection_total: SizeFigure::Idle,
             selection_total_generation: 0,
             selection_cancel: None,
+            show_hidden: true,
             dir_total_cache: HashMap::new(),
         }
     }
@@ -176,6 +178,7 @@ pub struct AppState {
     pub show_help: bool,
     pub show_onboarding: bool,
     pub two_pane_mode: bool,
+    pub show_hidden: bool,
 }
 
 impl Default for AppState {
@@ -194,6 +197,7 @@ impl AppState {
             show_help: false,
             show_onboarding: true,
             two_pane_mode,
+            show_hidden: true,
         }
     }
 

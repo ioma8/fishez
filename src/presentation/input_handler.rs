@@ -983,7 +983,7 @@ fn mouse_right_click(
         ("Copy Path", ContextMenuAction::CopyPath),
     ];
     if is_file {
-        actions.push(("Open in VS Code", ContextMenuAction::OpenVsCode));
+        actions.push(("Open in editor", ContextMenuAction::OpenVsCode));
     }
 
     *context_menu = Some(ContextMenuState {

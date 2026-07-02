@@ -185,7 +185,7 @@ pub fn run(
                                 vscode_adapter,
                                 clipboard_adapter,
                                 sender,
-                                renderer.columns,
+                                renderer,
                                 rename_input,
                                 delete_paths,
                             );
@@ -333,7 +333,7 @@ fn route_input(
                     vscode_adapter,
                     clipboard_adapter,
                     sender,
-                    renderer.columns,
+                    renderer,
                     rename_input,
                     delete_paths,
                 );
@@ -443,9 +443,35 @@ fn route_input(
         );
         return;
     }
+    if shortcuts::is_hidden_toggle(event) {
+        app_state.show_hidden = !app_state.show_hidden;
+        app_state.left_panel.show_hidden = app_state.show_hidden;
+        app_state.right_panel.show_hidden = app_state.show_hidden;
+        navigate::refresh_entries(fs_adapter, &mut app_state.left_panel);
+        navigate::refresh_entries(fs_adapter, &mut app_state.right_panel);
+        redraw_current_view(
+            renderer,
+            app_state,
+            delete_paths,
+            find_filter,
+            ripgrep_filter,
+            shell_command,
+            rename_input,
+            new_folder_input,
+            copy_dest,
+            transfer_state,
+            move_dest,
+            context_menu,
+            *favorites_active,
+            favorites_items,
+            *favorites_selected,
+        );
+        return;
+    }
     if let Some(needs_redraw) = shortcuts::handle(
         event,
         app_state,
+        renderer,
         vscode_adapter,
         delete_paths,
         find_filter,
@@ -521,10 +547,11 @@ fn execute_context_action(
     vscode_adapter: &VsCodeAdapter,
     clipboard_adapter: &mut SystemClipboard,
     sender: &Sender<Message>,
-    renderer_columns: u16,
+    renderer: &mut TerminalRenderer,
     rename_input: &mut Option<Input>,
     delete_paths: &mut Option<Vec<PathBuf>>,
 ) {
+    let renderer_columns = renderer.columns;
     match action {
         ContextMenuAction::Open => {
             if target.is_dir() {
@@ -553,7 +580,11 @@ fn execute_context_action(
             }
         }
         ContextMenuAction::OpenVsCode => {
-            vscode_adapter.open(&target);
+            if let Some(parts) = vscode_adapter.terminal_editor() {
+                renderer.suspend(|| vscode_adapter.open_in_terminal(&parts, &target));
+            } else {
+                vscode_adapter.open(&target);
+            }
         }
     }
 }
