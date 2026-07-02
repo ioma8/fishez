@@ -4,43 +4,62 @@
 
 # fishez
 
-**A lightning-fast terminal file manager built for developers**
+**A terminal file manager that feels like a command-line superpower.**
 
 [![CI](https://github.com/ioma8/fishez/actions/workflows/ci.yml/badge.svg)](https://github.com/ioma8/fishez/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2024-orange.svg)](https://www.rust-lang.org/)
 
-Navigate files at the speed of thought. Preview code, search with fd/ripgrep, and open in your editor with one keystroke.
+Jump through projects, preview files, search with `fd`/`ripgrep`, open in your editor, and leave your shell in exactly the directory you found.
+
+**Think `cd` + file manager + quick preview + developer search. Zero config.**
 
 <img src="demo.gif" alt="fishez demo" width="900" />
 
 </div>
 
-## 🚀 Quick Start
+## 🚀 Install
+
+### Homebrew, recommended
 
 ```bash
 brew install ioma8/tap/fishez
-curl -sfL https://raw.githubusercontent.com/ioma8/fishez/main/install.sh | sh
-cargo install fishez
 eval "$(fishez --init)"
 fz ~/projects
 ```
 
-`fz` launches fishez and, when you quit, drops your shell into the directory you were browsing. Use `fishez ~/projects` directly when you want to launch without changing the parent shell directory.
+That is it. `fz` opens fishez, and when you quit, your shell lands in the directory you were browsing.
 
-The curl installer adds the `fz` wrapper to `.zshrc` / `.bashrc` when possible. Homebrew and Cargo only install the binary; add the `eval "$(fishez --init)"` line yourself for those paths.
-
-Press `Ctrl+T` to split into two panes. Press `Esc` to back out of overlays, and from a clean normal state it quits.
-
-Add this line to your `~/.zshrc` / `~/.bashrc` if you want `fz` available permanently:
+### One-line binary installer
 
 ```bash
-eval "$(fishez --init)"
+curl -sfL https://raw.githubusercontent.com/ioma8/fishez/main/install.sh | sh
 ```
 
-## ✨ What is fishez?
+The installer downloads the latest GitHub release and adds the `fz` wrapper to `.zshrc` / `.bashrc` when it can.
+
+### Build with Cargo
+
+Requires Rust and CMake.
+
+```bash
+cargo install --git https://github.com/ioma8/fishez
+eval "$(fishez --init)"
+fz
+```
+
+Use `fishez` directly if you want to browse without changing the parent shell directory.
+
+## ✨ Why Developers Share It
+
+- **It replaces slow `cd` guessing.** Open `fz`, move visually, quit in the right directory.
+- **It previews before you open.** Code, text, directories, images, and RAW thumbnails from the terminal.
+- **It ships with developer defaults.** `fd`, `ripgrep`, `$EDITOR`, split panes, batch file ops, no plugin setup.
+- **It is safe by default.** Delete moves to trash, copy/move show progress, conflicts ask before overwrite.
 
 fishez is a keyboard-driven terminal file manager for developers who live in the terminal. No config file, no plugin hunt, no startup ceremony.
+
+Press `Ctrl+T` for two panes, `F3` / `Ctrl+P` for quick view, `F4` / `Ctrl+O` for editor, and `F1` for help.
 
 ## 🎯 Core Features
 
