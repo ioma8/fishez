@@ -39,9 +39,11 @@ sudo pacman -S fd ripgrep bat
 
 ```bash
 brew install ioma8/tap/fishez
+fishez --install-shell
+fz ~/projects
 ```
 
-Then enable the `fz` shell wrapper below.
+Homebrew will also remind you to run `fishez --install-shell` after install.
 
 ### One-line binary installer
 
@@ -49,7 +51,7 @@ Then enable the `fz` shell wrapper below.
 curl -sfL https://raw.githubusercontent.com/ioma8/fishez/main/install.sh | sh
 ```
 
-The installer downloads the latest GitHub release and adds the `fz` wrapper to `.zshrc` / `.bashrc` when it can.
+The installer downloads the latest GitHub release and runs `fishez --install-shell` when it can.
 
 ### Build with Cargo
 
@@ -57,13 +59,29 @@ Requires Rust and CMake.
 
 ```bash
 cargo install fishez
+fishez --install-shell
+fz
 ```
 
 ### Enable `fz`
 
 `fz` is a tiny shell function around `fishez`. It opens the file manager and, when you quit, changes your shell into the directory you were browsing. Use `fishez` directly if you want to browse without changing the parent shell directory.
 
-Append the setup line to your shell rc file:
+Run this once after installing with Homebrew or Cargo:
+
+```bash
+fishez --install-shell
+```
+
+It detects zsh, bash, or fish and installs the `fz` wrapper if it is not already present. Then open a new terminal, or source the file it prints.
+
+To remove the wrapper later:
+
+```bash
+fishez --uninstall-shell
+```
+
+If you prefer to do it manually, append the setup line to your shell rc file:
 
 ```bash
 # zsh

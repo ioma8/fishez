@@ -17,7 +17,7 @@ case "$OS" in
   *)
     echo "Unsupported OS: $OS"
     echo "Try: cargo install fishez"
-    echo 'Then add eval "$(fishez --init)" to your shell rc for fz.'
+    echo "Then run: fishez --install-shell"
     exit 1
     ;;
 esac
@@ -28,7 +28,7 @@ case "$ARCH" in
   *)
     echo "Unsupported architecture: $ARCH"
     echo "Try: cargo install fishez"
-    echo 'Then add eval "$(fishez --init)" to your shell rc for fz.'
+    echo "Then run: fishez --install-shell"
     exit 1
     ;;
 esac
@@ -56,22 +56,8 @@ else
   sudo mv /tmp/fishez /usr/local/bin/$BIN
 fi
 
-# Install the fz() shell wrapper (cd to last viewed dir on exit)
-case "${SHELL:-}" in
-  */zsh)  RC="$HOME/.zshrc" ;;
-  */bash) RC="$HOME/.bashrc" ;;
-  *)      RC="" ;;
-esac
-
-FZ_LINE='eval "$(fishez --init)"  # fz: fishez wrapper that cds to the last viewed dir'
-if [ -n "$RC" ]; then
-  if ! grep -q "fishez --init" "$RC" 2>/dev/null; then
-    printf '\n%s\n' "$FZ_LINE" >> "$RC"
-    echo "✓ Added fz shell function to $RC (open a new shell to use it)."
-  fi
-else
-  echo "To get the fz function (cd on exit), add this to your shell rc:"
-  echo "  $FZ_LINE"
-fi
+/usr/local/bin/$BIN --install-shell || {
+  echo "To enable fz later, run: fishez --install-shell"
+}
 
 echo "✓ fishez installed. Run 'fishez' to start, or 'fz' to cd on exit."
