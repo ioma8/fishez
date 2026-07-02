@@ -15,7 +15,7 @@ jobs:
         include:
           - os: macos-14
             asset: fishez-macos-aarch64
-          - os: macos-13
+          - os: macos-15-intel
             asset: fishez-macos-x86_64
           - os: ubuntu-24.04
             asset: fishez-linux-x86_64
