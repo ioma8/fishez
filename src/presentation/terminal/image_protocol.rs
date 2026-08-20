@@ -122,11 +122,15 @@ fn wait_for_tty_input(tty: &std::fs::File, deadline: Instant) -> bool {
 pub(crate) fn kitty_image_escape(bytes: &[u8], columns: u16, rows: u16) -> Option<String> {
     let image = image::load_from_memory(bytes).ok()?;
     let (width, height) = image.dimensions();
-    let mut png = Vec::new();
-    image
-        .write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
-        .ok()?;
-    let payload = base64::engine::general_purpose::STANDARD.encode(png);
+    let payload = if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    } else {
+        let mut png = Vec::new();
+        image
+            .write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
+            .ok()?;
+        base64::engine::general_purpose::STANDARD.encode(png)
+    };
     let control = kitty_size_control(width, height, columns, rows);
     Some(format!(
         "\x1b_Ga=T,f=100,i={KITTY_IMAGE_ID},{control},m=0;{payload}\x1b\\"
@@ -199,6 +203,16 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn kitty_escape_passes_png_bytes_through_without_reencoding() {
+        let png = test_png(8, 8);
+        let esc = kitty_image_escape(&png, 40, 18).expect("expected kitty escape");
+        assert!(
+            esc.contains(",r=18"),
+            "dimensions are read from the PNG header"
+        );
+    }
+
+    #[test]
     fn detects_kitty_probe_response() {
         assert!(is_kitty_probe_response(b"\x1b_Gi=31;OK\x1b\\"));
         assert!(!is_kitty_probe_response(b"\x1b[c"));
@@ -224,6 +238,27 @@ pub(crate) mod tests {
         image
             .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
             .unwrap();
+        bytes
+    }
+
+    /// A tiny animated GIF with `frames` frames of `delay_cs` centiseconds each.
+    pub(crate) fn test_gif(frames: usize, delay_cs: u16) -> Vec<u8> {
+        use image::codecs::gif::GifEncoder;
+        let mut bytes = Vec::new();
+        let mut encoder = GifEncoder::new(&mut bytes);
+        for i in 0..frames {
+            let img = image::RgbImage::from_fn(16, 16, |x, y| {
+                image::Rgb([(x + i as u32) as u8, y as u8, 0])
+            });
+            let frame = image::Frame::from_parts(
+                image::DynamicImage::ImageRgb8(img).to_rgba8(),
+                0,
+                0,
+                image::Delay::from_numer_denom_ms(u32::from(delay_cs) * 10, 1),
+            );
+            encoder.encode_frame(frame).unwrap();
+        }
+        drop(encoder);
         bytes
     }
 }

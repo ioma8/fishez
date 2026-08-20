@@ -390,7 +390,10 @@ impl TerminalRenderer {
     fn sync_kitty_image_visibility(&mut self, mode: &PanelMode) {
         if self.image_protocol == ImageProtocol::Kitty
             && self.kitty_image_hash.is_some()
-            && !matches!(mode, PanelMode::QuickView(QuickViewMode::Image(_)))
+            && !matches!(
+                mode,
+                PanelMode::QuickView(QuickViewMode::Image(_) | QuickViewMode::Animated { .. })
+            )
         {
             let _ = queue!(&mut self.stdout, Print(KITTY_DELETE_ESCAPE));
             self.kitty_image_hash = None;
@@ -406,37 +409,51 @@ impl TerminalRenderer {
         let rows = self.visible_rows();
         match qv {
             QuickViewMode::Text { lines, start, .. } => self.draw_text(lines, *start, rows),
-            QuickViewMode::Image(bytes) => match self.image_protocol {
-                ImageProtocol::ITerm2 => {
-                    let enc = iterm2img::from_bytes(bytes.to_vec())
-                        .width(self.columns as u64)
-                        .height(rows as u64)
-                        .width_auto()
-                        .preserve_aspect_ratio(true)
-                        .inline(true)
-                        .build();
-                    let _ = queue!(&mut self.stdout, cursor::MoveTo(0, HEADER_ROWS), Print(enc));
-                }
-                ImageProtocol::Kitty => {
-                    let image_hash = hash_bytes(bytes);
-                    if self.kitty_image_hash == Some(image_hash) {
-                        return;
-                    }
-                    if let Some(enc) = kitty_image_escape(bytes, self.columns, rows) {
-                        let _ =
-                            queue!(&mut self.stdout, cursor::MoveTo(0, HEADER_ROWS), Print(enc));
-                        self.kitty_image_hash = Some(image_hash);
-                    }
-                }
-                ImageProtocol::None => self.draw_text(
-                    &["Image preview unsupported by this terminal.".to_string()],
-                    0,
-                    rows,
-                ),
-            },
+            QuickViewMode::Image(bytes) => self.draw_image(bytes, rows),
+            QuickViewMode::Animated { frames, frame, .. } => self.draw_image(&frames[*frame], rows),
             QuickViewMode::Directory { lines } => self.draw_text(lines, 0, rows),
             QuickViewMode::NotSupported => self.draw_text(&["".to_string()], 0, rows),
             QuickViewMode::Loading { .. } => {} // handled above via early return
+        }
+    }
+
+    /// Draws image bytes via the active protocol. Kitty/ghostty: replaces the previous
+    /// image (delete + re-transmit, so animated frames swap cleanly); iTerm2: clears the
+    /// area first (already done) then prints an inline image; others: an unsupported note.
+    fn draw_image(&mut self, bytes: &[u8], rows: u16) {
+        match self.image_protocol {
+            ImageProtocol::ITerm2 => {
+                let enc = iterm2img::from_bytes(bytes.to_vec())
+                    .width(self.columns as u64)
+                    .height(rows as u64)
+                    .width_auto()
+                    .preserve_aspect_ratio(true)
+                    .inline(true)
+                    .build();
+                let _ = queue!(&mut self.stdout, cursor::MoveTo(0, HEADER_ROWS), Print(enc));
+            }
+            ImageProtocol::Kitty => {
+                let image_hash = hash_bytes(bytes);
+                if self.kitty_image_hash == Some(image_hash) {
+                    return;
+                }
+                let mut enc = String::new();
+                if self.kitty_image_hash.is_some() {
+                    // Replacing a previously transmitted image: kitty requires the old
+                    // one to be deleted before the new payload is transmitted.
+                    enc.push_str(KITTY_DELETE_ESCAPE);
+                }
+                if let Some(e) = kitty_image_escape(bytes, self.columns, rows) {
+                    enc.push_str(&e);
+                    let _ = queue!(&mut self.stdout, cursor::MoveTo(0, HEADER_ROWS), Print(enc));
+                    self.kitty_image_hash = Some(image_hash);
+                }
+            }
+            ImageProtocol::None => self.draw_text(
+                &["Image preview unsupported by this terminal.".to_string()],
+                0,
+                rows,
+            ),
         }
     }
 
@@ -1227,6 +1244,68 @@ mod tests {
                 .count(),
             1,
             "expected kitty image payload to be sent only once for the same image"
+        );
+    }
+
+    #[test]
+    fn kitty_animated_frames_replace_via_delete_then_transmit() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(40, 20);
+        renderer.image_protocol = ImageProtocol::Kitty;
+        let mut mode = QuickViewMode::Animated {
+            frames: std::sync::Arc::new(vec![
+                crate::presentation::terminal::image_protocol::tests::test_png(1, 1),
+                crate::presentation::terminal::image_protocol::tests::test_png(2, 2),
+            ]),
+            delays: vec![100, 100],
+            frame: 0,
+        };
+
+        renderer.draw_quick_view(&mode); // first frame: transmit only
+        let out0 = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            out0.contains("\x1b_Ga=T,f=100,i=1,"),
+            "first frame must be transmitted, got: {out0}"
+        );
+        assert!(
+            !out0.contains("\x1b_Ga=d,d=I,i=1"),
+            "first frame must not delete anything, got: {out0}"
+        );
+
+        // advance to the next frame and redraw: old image deleted, new one transmitted
+        if let QuickViewMode::Animated { frame, .. } = &mut mode {
+            *frame = 1;
+        }
+        renderer.draw_quick_view(&mode);
+        let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            out.contains("\x1b_Ga=d,d=I,i=1"),
+            "replacing frame must delete the previous image, got: {out}"
+        );
+        assert_eq!(
+            out.matches("\x1b_Ga=T,f=100,i=1,").count(),
+            2,
+            "each distinct frame must be transmitted once, got: {out}"
+        );
+    }
+
+    #[test]
+    fn iterm2_animated_mode_emits_inline_image_escape() {
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(40, 20);
+        renderer.image_protocol = ImageProtocol::ITerm2;
+        let mode = QuickViewMode::Animated {
+            frames: std::sync::Arc::new(vec![
+                crate::presentation::terminal::image_protocol::tests::tiny_png(),
+            ]),
+            delays: vec![100],
+            frame: 0,
+        };
+
+        renderer.draw_quick_view(&mode);
+
+        let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
+        assert!(
+            out.contains("\x1b]1337;"),
+            "expected an iTerm2 inline-image escape, got: {out}"
         );
     }
 

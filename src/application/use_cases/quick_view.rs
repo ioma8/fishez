@@ -6,14 +6,19 @@ use image::{DynamicImage, codecs::jpeg::JpegEncoder, imageops, load_from_memory}
 use little_exif::exif_tag::ExifTag;
 use little_exif::metadata::Metadata;
 use std::fs;
-use std::io::Read;
+use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
 
 const MIN_WRAP_WIDTH: u16 = 20;
 const DIR_PREVIEW_LIMIT: usize = 20;
 const TEXT_PREVIEW_MAX_BYTES: u64 = 1024 * 1024;
 const TEXT_PREVIEW_MAX_LINES: usize = 5_000;
+/// Maximum GIF frames decoded for animation, bounding memory and per-frame payload.
+const MAX_ANIM_FRAMES: usize = 100;
+/// Minimum frame delay (ms): GIFs with a 0 delay would otherwise spin as fast as the terminal allows.
+const MIN_FRAME_GAP_MS: u64 = 40;
 
 pub fn scroll(panel: &mut PanelState, direction: isize, rows: u16, header: u16, footer: u16) {
     if let PanelMode::QuickView(QuickViewMode::Text { lines, start }) = &mut panel.mode {
@@ -223,6 +228,9 @@ fn preview_image(path: &Path, wrap_width: u16) -> QuickViewMode {
     let Ok(buf) = fs::read(path) else {
         return QuickViewMode::NotSupported;
     };
+    if let Some(mode) = animated_gif_mode(&buf, wrap_width) {
+        return mode;
+    }
     let Some(img) = extract_thumbnail(path).or_else(|| load_from_memory(&buf).ok()) else {
         return QuickViewMode::NotSupported;
     };
@@ -236,6 +244,44 @@ fn preview_image(path: &Path, wrap_width: u16) -> QuickViewMode {
         Ok(_) => QuickViewMode::Image(output),
         Err(_) => QuickViewMode::Image(buf),
     }
+}
+
+/// Decodes an animated GIF into downscaled PNG frames plus per-frame delays (ms).
+/// Returns `Animated` mode when there is more than one frame, else `None` so the
+/// caller falls back to the static-image path. Frames are downscaled to the
+/// terminal pixel budget; both terminal protocols scale the display to fit.
+fn animated_gif_mode(bytes: &[u8], wrap_width: u16) -> Option<QuickViewMode> {
+    use image::AnimationDecoder;
+    use image::codecs::gif::GifDecoder;
+
+    let decoder = GifDecoder::new(Cursor::new(bytes)).ok()?;
+    let target = terminal_pixel_limit(wrap_width);
+    let mut frames = Vec::new();
+    let mut delays = Vec::new();
+    for frame in decoder.into_frames().take(MAX_ANIM_FRAMES) {
+        let frame = frame.ok()?;
+        let (ms, _) = frame.delay().numer_denom_ms();
+        let img = image::DynamicImage::ImageRgba8(frame.into_buffer());
+        let scaled = if img.width() > target || img.height() > target {
+            img.thumbnail(target, target)
+        } else {
+            img
+        };
+        let mut png = Vec::new();
+        scaled
+            .write_to(&mut Cursor::new(&mut png), image::ImageFormat::Png)
+            .ok()?;
+        frames.push(png);
+        delays.push(ms.max(MIN_FRAME_GAP_MS as u32) as u64);
+    }
+    if frames.len() < 2 {
+        return None;
+    }
+    Some(QuickViewMode::Animated {
+        frames: Arc::new(frames),
+        delays,
+        frame: 0,
+    })
 }
 
 fn terminal_pixel_limit(wrap_width: u16) -> u32 {
@@ -439,6 +485,40 @@ mod tests {
         assert_eq!(
             lines.last().map(String::as_str),
             Some(format!("line {}", TEXT_PREVIEW_MAX_LINES - 1).as_str())
+        );
+    }
+
+    #[test]
+    fn preview_image_decodes_animated_gifs_into_frames() {
+        let base = create_temp_dir("quick_view_gif_frames");
+        let gif_bytes = crate::presentation::terminal::image_protocol::tests::test_gif(3, 10);
+        let file_path = base.join("anim.gif");
+        fs::write(&file_path, &gif_bytes).unwrap();
+
+        match preview_image(&file_path, 60) {
+            QuickViewMode::Animated {
+                frames,
+                delays,
+                frame,
+            } => {
+                assert_eq!(frames.len(), 3);
+                assert_eq!(delays, vec![100, 100, 100], "10 centiseconds = 100 ms");
+                assert_eq!(frame, 0);
+            }
+            other => panic!("expected Animated mode, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn preview_image_treats_single_frame_gif_as_static() {
+        let base = create_temp_dir("quick_view_gif_static");
+        let gif_bytes = crate::presentation::terminal::image_protocol::tests::test_gif(1, 10);
+        let file_path = base.join("still.gif");
+        fs::write(&file_path, &gif_bytes).unwrap();
+
+        assert!(
+            matches!(preview_image(&file_path, 60), QuickViewMode::Image(_)),
+            "single-frame GIF must use the static image path"
         );
     }
 

@@ -3,7 +3,7 @@
 use crate::application::ports::ClipboardPort;
 use crate::application::use_cases::navigate;
 use crate::application::use_cases::transfer::{TransferEvent, TransferKind};
-use crate::application::{ActivePane, AppState, PanelMode, PanelState, SizeFigure};
+use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode, SizeFigure};
 use crate::infrastructure::{
     StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, mark_onboarded,
 };
@@ -19,6 +19,7 @@ use crate::presentation::shortcuts;
 use crate::presentation::terminal::overlays;
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use std::sync::mpsc::{Receiver, Sender};
+use std::time::{Duration, Instant};
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -32,6 +33,7 @@ pub fn run(
     receiver: &Receiver<Message>,
     ui: &mut UiState,
 ) {
+    let mut last_anim_tick: Option<Instant> = None;
     loop {
         if event::poll(std::time::Duration::from_millis(15)).unwrap() {
             match event::read().unwrap() {
@@ -99,10 +101,53 @@ pub fn run(
             }
         }
         handle_async_messages(receiver, app_state, renderer, fs_adapter, ui);
+        if advance_quick_view_animation(app_state, renderer, &mut last_anim_tick) {
+            continue;
+        }
         if clear_expired_notification(app_state, 3000) {
             redraw_current_view(renderer, app_state, ui);
         }
     }
+}
+
+/// Steps the active panel's animated quick view forward once its current frame
+/// delay has elapsed, then redraws. `last_tick` is the baseline of the current
+/// frame; it resets whenever the mode isn't an animation (e.g. between previews).
+fn advance_quick_view_animation(
+    app_state: &mut AppState,
+    renderer: &mut TerminalRenderer,
+    last_tick: &mut Option<Instant>,
+) -> bool {
+    let delay_ms = {
+        let panel = app_state.active_panel();
+        let PanelMode::QuickView(QuickViewMode::Animated { delays, frame, .. }) = &panel.mode
+        else {
+            *last_tick = None;
+            return false;
+        };
+        delays[*frame]
+    };
+    let due = match last_tick {
+        // First sighting of this animation: start its clock without advancing,
+        // so the first frame is shown for its full delay.
+        None => {
+            *last_tick = Some(Instant::now());
+            return false;
+        }
+        Some(t) => t.elapsed() >= Duration::from_millis(delay_ms),
+    };
+    if !due {
+        return false;
+    }
+    let panel = app_state.active_panel_mut();
+    let PanelMode::QuickView(QuickViewMode::Animated { delays, frame, .. }) = &mut panel.mode
+    else {
+        return false;
+    };
+    *frame = (*frame + 1) % delays.len();
+    *last_tick = Some(Instant::now());
+    overlays::draw(renderer, app_state);
+    true
 }
 
 fn dismiss_onboarding(app_state: &mut AppState) -> bool {
@@ -707,6 +752,91 @@ mod tests {
             crate::application::QuickViewMode::NotSupported
         ));
         assert_eq!(panel.mode, PanelMode::Normal);
+    }
+
+    #[test]
+    fn animation_first_tick_sets_baseline_without_advancing() {
+        let mut state = AppState::new(false);
+        state.active_panel_mut().mode = PanelMode::QuickView(QuickViewMode::Animated {
+            frames: std::sync::Arc::new(vec![vec![1], vec![2]]),
+            delays: vec![10, 10],
+            frame: 0,
+        });
+        let (mut renderer, _buffer) = TerminalRenderer::with_test_writer(80, 24);
+        let mut last_tick = None;
+
+        assert!(!advance_quick_view_animation(
+            &mut state,
+            &mut renderer,
+            &mut last_tick
+        ));
+        assert!(last_tick.is_some());
+        assert_eq!(
+            anim_frame(&state),
+            0,
+            "first sighting must not advance past frame 0"
+        );
+    }
+
+    #[test]
+    fn animation_advances_after_elapsed_delay_and_loops() {
+        let mut state = AppState::new(false);
+        state.active_panel_mut().mode = PanelMode::QuickView(QuickViewMode::Animated {
+            frames: std::sync::Arc::new(vec![vec![1], vec![2]]),
+            delays: vec![10, 10],
+            frame: 0,
+        });
+        let (mut renderer, _buffer) = TerminalRenderer::with_test_writer(80, 24);
+        let mut last_tick = Some(Instant::now());
+
+        // not due yet: stays on frame 0
+        assert!(!advance_quick_view_animation(
+            &mut state,
+            &mut renderer,
+            &mut last_tick
+        ));
+        assert_eq!(anim_frame(&state), 0);
+
+        // a stale tick is due: advances to frame 1
+        last_tick = Some(Instant::now() - Duration::from_secs(1));
+        assert!(advance_quick_view_animation(
+            &mut state,
+            &mut renderer,
+            &mut last_tick
+        ));
+        assert_eq!(anim_frame(&state), 1);
+
+        // and loops back to frame 0
+        last_tick = Some(Instant::now() - Duration::from_secs(1));
+        assert!(advance_quick_view_animation(
+            &mut state,
+            &mut renderer,
+            &mut last_tick
+        ));
+        assert_eq!(anim_frame(&state), 0);
+    }
+
+    #[test]
+    fn non_animation_mode_resets_the_animation_tick() {
+        let mut state = AppState::new(false);
+        let (mut renderer, _buffer) = TerminalRenderer::with_test_writer(80, 24);
+        let mut last_tick = Some(Instant::now());
+
+        assert!(!advance_quick_view_animation(
+            &mut state,
+            &mut renderer,
+            &mut last_tick
+        ));
+        assert_eq!(last_tick, None, "non-animation mode must reset the timer");
+    }
+
+    fn anim_frame(state: &AppState) -> usize {
+        let PanelMode::QuickView(QuickViewMode::Animated { frame, .. }) =
+            &state.active_panel().mode
+        else {
+            panic!("expected Animated mode");
+        };
+        *frame
     }
 
     #[test]

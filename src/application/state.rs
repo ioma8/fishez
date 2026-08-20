@@ -28,10 +28,25 @@ pub enum PanelMode {
 /// Quick view mode variants.
 #[derive(Debug, Clone, PartialEq)]
 pub enum QuickViewMode {
-    Loading { message: String },
-    Text { lines: Vec<String>, start: usize },
+    Loading {
+        message: String,
+    },
+    Text {
+        lines: Vec<String>,
+        start: usize,
+    },
     Image(Vec<u8>),
-    Directory { lines: Vec<String> },
+    /// Animated image (GIF): PNG-encoded frames with per-frame delays in ms.
+    /// `frame` is the currently displayed index, advanced by the event loop.
+    /// Frames are in an `Arc` so cloning the mode (per-keystroke snapshot) is cheap.
+    Animated {
+        frames: Arc<Vec<Vec<u8>>>,
+        delays: Vec<u64>,
+        frame: usize,
+    },
+    Directory {
+        lines: Vec<String>,
+    },
     NotSupported,
 }
 

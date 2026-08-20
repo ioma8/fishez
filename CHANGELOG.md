@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Animated GIF quick-view previews that play in kitty-graphics and iTerm2 terminals
 - `fz` cd-on-exit shell wrapper via `fishez --init`
 - Start path support, e.g. `fishez ~/projects`
 - Safe background copy/move with progress and overwrite prompts

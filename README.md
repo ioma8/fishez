@@ -123,7 +123,7 @@ fz ~/projects
 
 - **Fast browsing beats `cd` guessing.** Open `fz`, move visually, quit in the right directory.
 - **Inline filtering is the superpower.** Start typing and the current directory narrows instantly.
-- **Quick view keeps you in flow.** Preview code, text, directories, images, and RAW thumbnails before opening.
+- **Quick view keeps you in flow.** Preview code, text, directories, images (including animated GIFs), and RAW thumbnails before opening.
 - **Commander-style controls feel familiar.** Function keys, selection, dual panes, copy/move/delete, no plugin setup.
 
 fishez is a keyboard-driven terminal file manager for developers who want fast file browsing without leaving the terminal.
@@ -170,6 +170,7 @@ Written in Rust with zero-copy rendering. Directory listings, inline filters, an
 - **ripgrep-powered search** finds content across thousands of files in seconds
 - **fd integration** for blazing-fast fuzzy file search
 - **Raw image previews** via the `jpgfromrawlib`-supported camera formats directly in quick view
+- **Animated GIF previews** that play in any terminal with kitty-graphics or iTerm2 image support
 
 ### Clean Architecture
 Built with maintainability in mind using Clean Architecture principles. Domain logic stays pure, adapters are swappable, and the codebase remains readable. Contributing is straightforward.
