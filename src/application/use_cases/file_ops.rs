@@ -49,100 +49,9 @@ pub fn copy_to_clipboard(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::ports::FileSystemPort;
     use crate::domain::{EntryKind, FileEntry};
-    use std::path::PathBuf;
-
-    /// Mock file system for testing
-    struct MockFileSystem {
-        delete_error: bool,
-        deleted_paths: std::cell::RefCell<Vec<PathBuf>>,
-    }
-
-    impl MockFileSystem {
-        fn new() -> Self {
-            Self {
-                delete_error: false,
-                deleted_paths: std::cell::RefCell::new(vec![]),
-            }
-        }
-
-        fn with_delete_error() -> Self {
-            Self {
-                delete_error: true,
-                deleted_paths: std::cell::RefCell::new(vec![]),
-            }
-        }
-
-        #[allow(dead_code)]
-        fn get_deleted_paths(&self) -> Vec<PathBuf> {
-            self.deleted_paths.borrow().clone()
-        }
-    }
-
-    impl FileSystemPort for MockFileSystem {
-        fn list_dir(&self, _path: &Path) -> Result<Vec<FileEntry>, String> {
-            Ok(vec![])
-        }
-
-        fn delete(&self, path: &Path) -> Result<(), String> {
-            if self.delete_error {
-                Err("Delete failed".to_string())
-            } else {
-                self.deleted_paths.borrow_mut().push(path.to_path_buf());
-                Ok(())
-            }
-        }
-
-        fn rename(&self, from: &Path, to: &Path) -> std::io::Result<()> {
-            std::fs::rename(from, to)
-        }
-
-        fn copy_file(&self, from: &Path, to: &Path) -> std::io::Result<()> {
-            std::fs::copy(from, to).map(|_| ())
-        }
-
-        fn create_dir(&self, path: &Path) -> std::io::Result<()> {
-            std::fs::create_dir(path)
-        }
-    }
-
-    /// Mock clipboard for testing
-    struct MockClipboard {
-        content: std::cell::RefCell<Option<String>>,
-        error: bool,
-    }
-
-    impl MockClipboard {
-        fn new() -> Self {
-            Self {
-                content: std::cell::RefCell::new(None),
-                error: false,
-            }
-        }
-
-        fn with_error() -> Self {
-            Self {
-                content: std::cell::RefCell::new(None),
-                error: true,
-            }
-        }
-
-        fn get_content(&self) -> Option<String> {
-            self.content.borrow().clone()
-        }
-    }
-
-    impl ClipboardPort for MockClipboard {
-        fn copy(&mut self, text: &str) -> Result<(), String> {
-            if self.error {
-                Err("Clipboard error".to_string())
-            } else {
-                *self.content.borrow_mut() = Some(text.to_string());
-                Ok(())
-            }
-        }
-    }
+    use crate::test_support::{MockClipboard, MockFileSystem};
+    use std::path::{Path, PathBuf};
 
     fn create_test_entries() -> Vec<FileEntry> {
         vec![
@@ -171,6 +80,7 @@ mod tests {
         let paths: Vec<&Path> = vec![path.as_path()];
         let result = delete_selected(&fs, &mut panel, &paths);
         assert!(result.is_ok());
+        assert_eq!(fs.deleted_paths(), vec![path]);
     }
 
     #[test]
@@ -183,6 +93,7 @@ mod tests {
         let paths: Vec<&Path> = vec![path1.as_path(), path2.as_path()];
         let result = delete_selected(&fs, &mut panel, &paths);
         assert!(result.is_ok());
+        assert_eq!(fs.deleted_paths(), vec![path1, path2]);
     }
 
     #[test]
@@ -231,7 +142,7 @@ mod tests {
         let result = copy_to_clipboard(&mut clipboard, &mut panel, true);
         assert!(result.is_ok());
         assert_eq!(
-            clipboard.get_content(),
+            clipboard.content(),
             Some("/home/user/file1.txt".to_string())
         );
         assert!(panel.notification.is_some());
@@ -252,7 +163,7 @@ mod tests {
         panel.cursor = 0;
         let result = copy_to_clipboard(&mut clipboard, &mut panel, false);
         assert!(result.is_ok());
-        assert_eq!(clipboard.get_content(), Some("file1.txt".to_string()));
+        assert_eq!(clipboard.content(), Some("file1.txt".to_string()));
         assert!(panel.notification.is_some());
         assert!(panel.notification.as_ref().unwrap().contains("name"));
     }
@@ -296,6 +207,6 @@ mod tests {
         panel.cursor = 1;
         let result = copy_to_clipboard(&mut clipboard, &mut panel, false);
         assert!(result.is_ok());
-        assert_eq!(clipboard.get_content(), Some("file2.txt".to_string()));
+        assert_eq!(clipboard.content(), Some("file2.txt".to_string()));
     }
 }

@@ -4,7 +4,7 @@ use crate::application::AppState;
 use crate::application::use_cases::transfer::TransferKind;
 use crate::presentation::input_handler::{ContextMenuState, TransferUiState};
 use crate::presentation::{FOOTER_ROWS, HEADER_ROWS, TerminalRenderer};
-use crossterm::style::{Color, Print, Stylize};
+use crossterm::style::{Color, Print, StyledContent, Stylize};
 use crossterm::terminal::ClearType;
 use crossterm::{cursor, queue, terminal};
 use std::io::Write;
@@ -45,14 +45,7 @@ fn draw_delete_prompt(renderer: &mut TerminalRenderer, paths: &[PathBuf]) {
             )
         }
     };
-    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
-    let _ = queue!(
-        renderer.writer(),
-        cursor::MoveTo(0, prompt_row),
-        terminal::Clear(ClearType::UntilNewLine),
-        Print(prompt.red().bold()),
-    );
-    let _ = renderer.writer().flush();
+    draw_prompt_line(renderer, &[prompt.red().bold()]);
 }
 
 /// Draw with an in-progress transfer overlay: progress line, or a conflict prompt on top of it.
@@ -91,14 +84,7 @@ fn draw_transfer_progress(renderer: &mut TerminalRenderer, job: &TransferUiState
         name,
         suffix
     );
-    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
-    let _ = queue!(
-        renderer.writer(),
-        cursor::MoveTo(0, prompt_row),
-        terminal::Clear(ClearType::UntilNewLine),
-        Print(prompt.cyan().bold()),
-    );
-    let _ = renderer.writer().flush();
+    draw_prompt_line(renderer, &[prompt.cyan().bold()]);
 }
 
 fn draw_conflict_prompt(renderer: &mut TerminalRenderer, path: &Path) {
@@ -106,61 +92,19 @@ fn draw_conflict_prompt(renderer: &mut TerminalRenderer, path: &Path) {
         "{} already exists: (O)verwrite  (S)kip  Overwrite (A)ll  Skip a(L)l  (Esc) Cancel",
         path.display()
     );
-    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
-    let _ = queue!(
-        renderer.writer(),
-        cursor::MoveTo(0, prompt_row),
-        terminal::Clear(ClearType::UntilNewLine),
-        Print(prompt.red().bold()),
-    );
-    let _ = renderer.writer().flush();
+    draw_prompt_line(renderer, &[prompt.red().bold()]);
 }
 
-/// Draw with find prompt overlay.
-pub fn draw_with_find(renderer: &mut TerminalRenderer, state: &AppState, filter: Option<&Input>) {
-    draw(renderer, state);
-    if let Some(f) = filter {
-        draw_input_prompt(renderer, "Find", f);
-    }
-}
-
-/// Draw with ripgrep prompt overlay.
-pub fn draw_with_ripgrep(
+/// Draw with an input prompt overlay (find, ripgrep, shell, rename, new folder).
+pub fn draw_with_prompt(
     renderer: &mut TerminalRenderer,
     state: &AppState,
-    filter: Option<&Input>,
-) {
-    draw(renderer, state);
-    if let Some(f) = filter {
-        draw_input_prompt(renderer, "RipGrep", f);
-    }
-}
-
-/// Draw with shell command prompt overlay.
-pub fn draw_with_shell(renderer: &mut TerminalRenderer, state: &AppState, command: Option<&Input>) {
-    draw(renderer, state);
-    if let Some(c) = command {
-        draw_input_prompt(renderer, "!", c);
-    }
-}
-
-/// Draw with rename prompt overlay.
-pub fn draw_with_rename(renderer: &mut TerminalRenderer, state: &AppState, input: Option<&Input>) {
-    draw(renderer, state);
-    if let Some(inp) = input {
-        draw_input_prompt(renderer, "Rename", inp);
-    }
-}
-
-/// Draw with new folder prompt overlay.
-pub fn draw_with_new_folder(
-    renderer: &mut TerminalRenderer,
-    state: &AppState,
+    label: &str,
     input: Option<&Input>,
 ) {
     draw(renderer, state);
-    if let Some(inp) = input {
-        draw_input_prompt(renderer, "New folder", inp);
+    if let Some(f) = input {
+        draw_input_prompt(renderer, label, f);
     }
 }
 
@@ -177,7 +121,6 @@ pub fn draw_with_move_dest(renderer: &mut TerminalRenderer, state: &AppState, de
 }
 
 fn draw_input_prompt(renderer: &mut TerminalRenderer, label: &str, input: &Input) {
-    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
     let value = input.value();
     let cursor = input.cursor();
 
@@ -187,26 +130,30 @@ fn draw_input_prompt(renderer: &mut TerminalRenderer, label: &str, input: &Input
     let cur_ch = after_chars.next();
     let rest = after_chars.as_str();
 
+    let mut prints = vec![
+        format!("{}: ", label).cyan().bold(),
+        before.to_string().cyan().bold(),
+    ];
+    match cur_ch {
+        Some(ch) => prints.push(ch.to_string().black().on_cyan()),
+        None => prints.push(" ".to_string().black().on_cyan()),
+    }
+    prints.push(rest.to_string().cyan().bold());
+    prints.push("  [esc]".to_string().dark_grey());
+    draw_prompt_line(renderer, &prints);
+}
+
+/// Clears the prompt row and prints the styled content on it, then flushes.
+fn draw_prompt_line(renderer: &mut TerminalRenderer, prints: &[StyledContent<String>]) {
+    let prompt_row = renderer.rows - FOOTER_ROWS + 1;
     let _ = queue!(
         renderer.writer(),
         cursor::MoveTo(0, prompt_row),
         terminal::Clear(ClearType::UntilNewLine),
-        Print(format!("{}: ", label).cyan().bold()),
-        Print(before.cyan().bold()),
     );
-    match cur_ch {
-        Some(ch) => {
-            let _ = queue!(
-                renderer.writer(),
-                Print(ch.to_string().black().on_cyan()),
-                Print(rest.cyan().bold()),
-            );
-        }
-        None => {
-            let _ = queue!(renderer.writer(), Print(" ".black().on_cyan()));
-        }
+    for p in prints {
+        let _ = queue!(renderer.writer(), Print(p));
     }
-    let _ = queue!(renderer.writer(), Print("  [esc]".dark_grey()));
     let _ = renderer.writer().flush();
 }
 
@@ -251,22 +198,8 @@ pub fn draw_context_menu(renderer: &mut TerminalRenderer, ctx: &ContextMenuState
     let _ = renderer.writer().flush();
 }
 
-/// Draw favorites overlay or main UI.
-pub fn draw_with_favorites(
-    renderer: &mut TerminalRenderer,
-    state: &AppState,
-    active: bool,
-    items: &[String],
-    selected: usize,
-) {
-    if active {
-        draw_favorites_overlay(renderer, items, selected);
-    } else {
-        draw(renderer, state);
-    }
-}
-
-fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], selected: usize) {
+/// Draw the favorites overlay (the caller decides it owns the screen).
+pub fn draw_favorites_overlay(renderer: &mut TerminalRenderer, items: &[String], selected: usize) {
     let rows_available = renderer.rows - HEADER_ROWS - FOOTER_ROWS;
 
     let _ = queue!(

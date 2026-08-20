@@ -1,26 +1,19 @@
 //! Terminal renderer - draws UI to terminal.
 
+use super::image_protocol::{
+    ImageProtocol, KITTY_DELETE_ESCAPE, detect_image_protocol, hash_bytes, kitty_image_escape,
+};
 use crate::application::use_cases::quick_view::human_size;
 use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode, SizeFigure};
 use crate::domain::FileEntry;
 use crate::infrastructure::disk_free_and_total;
-use base64::Engine;
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::style::{Color, Print, StyledContent, Stylize};
 use crossterm::terminal::{ClearType, enable_raw_mode};
 use crossterm::{cursor, execute, queue, terminal};
-use image::{GenericImageView, ImageFormat};
-use std::collections::hash_map::DefaultHasher;
-use std::fs::OpenOptions;
-use std::hash::{Hash, Hasher};
-use std::io::{BufWriter, Cursor, Read, Write};
-#[cfg(unix)]
-use std::os::fd::AsRawFd;
-use std::time::{Duration, Instant};
+use std::io::{BufWriter, Write};
 
 const LOADING_FRAMES: [&str; 4] = ["|", "/", "-", "\\"];
-const KITTY_IMAGE_ID: u32 = 1;
-const KITTY_DELETE_ESCAPE: &str = "\x1b_Ga=d,d=I,i=1\x1b\\";
 
 #[cfg(test)]
 use std::cell::RefCell;
@@ -77,13 +70,6 @@ pub const FOOTER_ROWS: u16 = 3;
 
 /// Embedded SVG logo bytes (loaded at compile time)
 const LOGO_SVG: &[u8] = include_bytes!("../../../Fishez_logo.svg");
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum ImageProtocol {
-    ITerm2,
-    Kitty,
-    None,
-}
 
 pub(crate) enum StdoutKind {
     Real(BufWriter<std::io::Stdout>),
@@ -245,7 +231,7 @@ impl TerminalRenderer {
     fn draw_header(&mut self, panel: &PanelState) {
         let text = if matches!(panel.mode, PanelMode::QuickView(_)) {
             if panel.cursor < panel.entries.len() {
-                format!("Viewing: {}", &panel.entries[panel.cursor].name)
+                format!("Viewing: {}", panel.entries[panel.cursor].name)
             } else {
                 "Viewing".to_string()
             }
@@ -896,6 +882,151 @@ impl TerminalRenderer {
     }
 }
 
+impl Drop for TerminalRenderer {
+    fn drop(&mut self) {
+        self.reset_terminal();
+    }
+}
+
+/// Help screen content, grouped into sections. Left/right column split is
+/// HELP_COLUMN_SPLIT. Keep in sync with the bindings in shortcuts.rs and
+/// input_handler.rs — this is documentation, drift here is a bug.
+const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
+    (
+        "Navigation",
+        &[
+            ("↑/↓", "Move cursor"),
+            ("Home/End", "Jump to top / bottom"),
+            ("Enter", "Open file / enter dir"),
+            ("Backspace", "Go up one level"),
+            ("a-z 0-9", "Filter instantly (Esc clears)"),
+            ("Tab", "Switch pane"),
+            ("Ctrl+T", "Toggle two panes"),
+            ("Ctrl+H", "Toggle hidden files"),
+        ],
+    ),
+    (
+        "Quick View",
+        &[
+            ("F3 / Ctrl+P", "Open / close preview"),
+            ("↑/↓ PgUp/PgDn", "Scroll"),
+            ("←/→", "Previous / next file"),
+        ],
+    ),
+    (
+        "Favorites",
+        &[
+            ("Ctrl+D", "Open favorites"),
+            ("Ctrl+Shift+D", "Add current dir"),
+        ],
+    ),
+    (
+        "File Operations",
+        &[
+            ("Space", "Select / deselect"),
+            ("F5 / Ctrl+Y", "Copy"),
+            ("F6", "Move"),
+            ("Shift+F6", "Rename"),
+            ("F7", "New folder"),
+            ("F8 / Ctrl+W", "Delete to trash"),
+        ],
+    ),
+    (
+        "Search & Tools",
+        &[
+            ("Ctrl+F", "Find files (fd)"),
+            ("Ctrl+R", "Search contents (rg)"),
+            ("!", "Shell command ({1}, {@})"),
+            ("F4 / Ctrl+O", "Open in editor"),
+            ("Ctrl+Enter", "Copy path (+Shift: absolute)"),
+        ],
+    ),
+    (
+        "App",
+        &[
+            ("F1", "Toggle this help"),
+            ("Esc", "Cancel, or quit when idle"),
+            ("F10 / Ctrl+C", "Quit"),
+        ],
+    ),
+];
+
+/// First HELP_COLUMN_SPLIT sections render in the left column, the rest right.
+const HELP_COLUMN_SPLIT: usize = 3;
+
+fn footer_actions(mode: &PanelMode) -> &'static [&'static str] {
+    match mode {
+        PanelMode::Normal => &[
+            "[f1]help",
+            "[f3]view",
+            "[f4]edit",
+            "[f5]copy",
+            "[f6]move",
+            "[f7]mkdir",
+            "[f8]del",
+            "[f10]quit",
+        ],
+        PanelMode::Filter => &["[f1]help", "[esc]clear", "[f3]view", "[f10]quit"],
+        PanelMode::QuickView(_) => &[
+            "[f1]help",
+            "[↑↓]scroll",
+            "[pgup/dn]page",
+            "[←→]prev/next",
+            "[f3]close",
+        ],
+    }
+}
+
+fn style_entry(e: &FileEntry) -> StyledContent<String> {
+    if e.is_dir() {
+        e.name.clone().yellow()
+    } else {
+        e.name.clone().dark_yellow()
+    }
+}
+fn styled_name(p: &PanelState, i: usize) -> StyledContent<String> {
+    let n = style_entry(&p.entries[i]);
+    let s = if i == p.cursor { n.negative() } else { n };
+    if p.is_multi_selected(i) {
+        s.on(Color::Blue)
+    } else {
+        s
+    }
+}
+fn trunc_styled(item: StyledContent<String>, w: u16) -> StyledContent<String> {
+    let t = item.content();
+    if t.len() as u16 > w && w > 1 {
+        item.style().apply(truncate(t, w as usize))
+    } else {
+        item
+    }
+}
+fn truncate(t: &str, w: usize) -> String {
+    if t.len() > w && w > 1 {
+        t.chars().take(w - 1).chain(std::iter::once('…')).collect()
+    } else {
+        t.to_string()
+    }
+}
+
+/// Render SVG bytes to PNG bytes using resvg
+fn render_svg_to_png(svg_data: &[u8]) -> Option<Vec<u8>> {
+    use resvg::tiny_skia;
+    use resvg::usvg;
+
+    let opts = usvg::Options::default();
+    let tree = usvg::Tree::from_data(svg_data, &opts).ok()?;
+
+    let size = tree.size();
+    let width = size.width() as u32;
+    let height = size.height() as u32;
+
+    let mut pixmap = tiny_skia::Pixmap::new(width, height)?;
+    resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+
+    pixmap.encode_png().ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1064,7 +1195,9 @@ mod tests {
         let (mut renderer, buffer) = TerminalRenderer::with_test_writer(40, 20);
         renderer.image_protocol = ImageProtocol::Kitty;
         let mut state = AppState::new(false);
-        state.left_panel.mode = PanelMode::QuickView(QuickViewMode::Image(tiny_png()));
+        state.left_panel.mode = PanelMode::QuickView(QuickViewMode::Image(
+            crate::presentation::terminal::image_protocol::tests::tiny_png(),
+        ));
 
         renderer.draw(&state);
         state.left_panel.mode = PanelMode::Normal;
@@ -1082,7 +1215,7 @@ mod tests {
     fn redrawing_same_kitty_image_does_not_resend_payload() {
         let (mut renderer, buffer) = TerminalRenderer::with_test_writer(40, 20);
         renderer.image_protocol = ImageProtocol::Kitty;
-        let image = tiny_png();
+        let image = crate::presentation::terminal::image_protocol::tests::tiny_png();
 
         renderer.draw_quick_view(&QuickViewMode::Image(image.clone()));
         renderer.draw_quick_view(&QuickViewMode::Image(image));
@@ -1111,44 +1244,6 @@ mod tests {
                 .any(|window| window == CLEAR_SEQ),
             "expected clear command in quick view text output"
         );
-    }
-
-    #[test]
-    fn kitty_escape_uses_kitty_graphics_prefix() {
-        let png = tiny_png();
-        let esc = kitty_image_escape(&png, 40, 18).expect("expected kitty escape");
-        assert!(esc.starts_with("\x1b_Ga=T,f=100,i=1,"));
-        assert!(esc.ends_with("\x1b\\"));
-    }
-
-    #[test]
-    fn kitty_escape_uses_width_only_for_wide_images() {
-        let png = test_png(400, 100);
-        let esc = kitty_image_escape(&png, 40, 18).expect("expected kitty escape");
-        assert!(esc.contains(",c=40"));
-        assert!(!esc.contains(",r=18"));
-    }
-
-    #[test]
-    fn kitty_escape_uses_height_only_for_tall_images() {
-        let png = test_png(100, 200);
-        let esc = kitty_image_escape(&png, 40, 18).expect("expected kitty escape");
-        assert!(esc.contains(",r=18"));
-        assert!(!esc.contains(",c=40"));
-    }
-
-    #[test]
-    fn detects_kitty_probe_response() {
-        assert!(is_kitty_probe_response(b"\x1b_Gi=31;OK\x1b\\"));
-        assert!(!is_kitty_probe_response(b"\x1b[c"));
-    }
-
-    #[test]
-    fn detects_iterm_probe_response() {
-        assert!(is_iterm_probe_response(
-            b"\x1b]1337;ReportCellSize=17.50;8.00;2.0\x07"
-        ));
-        assert!(!is_iterm_probe_response(b"\x1b]1337;CursorShape=1\x07"));
     }
 
     fn entry(name: &str, kind: crate::domain::EntryKind, size: u64) -> FileEntry {
@@ -1279,314 +1374,4 @@ mod tests {
             "size must be omitted rather than corrupting a too-narrow line, got: {out}"
         );
     }
-
-    fn tiny_png() -> Vec<u8> {
-        test_png(1, 1)
-    }
-
-    fn test_png(width: u32, height: u32) -> Vec<u8> {
-        let image = image::RgbImage::from_pixel(width, height, image::Rgb([255, 0, 0]));
-        let mut bytes = Vec::new();
-        image
-            .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
-            .unwrap();
-        bytes
-    }
-}
-
-impl Drop for TerminalRenderer {
-    fn drop(&mut self) {
-        self.reset_terminal();
-    }
-}
-
-/// Help screen content, grouped into sections. Left/right column split is
-/// HELP_COLUMN_SPLIT. Keep in sync with the bindings in shortcuts.rs and
-/// input_handler.rs — this is documentation, drift here is a bug.
-const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
-    (
-        "Navigation",
-        &[
-            ("↑/↓", "Move cursor"),
-            ("Home/End", "Jump to top / bottom"),
-            ("Enter", "Open file / enter dir"),
-            ("Backspace", "Go up one level"),
-            ("a-z 0-9", "Filter instantly (Esc clears)"),
-            ("Tab", "Switch pane"),
-            ("Ctrl+T", "Toggle two panes"),
-            ("Ctrl+H", "Toggle hidden files"),
-        ],
-    ),
-    (
-        "Quick View",
-        &[
-            ("F3 / Ctrl+P", "Open / close preview"),
-            ("↑/↓ PgUp/PgDn", "Scroll"),
-            ("←/→", "Previous / next file"),
-        ],
-    ),
-    (
-        "Favorites",
-        &[
-            ("Ctrl+D", "Open favorites"),
-            ("Ctrl+Shift+D", "Add current dir"),
-        ],
-    ),
-    (
-        "File Operations",
-        &[
-            ("Space", "Select / deselect"),
-            ("F5 / Ctrl+Y", "Copy"),
-            ("F6", "Move"),
-            ("Shift+F6", "Rename"),
-            ("F7", "New folder"),
-            ("F8 / Ctrl+W", "Delete to trash"),
-        ],
-    ),
-    (
-        "Search & Tools",
-        &[
-            ("Ctrl+F", "Find files (fd)"),
-            ("Ctrl+R", "Search contents (rg)"),
-            ("!", "Shell command ({1}, {@})"),
-            ("F4 / Ctrl+O", "Open in editor"),
-            ("Ctrl+Enter", "Copy path (+Shift: absolute)"),
-        ],
-    ),
-    (
-        "App",
-        &[
-            ("F1", "Toggle this help"),
-            ("Esc", "Cancel, or quit when idle"),
-            ("F10 / Ctrl+C", "Quit"),
-        ],
-    ),
-];
-
-/// First HELP_COLUMN_SPLIT sections render in the left column, the rest right.
-const HELP_COLUMN_SPLIT: usize = 3;
-
-fn footer_actions(mode: &PanelMode) -> &'static [&'static str] {
-    match mode {
-        PanelMode::Normal => &[
-            "[f1]help",
-            "[f3]view",
-            "[f4]edit",
-            "[f5]copy",
-            "[f6]move",
-            "[f7]mkdir",
-            "[f8]del",
-            "[f10]quit",
-        ],
-        PanelMode::Filter => &["[f1]help", "[esc]clear", "[f3]view", "[f10]quit"],
-        PanelMode::QuickView(_) => &[
-            "[f1]help",
-            "[↑↓]scroll",
-            "[pgup/dn]page",
-            "[←→]prev/next",
-            "[f3]close",
-        ],
-    }
-}
-
-fn kitty_image_escape(bytes: &[u8], columns: u16, rows: u16) -> Option<String> {
-    let image = image::load_from_memory(bytes).ok()?;
-    let (width, height) = image.dimensions();
-    let mut png = Vec::new();
-    image
-        .write_to(&mut Cursor::new(&mut png), ImageFormat::Png)
-        .ok()?;
-    let payload = base64::engine::general_purpose::STANDARD.encode(png);
-    let control = kitty_size_control(width, height, columns, rows);
-    Some(format!(
-        "\x1b_Ga=T,f=100,i={KITTY_IMAGE_ID},{control},m=0;{payload}\x1b\\"
-    ))
-}
-
-fn kitty_size_control(width: u32, height: u32, columns: u16, rows: u16) -> String {
-    let box_aspect = columns as f32 / rows.max(1) as f32;
-    let image_aspect = width as f32 / height.max(1) as f32;
-    if image_aspect >= box_aspect {
-        format!("c={columns}")
-    } else {
-        format!("r={rows}")
-    }
-}
-
-fn hash_bytes(bytes: &[u8]) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    bytes.hash(&mut hasher);
-    hasher.finish()
-}
-
-fn kitty_probe_query() -> &'static [u8] {
-    b"\x1b_Gi=31,s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\\x1b[c"
-}
-
-fn is_kitty_probe_response(bytes: &[u8]) -> bool {
-    bytes
-        .windows(b"\x1b_Gi=31;".len())
-        .any(|window| window == b"\x1b_Gi=31;")
-}
-
-fn iterm_probe_query() -> &'static [u8] {
-    b"\x1b]1337;ReportCellSize\x07"
-}
-
-fn is_iterm_probe_response(bytes: &[u8]) -> bool {
-    bytes
-        .windows(b"\x1b]1337;ReportCellSize=".len())
-        .any(|window| window == b"\x1b]1337;ReportCellSize=")
-}
-
-fn detect_image_protocol() -> ImageProtocol {
-    #[cfg(unix)]
-    {
-        detect_image_protocol_unix()
-    }
-    #[cfg(not(unix))]
-    {
-        ImageProtocol::None
-    }
-}
-
-#[cfg(unix)]
-fn detect_image_protocol_unix() -> ImageProtocol {
-    let Ok(mut tty) = OpenOptions::new().read(true).write(true).open("/dev/tty") else {
-        return ImageProtocol::None;
-    };
-
-    drain_probe_replies(&mut tty);
-    if run_probe(&mut tty, kitty_probe_query(), is_kitty_probe_response) {
-        return ImageProtocol::Kitty;
-    }
-
-    drain_probe_replies(&mut tty);
-    if run_probe(&mut tty, iterm_probe_query(), is_iterm_probe_response) {
-        return ImageProtocol::ITerm2;
-    }
-
-    ImageProtocol::None
-}
-
-#[cfg(unix)]
-fn run_probe(tty: &mut std::fs::File, query: &[u8], matches_response: fn(&[u8]) -> bool) -> bool {
-    if tty.write_all(query).is_err() || tty.flush().is_err() {
-        return false;
-    }
-
-    let deadline = Instant::now() + Duration::from_millis(120);
-    let mut buf = [0u8; 1024];
-    let mut reply = Vec::new();
-
-    while wait_for_tty_input(tty, deadline) {
-        let Ok(read) = tty.read(&mut buf) else {
-            break;
-        };
-        if read == 0 {
-            break;
-        }
-        reply.extend_from_slice(&buf[..read]);
-        if matches_response(&reply) {
-            return true;
-        }
-    }
-
-    false
-}
-
-#[cfg(unix)]
-fn drain_probe_replies(tty: &mut std::fs::File) {
-    let deadline = Instant::now() + Duration::from_millis(10);
-    let mut buf = [0u8; 512];
-    while wait_for_tty_input(tty, deadline) {
-        if tty.read(&mut buf).ok().filter(|read| *read > 0).is_none() {
-            break;
-        }
-    }
-}
-
-#[cfg(unix)]
-fn wait_for_tty_input(tty: &std::fs::File, deadline: Instant) -> bool {
-    if Instant::now() >= deadline {
-        return false;
-    }
-
-    let remaining = deadline.saturating_duration_since(Instant::now());
-    let secs = remaining.as_secs().min(i64::from(i32::MAX) as u64) as libc::time_t;
-    let micros = remaining.subsec_micros() as libc::suseconds_t;
-    let fd = tty.as_raw_fd();
-
-    let mut readfds = unsafe { std::mem::zeroed::<libc::fd_set>() };
-    let mut timeout = libc::timeval {
-        tv_sec: secs,
-        tv_usec: micros,
-    };
-
-    unsafe {
-        libc::FD_ZERO(&mut readfds);
-        libc::FD_SET(fd, &mut readfds);
-        libc::select(
-            fd + 1,
-            &mut readfds,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            &mut timeout,
-        ) > 0
-    }
-}
-
-fn style_entry(e: &FileEntry) -> StyledContent<String> {
-    if e.is_dir() {
-        e.name.clone().yellow()
-    } else {
-        e.name.clone().dark_yellow()
-    }
-}
-fn styled_name(p: &PanelState, i: usize) -> StyledContent<String> {
-    let n = style_entry(&p.entries[i]);
-    let s = if i == p.cursor { n.negative() } else { n };
-    if p.is_multi_selected(i) {
-        s.on(Color::Blue)
-    } else {
-        s
-    }
-}
-fn trunc_styled(item: StyledContent<String>, w: u16) -> StyledContent<String> {
-    let t = item.content().clone();
-    if t.len() as u16 > w && w > 1 {
-        item.style().apply(
-            t.chars()
-                .take((w - 1) as usize)
-                .chain(std::iter::once('…'))
-                .collect(),
-        )
-    } else {
-        item
-    }
-}
-fn truncate(t: &str, w: usize) -> String {
-    if t.len() > w && w > 1 {
-        t.chars().take(w - 1).chain(std::iter::once('…')).collect()
-    } else {
-        t.to_string()
-    }
-}
-
-/// Render SVG bytes to PNG bytes using resvg
-fn render_svg_to_png(svg_data: &[u8]) -> Option<Vec<u8>> {
-    use resvg::tiny_skia;
-    use resvg::usvg;
-
-    let opts = usvg::Options::default();
-    let tree = usvg::Tree::from_data(svg_data, &opts).ok()?;
-
-    let size = tree.size();
-    let width = size.width() as u32;
-    let height = size.height() as u32;
-
-    let mut pixmap = tiny_skia::Pixmap::new(width, height)?;
-    resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
-
-    pixmap.encode_png().ok()
 }

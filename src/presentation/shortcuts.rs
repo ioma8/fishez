@@ -3,50 +3,30 @@
 use crate::application::{AppState, PanelMode};
 use crate::infrastructure::{VsCodeAdapter, add_favorite};
 use crate::presentation::TerminalRenderer;
-use crate::presentation::input_handler::{CopyMoveState, Message, schedule_size_jobs};
+use crate::presentation::input_handler::{CopyMoveState, Message, UiState, schedule_size_jobs};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use tui_input::Input;
 
 /// Handle feature shortcuts.
-#[allow(clippy::too_many_arguments)]
 pub fn handle(
     event: KeyEvent,
     app_state: &mut AppState,
     renderer: &mut TerminalRenderer,
     vscode_adapter: &VsCodeAdapter,
-    delete_paths: &mut Option<Vec<PathBuf>>,
-    find_filter: &mut Option<Input>,
-    ripgrep_filter: &mut Option<Input>,
-    shell_command: &mut Option<Input>,
-    rename_input: &mut Option<Input>,
-    new_folder_input: &mut Option<Input>,
-    copy_dest: &mut Option<CopyMoveState>,
-    move_dest: &mut Option<CopyMoveState>,
-    favorites_active: &mut bool,
-    favorites_items: &mut Vec<String>,
+    ui: &mut UiState,
     sender: &Sender<Message>,
 ) -> Option<bool> {
-    if let Some(needs_redraw) = handle_delete(event, app_state, delete_paths) {
+    if let Some(needs_redraw) = handle_delete(event, app_state, ui) {
         return Some(needs_redraw);
     }
-    if let Some(needs_redraw) = handle_file_ops(
-        event,
-        app_state,
-        rename_input,
-        new_folder_input,
-        copy_dest,
-        move_dest,
-    ) {
+    if let Some(needs_redraw) = handle_file_ops(event, app_state, ui) {
         return Some(needs_redraw);
     }
-    if let Some(needs_redraw) = handle_search(event, find_filter, ripgrep_filter, shell_command) {
+    if let Some(needs_redraw) = handle_search(event, ui) {
         return Some(needs_redraw);
     }
-    if let Some(needs_redraw) =
-        handle_favorites(event, app_state, favorites_active, favorites_items)
-    {
+    if let Some(needs_redraw) = handle_favorites(event, app_state, ui) {
         return Some(needs_redraw);
     }
     if let Some(needs_redraw) = handle_two_pane_toggle(event, app_state) {
@@ -62,11 +42,7 @@ pub fn is_hidden_toggle(event: KeyEvent) -> bool {
     event.code == KeyCode::Char('h') && event.modifiers.contains(KeyModifiers::CONTROL)
 }
 
-fn handle_delete(
-    event: KeyEvent,
-    app_state: &mut AppState,
-    delete_paths: &mut Option<Vec<PathBuf>>,
-) -> Option<bool> {
+fn handle_delete(event: KeyEvent, app_state: &mut AppState, ui: &mut UiState) -> Option<bool> {
     let is_delete = (event.code == KeyCode::Char('w')
         && event.modifiers.contains(KeyModifiers::CONTROL))
         || event.code == KeyCode::F(8);
@@ -78,7 +54,7 @@ fn handle_delete(
             panel.get_selected_path().into_iter().collect()
         };
         if !targets.is_empty() {
-            *delete_paths = Some(targets);
+            ui.delete_paths = Some(targets);
             return Some(true);
         }
         return Some(false);
@@ -86,15 +62,7 @@ fn handle_delete(
     None
 }
 
-#[allow(clippy::too_many_arguments)]
-fn handle_file_ops(
-    event: KeyEvent,
-    app_state: &mut AppState,
-    rename_input: &mut Option<Input>,
-    new_folder_input: &mut Option<Input>,
-    copy_dest: &mut Option<CopyMoveState>,
-    move_dest: &mut Option<CopyMoveState>,
-) -> Option<bool> {
+fn handle_file_ops(event: KeyEvent, app_state: &mut AppState, ui: &mut UiState) -> Option<bool> {
     // Shift+F6 must come BEFORE plain F6.
     if event.code == KeyCode::F(6) && event.modifiers.contains(KeyModifiers::SHIFT) {
         let panel = app_state.active_panel_mut();
@@ -102,7 +70,7 @@ fn handle_file_ops(
             .selected_entry()
             .map(|e| e.name.clone())
             .unwrap_or_default();
-        *rename_input = Some(Input::new(name));
+        ui.rename_input = Some(Input::new(name));
         return Some(true);
     }
     // Ctrl+Y ("yank") alias for terminals/keyboards where F5 is awkward (macOS media keys).
@@ -119,7 +87,7 @@ fn handle_file_ops(
             return Some(false);
         }
         let dest = Input::new(opposite_pane_path(app_state));
-        *copy_dest = Some(CopyMoveState { sources, dest });
+        ui.copy_dest = Some(CopyMoveState { sources, dest });
         return Some(true);
     }
     if event.code == KeyCode::F(6) {
@@ -133,11 +101,11 @@ fn handle_file_ops(
             return Some(false);
         }
         let dest = Input::new(opposite_pane_path(app_state));
-        *move_dest = Some(CopyMoveState { sources, dest });
+        ui.move_dest = Some(CopyMoveState { sources, dest });
         return Some(true);
     }
     if event.code == KeyCode::F(7) {
-        *new_folder_input = Some(Input::default());
+        ui.new_folder_input = Some(Input::default());
         return Some(true);
     }
     None
@@ -156,43 +124,33 @@ fn opposite_pane_path(app_state: &AppState) -> String {
     }
 }
 
-fn handle_search(
-    event: KeyEvent,
-    find_filter: &mut Option<Input>,
-    ripgrep_filter: &mut Option<Input>,
-    shell_command: &mut Option<Input>,
-) -> Option<bool> {
+fn handle_search(event: KeyEvent, ui: &mut UiState) -> Option<bool> {
     if event.code == KeyCode::Char('!')
         && !event
             .modifiers
             .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
     {
-        *shell_command = Some(Input::default());
+        ui.shell_command = Some(Input::default());
         return Some(true);
     }
     if event.code == KeyCode::Char('f') && event.modifiers.contains(KeyModifiers::CONTROL) {
-        *find_filter = Some(Input::default());
+        ui.find_filter = Some(Input::default());
         return Some(true);
     }
     if event.code == KeyCode::Char('r') && event.modifiers.contains(KeyModifiers::CONTROL) {
-        *ripgrep_filter = Some(Input::default());
+        ui.ripgrep_filter = Some(Input::default());
         return Some(true);
     }
     None
 }
 
-fn handle_favorites(
-    event: KeyEvent,
-    app_state: &mut AppState,
-    favorites_active: &mut bool,
-    favorites_items: &mut Vec<String>,
-) -> Option<bool> {
+fn handle_favorites(event: KeyEvent, app_state: &mut AppState, ui: &mut UiState) -> Option<bool> {
     if event.code == KeyCode::Char('d') && event.modifiers.contains(KeyModifiers::CONTROL) {
         let panel = app_state.active_panel_mut();
         if event.modifiers.contains(KeyModifiers::SHIFT) {
-            add_favorite(favorites_items, &panel.current_path);
+            add_favorite(&mut ui.favorites_items, &panel.current_path);
         }
-        *favorites_active = true;
+        ui.favorites_active = true;
         return Some(true);
     }
     None

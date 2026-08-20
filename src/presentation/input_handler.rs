@@ -105,6 +105,91 @@ pub enum Message {
     },
 }
 
+/// All modal-overlay and feature state threaded through the event loop.
+/// Bundled so `run`/`route_input`/`redraw_current_view` take one argument
+/// instead of the same fifteen-field tail at every call site.
+#[derive(Default)]
+pub struct UiState {
+    pub delete_paths: Option<Vec<PathBuf>>,
+    pub find_filter: Option<Input>,
+    pub ripgrep_filter: Option<Input>,
+    pub shell_command: Option<Input>,
+    pub shell_history: Vec<String>,
+    pub shell_history_idx: Option<usize>,
+    pub rename_input: Option<Input>,
+    pub new_folder_input: Option<Input>,
+    pub copy_dest: Option<CopyMoveState>,
+    pub transfer_state: Option<TransferUiState>,
+    pub move_dest: Option<CopyMoveState>,
+    pub context_menu: Option<ContextMenuState>,
+    pub favorites_active: bool,
+    pub favorites_items: Vec<String>,
+    pub favorites_selected: usize,
+}
+
+/// The overlay currently owning input, in dispatch priority order. `active_overlay()`
+/// is the single source of truth for both input routing (`handle_modal_overlays`) and
+/// drawing (`redraw_current_view`), so the two can never drift out of sync.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverlayKind {
+    Transfer,
+    Favorites,
+    Delete,
+    Find,
+    Ripgrep,
+    Shell,
+    Rename,
+    NewFolder,
+    CopyDest,
+    MoveDest,
+    ContextMenu,
+}
+
+impl UiState {
+    /// The overlay currently owning input, if any, in dispatch priority order.
+    pub fn active_overlay(&self) -> Option<OverlayKind> {
+        if self.transfer_state.is_some() {
+            return Some(OverlayKind::Transfer);
+        }
+        if self.favorites_active {
+            return Some(OverlayKind::Favorites);
+        }
+        if self.delete_paths.is_some() {
+            return Some(OverlayKind::Delete);
+        }
+        if self.find_filter.is_some() {
+            return Some(OverlayKind::Find);
+        }
+        if self.ripgrep_filter.is_some() {
+            return Some(OverlayKind::Ripgrep);
+        }
+        if self.shell_command.is_some() {
+            return Some(OverlayKind::Shell);
+        }
+        if self.rename_input.is_some() {
+            return Some(OverlayKind::Rename);
+        }
+        if self.new_folder_input.is_some() {
+            return Some(OverlayKind::NewFolder);
+        }
+        if self.copy_dest.is_some() {
+            return Some(OverlayKind::CopyDest);
+        }
+        if self.move_dest.is_some() {
+            return Some(OverlayKind::MoveDest);
+        }
+        if self.context_menu.is_some() {
+            return Some(OverlayKind::ContextMenu);
+        }
+        None
+    }
+
+    /// True while any overlay owns input; Esc then cancels it instead of quitting.
+    pub fn has_active_overlay(&self) -> bool {
+        self.active_overlay().is_some()
+    }
+}
+
 const MAX_QUERY_LEN: usize = 64;
 const MAX_REPEAT_RUN: usize = 16;
 const SYNC_PREVIEW_MAX: u64 = 1024 * 1024;
@@ -148,30 +233,18 @@ pub fn handle_normal_mode(
     renderer: &TerminalRenderer,
     sender: &Sender<Message>,
 ) -> bool {
-    let visible_rows = renderer.visible_rows();
-    let pane = state.active_pane;
-    let panel = state.active_panel_mut();
-    let before = PanelUiState::capture(panel);
+    let before = PanelUiState::capture(state.active_panel());
     match event.code {
         KeyCode::Char(c) if !event.modifiers.contains(KeyModifiers::CONTROL) => {
+            let panel = state.active_panel_mut();
             panel.mode = PanelMode::Filter;
             panel.filter_string.push(c);
             navigate::refresh_entries(fs, panel);
         }
-        KeyCode::Backspace => navigate::go_up_one_level(fs, panel),
-        _ => handle_panel_navigation(
-            event,
-            fs,
-            open,
-            clipboard,
-            panel,
-            renderer.columns,
-            visible_rows,
-            pane,
-            sender,
-        ),
+        KeyCode::Backspace => navigate::go_up_one_level(fs, state.active_panel_mut()),
+        _ => handle_panel_navigation(event, fs, open, clipboard, state, renderer, sender),
     }
-    PanelUiState::capture(panel) != before
+    PanelUiState::capture(state.active_panel()) != before
 }
 
 pub fn handle_filter_mode(
@@ -183,37 +256,27 @@ pub fn handle_filter_mode(
     renderer: &TerminalRenderer,
     sender: &Sender<Message>,
 ) -> bool {
-    let visible_rows = renderer.visible_rows();
-    let pane = state.active_pane;
-    let panel = state.active_panel_mut();
-    let before = PanelUiState::capture(panel);
+    let before = PanelUiState::capture(state.active_panel());
     match event.code {
         KeyCode::Esc => {
+            let panel = state.active_panel_mut();
             panel.mode = PanelMode::Normal;
             panel.filter_string.clear();
             navigate::refresh_entries(fs, panel);
         }
         KeyCode::Backspace => {
+            let panel = state.active_panel_mut();
             panel.filter_string.pop();
             navigate::refresh_entries(fs, panel);
         }
         KeyCode::Char(c) if !event.modifiers.contains(KeyModifiers::CONTROL) => {
+            let panel = state.active_panel_mut();
             panel.filter_string.push(c);
             navigate::refresh_entries(fs, panel);
         }
-        _ => handle_panel_navigation(
-            event,
-            fs,
-            open,
-            clipboard,
-            panel,
-            renderer.columns,
-            visible_rows,
-            pane,
-            sender,
-        ),
+        _ => handle_panel_navigation(event, fs, open, clipboard, state, renderer, sender),
     }
-    PanelUiState::capture(panel) != before
+    PanelUiState::capture(state.active_panel()) != before
 }
 
 fn handle_panel_navigation(
@@ -221,12 +284,14 @@ fn handle_panel_navigation(
     fs: &StdFileSystem,
     open: &SystemOpenAdapter,
     clipboard: &mut SystemClipboard,
-    panel: &mut PanelState,
-    columns: u16,
-    visible_rows: u16,
-    pane: ActivePane,
+    state: &mut AppState,
+    renderer: &TerminalRenderer,
     sender: &Sender<Message>,
 ) {
+    let pane = state.active_pane;
+    let panel = state.active_panel_mut();
+    let columns = renderer.columns;
+    let visible_rows = renderer.visible_rows();
     match event.code {
         KeyCode::Up => navigate::move_cursor(panel, -1, visible_rows),
         KeyCode::Down => navigate::move_cursor(panel, 1, visible_rows),
@@ -291,7 +356,13 @@ pub fn schedule_size_jobs(app_state: &mut AppState, sender: &Sender<Message>) {
         panel.selection_total = SizeFigure::Idle;
         return;
     }
+    spawn_selection_total(panel, pane, sender);
+    if matches!(panel.dir_total, SizeFigure::Idle) {
+        spawn_dir_total(panel, pane, sender);
+    }
+}
 
+fn spawn_selection_total(panel: &mut PanelState, pane: ActivePane, sender: &Sender<Message>) {
     panel.selection_total_generation += 1;
     let generation = panel.selection_total_generation;
     panel.selection_total = SizeFigure::Computing(generation);
@@ -313,27 +384,27 @@ pub fn schedule_size_jobs(app_state: &mut AppState, sender: &Sender<Message>) {
             total,
         });
     });
+}
 
-    if matches!(panel.dir_total, SizeFigure::Idle) {
-        panel.dir_total_generation += 1;
-        let generation = panel.dir_total_generation;
-        panel.dir_total = SizeFigure::Computing(generation);
-        let roots: Vec<_> = panel
-            .entries
-            .iter()
-            .filter(|e| e.name != "..")
-            .cloned()
-            .collect();
-        let tx = sender.clone();
-        thread::spawn(move || {
-            let total = dir_size::total_size(&StdFileSystem, &roots, &AtomicBool::new(false));
-            let _ = tx.send(Message::DirTotalResult {
-                pane,
-                generation,
-                total,
-            });
+fn spawn_dir_total(panel: &mut PanelState, pane: ActivePane, sender: &Sender<Message>) {
+    panel.dir_total_generation += 1;
+    let generation = panel.dir_total_generation;
+    panel.dir_total = SizeFigure::Computing(generation);
+    let roots: Vec<_> = panel
+        .entries
+        .iter()
+        .filter(|e| e.name != "..")
+        .cloned()
+        .collect();
+    let tx = sender.clone();
+    thread::spawn(move || {
+        let total = dir_size::total_size(&StdFileSystem, &roots, &AtomicBool::new(false));
+        let _ = tx.send(Message::DirTotalResult {
+            pane,
+            generation,
+            total,
         });
-    }
+    });
 }
 
 fn handle_enter(
@@ -406,23 +477,15 @@ pub fn handle_delete_confirmation(
 ) -> bool {
     match event.code {
         KeyCode::Char('y') => {
-            if let Some(paths) = delete_paths.take() {
-                let refs: Vec<&std::path::Path> = paths.iter().map(PathBuf::as_path).collect();
-                let panel = state.active_panel_mut();
-                let _ = file_ops::delete_selected(fs, panel, &refs);
-                true
-            } else {
-                false
-            }
+            let Some(paths) = delete_paths.take() else {
+                return false;
+            };
+            let refs: Vec<&std::path::Path> = paths.iter().map(PathBuf::as_path).collect();
+            let panel = state.active_panel_mut();
+            let _ = file_ops::delete_selected(fs, panel, &refs);
+            true
         }
-        KeyCode::Char('n') | KeyCode::Esc => {
-            if delete_paths.is_some() {
-                *delete_paths = None;
-                true
-            } else {
-                false
-            }
-        }
+        KeyCode::Char('n') | KeyCode::Esc => delete_paths.take().is_some(),
         _ => false,
     }
 }
@@ -486,24 +549,7 @@ pub fn handle_shell_input(
                 return true;
             }
             history.push(raw.clone());
-            let expanded = expand_shell_variables(&raw, state.active_panel());
-            let cwd = state.active_panel().current_path.clone();
-            let pane = state.active_pane;
-            let panel = state.active_panel_mut();
-            panel.quick_view_generation += 1;
-            let generation = panel.quick_view_generation;
-            panel.mode = PanelMode::QuickView(QuickViewMode::Loading {
-                message: raw.clone(),
-            });
-            let tx = sender.clone();
-            thread::spawn(move || {
-                let lines = run_shell_command(&expanded, &cwd);
-                let _ = tx.send(Message::QuickViewResult {
-                    pane,
-                    generation,
-                    mode: QuickViewMode::Text { lines, start: 0 },
-                });
-            });
+            submit_shell_command(&raw, state, sender);
             true
         }
         KeyCode::Esc => {
@@ -545,6 +591,28 @@ pub fn handle_shell_input(
             true
         }
     }
+}
+
+/// Runs `raw` via `sh -c` in a background thread, showing its output in quick view.
+fn submit_shell_command(raw: &str, state: &mut AppState, sender: &Sender<Message>) {
+    let expanded = expand_shell_variables(raw, state.active_panel());
+    let cwd = state.active_panel().current_path.clone();
+    let pane = state.active_pane;
+    let panel = state.active_panel_mut();
+    panel.quick_view_generation += 1;
+    let generation = panel.quick_view_generation;
+    panel.mode = PanelMode::QuickView(QuickViewMode::Loading {
+        message: raw.to_string(),
+    });
+    let tx = sender.clone();
+    thread::spawn(move || {
+        let lines = run_shell_command(&expanded, &cwd);
+        let _ = tx.send(Message::QuickViewResult {
+            pane,
+            generation,
+            mode: QuickViewMode::Text { lines, start: 0 },
+        });
+    });
 }
 
 fn shell_quote(s: &str) -> String {
@@ -724,13 +792,9 @@ pub fn handle_favorites_input(
                 false
             }
         }
-        KeyCode::Esc => {
-            if *active {
-                *active = false;
-                true
-            } else {
-                false
-            }
+        KeyCode::Esc if *active => {
+            *active = false;
+            true
         }
         _ => false,
     }
@@ -742,7 +806,6 @@ pub fn handle_mouse_event(
     renderer_rows: u16,
     renderer_cols: u16,
     context_menu: &mut Option<ContextMenuState>,
-    sender: &Sender<Message>,
 ) -> MouseOutcome {
     if let Some(ctx) = context_menu.as_ref() {
         if matches!(event.kind, MouseEventKind::Down(MouseButton::Left)) {
@@ -753,19 +816,16 @@ pub fn handle_mouse_event(
                 *context_menu = None;
                 return outcome;
             }
-            // Click outside menu: close it and handle as normal file-list click.
+            // Click outside menu: close it, apply the click, and redraw regardless.
             *context_menu = None;
-            return if mouse_click(
+            let _ = mouse_click(
                 event.row,
                 event.column,
                 app_state,
                 renderer_rows,
                 renderer_cols,
-            ) {
-                MouseOutcome::Redraw
-            } else {
-                MouseOutcome::Redraw // redraw to remove menu even if cursor didn't move
-            };
+            );
+            return MouseOutcome::Redraw;
         } else if matches!(
             event.kind,
             MouseEventKind::ScrollUp | MouseEventKind::ScrollDown
@@ -799,7 +859,6 @@ pub fn handle_mouse_event(
                 renderer_rows,
                 renderer_cols,
                 context_menu,
-                sender,
             ) {
                 MouseOutcome::Redraw
             } else {
@@ -807,14 +866,14 @@ pub fn handle_mouse_event(
             }
         }
         MouseEventKind::ScrollUp => {
-            if mouse_scroll(app_state, -3, renderer_rows, sender) {
+            if mouse_scroll(app_state, -3, renderer_rows) {
                 MouseOutcome::Redraw
             } else {
                 MouseOutcome::Nothing
             }
         }
         MouseEventKind::ScrollDown => {
-            if mouse_scroll(app_state, 3, renderer_rows, sender) {
+            if mouse_scroll(app_state, 3, renderer_rows) {
                 MouseOutcome::Redraw
             } else {
                 MouseOutcome::Nothing
@@ -851,25 +910,26 @@ fn menu_click_hit(
     })
 }
 
-fn mouse_click(
+/// Row/column hit-test against the file-list area: returns the pane to activate
+/// (if two-pane mode), the list index under the click, and that pane's entry count.
+/// Callers decide how to treat out-of-range indices (left-click activates a pane
+/// even on empty space; right-click does not).
+fn hit_test(
+    app_state: &AppState,
     row: u16,
     col: u16,
-    app_state: &mut AppState,
     renderer_rows: u16,
     renderer_cols: u16,
-) -> bool {
-    use crate::application::ActivePane;
-    use crate::presentation::{FOOTER_ROWS, HEADER_ROWS};
-
+) -> Option<(Option<ActivePane>, usize, usize)> {
     if row < HEADER_ROWS || row >= renderer_rows.saturating_sub(FOOTER_ROWS) {
-        return false;
+        return None;
     }
     let list_row = (row - HEADER_ROWS) as usize;
 
     if app_state.two_pane_mode {
         let pw = renderer_cols.saturating_sub(1) / 2;
         if col == pw {
-            return false; // separator
+            return None; // separator
         }
         let pane = if col < pw {
             ActivePane::Left
@@ -886,21 +946,27 @@ fn mouse_click(
                 app_state.right_panel.entries.len(),
             ),
         };
-        app_state.active_pane = pane;
-        let idx = scroll + list_row;
-        if idx < len {
-            match pane {
-                ActivePane::Left => app_state.left_panel.cursor = idx,
-                ActivePane::Right => app_state.right_panel.cursor = idx,
-            }
-        }
+        Some((Some(pane), scroll + list_row, len))
     } else {
-        let scroll = app_state.active_panel().scroll;
-        let len = app_state.active_panel().entries.len();
-        let idx = scroll + list_row;
-        if idx >= len {
-            return false;
-        }
+        let panel = &app_state.active_panel();
+        Some((None, panel.scroll + list_row, panel.entries.len()))
+    }
+}
+
+fn mouse_click(
+    row: u16,
+    col: u16,
+    app_state: &mut AppState,
+    renderer_rows: u16,
+    renderer_cols: u16,
+) -> bool {
+    let Some((pane, idx, len)) = hit_test(app_state, row, col, renderer_rows, renderer_cols) else {
+        return false;
+    };
+    if let Some(pane) = pane {
+        app_state.active_pane = pane;
+    }
+    if idx < len {
         app_state.active_panel_mut().cursor = idx;
     }
     true
@@ -913,51 +979,14 @@ fn mouse_right_click(
     renderer_rows: u16,
     renderer_cols: u16,
     context_menu: &mut Option<ContextMenuState>,
-    _sender: &Sender<Message>,
 ) -> bool {
-    use crate::application::ActivePane;
-    use crate::presentation::{FOOTER_ROWS, HEADER_ROWS};
-
-    if row < HEADER_ROWS || row >= renderer_rows.saturating_sub(FOOTER_ROWS) {
+    let Some((new_pane, idx, len)) = hit_test(app_state, row, col, renderer_rows, renderer_cols)
+    else {
         return false;
-    }
-    let list_row = (row - HEADER_ROWS) as usize;
-
-    // Determine pane + index, avoiding long-lived borrows across the pane switch.
-    let (new_pane, scroll, len) = if app_state.two_pane_mode {
-        let pw = renderer_cols.saturating_sub(1) / 2;
-        if col == pw {
-            return false;
-        }
-        let pane = if col < pw {
-            ActivePane::Left
-        } else {
-            ActivePane::Right
-        };
-        let (s, l) = match pane {
-            ActivePane::Left => (
-                app_state.left_panel.scroll,
-                app_state.left_panel.entries.len(),
-            ),
-            ActivePane::Right => (
-                app_state.right_panel.scroll,
-                app_state.right_panel.entries.len(),
-            ),
-        };
-        (Some(pane), s, l)
-    } else {
-        (
-            None,
-            app_state.active_panel().scroll,
-            app_state.active_panel().entries.len(),
-        )
     };
-
-    let idx = scroll + list_row;
     if idx >= len {
         return false;
     }
-
     if let Some(pane) = new_pane {
         app_state.active_pane = pane;
     }
@@ -997,30 +1026,15 @@ fn mouse_right_click(
     true
 }
 
-fn mouse_scroll(
-    app_state: &mut AppState,
-    delta: isize,
-    renderer_rows: u16,
-    sender: &Sender<Message>,
-) -> bool {
+fn mouse_scroll(app_state: &mut AppState, delta: isize, renderer_rows: u16) -> bool {
     use crate::presentation::{FOOTER_ROWS as FR, HEADER_ROWS as HR};
     let visible_rows = renderer_rows.saturating_sub(HR + FR);
-    let is_quick_view = matches!(app_state.active_panel().mode, PanelMode::QuickView(_));
-    let pane = app_state.active_pane;
     let panel = app_state.active_panel_mut();
-    if is_quick_view {
+    if matches!(panel.mode, PanelMode::QuickView(_)) {
         quick_view::scroll(panel, delta, renderer_rows, HR, FR);
-        // In quick view, scroll also schedules the next item preview if navigating
     } else {
         navigate::move_cursor(panel, delta, visible_rows);
     }
-    // Reschedule quick view if it was already open (e.g. scroll through files)
-    if !is_quick_view {
-        if let PanelMode::QuickView(_) = panel.mode.clone() {
-            // panel just entered quick view from scroll — shouldn't happen via move_cursor, skip
-        }
-    }
-    let _ = (sender, pane); // suppress unused warnings
     true
 }
 
@@ -1049,7 +1063,7 @@ pub fn handle_context_menu_input(
                 name,
             }
         }
-        KeyCode::Esc | KeyCode::F(10) => {
+        KeyCode::Esc => {
             *ctx = None;
             ContextMenuResponse::Close
         }
@@ -1168,61 +1182,36 @@ fn start_transfer(
     }
 }
 
-pub fn handle_copy_dest_input(
+/// Handles input for the copy or move destination prompt. Move clears the
+/// multi-selection once the job starts; copy leaves it.
+pub fn handle_copy_move_dest_input(
     event: KeyEvent,
-    copy_dest: &mut Option<CopyMoveState>,
-    transfer_state: &mut Option<TransferUiState>,
-    sender: &Sender<Message>,
-) -> bool {
-    let Some(cms) = copy_dest.as_mut() else {
-        return false;
-    };
-    match event.code {
-        KeyCode::Enter => {
-            let sources = cms.sources.clone();
-            let dest = PathBuf::from(cms.dest.value().trim());
-            *copy_dest = None;
-            if dest.as_os_str().is_empty() {
-                return true;
-            }
-            *transfer_state = Some(start_transfer(TransferKind::Copy, sources, dest, sender));
-            true
-        }
-        KeyCode::Esc => {
-            *copy_dest = None;
-            true
-        }
-        _ => {
-            cms.dest.handle_event(&Event::Key(event));
-            true
-        }
-    }
-}
-
-pub fn handle_move_dest_input(
-    event: KeyEvent,
-    move_dest: &mut Option<CopyMoveState>,
+    dest: &mut Option<CopyMoveState>,
     transfer_state: &mut Option<TransferUiState>,
     sender: &Sender<Message>,
     state: &mut AppState,
+    kind: TransferKind,
+    clear_selection: bool,
 ) -> bool {
-    let Some(cms) = move_dest.as_mut() else {
+    let Some(cms) = dest.as_mut() else {
         return false;
     };
     match event.code {
         KeyCode::Enter => {
             let sources = cms.sources.clone();
-            let dest = PathBuf::from(cms.dest.value().trim());
-            *move_dest = None;
-            if dest.as_os_str().is_empty() {
+            let dest_path = PathBuf::from(cms.dest.value().trim());
+            *dest = None;
+            if dest_path.as_os_str().is_empty() {
                 return true;
             }
-            state.active_panel_mut().clear_multi_selection();
-            *transfer_state = Some(start_transfer(TransferKind::Move, sources, dest, sender));
+            if clear_selection {
+                state.active_panel_mut().clear_multi_selection();
+            }
+            *transfer_state = Some(start_transfer(kind, sources, dest_path, sender));
             true
         }
         KeyCode::Esc => {
-            *move_dest = None;
+            *dest = None;
             true
         }
         _ => {

@@ -1,5 +1,6 @@
 //! Terminal presentation module.
 
+pub mod image_protocol;
 pub mod overlays;
 pub mod renderer;
 

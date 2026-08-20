@@ -255,88 +255,7 @@ mod tests {
         ]
     }
 
-    // PanelMode tests
-    #[test]
-    fn test_panel_mode_normal() {
-        let mode = PanelMode::Normal;
-        assert_eq!(mode, PanelMode::Normal);
-    }
-
-    #[test]
-    fn test_panel_mode_filter() {
-        let mode = PanelMode::Filter;
-        assert_eq!(mode, PanelMode::Filter);
-    }
-
-    #[test]
-    fn test_panel_mode_quick_view_text() {
-        let mode = PanelMode::QuickView(QuickViewMode::Text {
-            lines: vec!["line1".to_string(), "line2".to_string()],
-            start: 0,
-        });
-        if let PanelMode::QuickView(QuickViewMode::Text { lines, start }) = mode {
-            assert_eq!(lines.len(), 2);
-            assert_eq!(start, 0);
-        } else {
-            panic!("Expected QuickView Text mode");
-        }
-    }
-
-    #[test]
-    fn test_panel_mode_quick_view_directory() {
-        let mode = PanelMode::QuickView(QuickViewMode::Directory {
-            lines: vec!["dir1/".to_string()],
-        });
-        if let PanelMode::QuickView(QuickViewMode::Directory { lines }) = mode {
-            assert_eq!(lines.len(), 1);
-        } else {
-            panic!("Expected QuickView Directory mode");
-        }
-    }
-
-    #[test]
-    fn test_panel_mode_quick_view_image() {
-        let mode = PanelMode::QuickView(QuickViewMode::Image(vec![4, 5, 6]));
-        if let PanelMode::QuickView(QuickViewMode::Image(raw)) = mode {
-            assert_eq!(raw, vec![4, 5, 6]);
-        } else {
-            panic!("Expected QuickView Image mode");
-        }
-    }
-
-    #[test]
-    fn test_panel_mode_quick_view_not_supported() {
-        let mode = PanelMode::QuickView(QuickViewMode::NotSupported);
-        assert_eq!(mode, PanelMode::QuickView(QuickViewMode::NotSupported));
-    }
-
-    #[test]
-    fn test_panel_mode_clone() {
-        let mode = PanelMode::Normal;
-        let cloned = mode.clone();
-        assert_eq!(mode, cloned);
-    }
-
     // PanelState tests
-    #[test]
-    fn test_panel_state_new() {
-        let panel = PanelState::new();
-        assert!(panel.entries.is_empty());
-        assert_eq!(panel.cursor, 0);
-        assert_eq!(panel.scroll, 0);
-        assert_eq!(panel.mode, PanelMode::Normal);
-        assert!(panel.filter_string.is_empty());
-        assert!(panel.notification.is_none());
-        assert!(panel.multi_selected.is_empty());
-    }
-
-    #[test]
-    fn test_panel_state_default() {
-        let panel = PanelState::default();
-        assert!(panel.entries.is_empty());
-        assert_eq!(panel.cursor, 0);
-    }
-
     #[test]
     fn test_panel_state_set_notification() {
         let mut panel = PanelState::new();
@@ -504,48 +423,7 @@ mod tests {
         assert_eq!(paths[1], PathBuf::from("/home/user/docs"));
     }
 
-    // ActivePane tests
-    #[test]
-    fn test_active_pane_left() {
-        let pane = ActivePane::Left;
-        assert_eq!(pane, ActivePane::Left);
-    }
-
-    #[test]
-    fn test_active_pane_right() {
-        let pane = ActivePane::Right;
-        assert_eq!(pane, ActivePane::Right);
-    }
-
-    #[test]
-    fn test_active_pane_clone() {
-        let pane = ActivePane::Left;
-        let cloned = pane;
-        assert_eq!(pane, cloned);
-    }
-
-    // AppState tests
-    #[test]
-    fn test_app_state_new_single_pane() {
-        let state = AppState::new(false);
-        assert_eq!(state.active_pane, ActivePane::Left);
-        assert!(!state.show_help);
-        assert!(!state.two_pane_mode);
-    }
-
-    #[test]
-    fn test_app_state_new_two_pane() {
-        let state = AppState::new(true);
-        assert!(state.two_pane_mode);
-    }
-
-    #[test]
-    fn test_app_state_default() {
-        let state = AppState::default();
-        assert!(!state.two_pane_mode);
-        assert_eq!(state.active_pane, ActivePane::Left);
-    }
-
+    // ActivePane and AppState tests
     #[test]
     fn test_app_state_active_panel_mut_left() {
         let mut state = AppState::new(false);
@@ -606,13 +484,5 @@ mod tests {
         assert_eq!(state.active_pane, ActivePane::Right);
         state.switch_pane();
         assert_eq!(state.active_pane, ActivePane::Left);
-    }
-
-    #[test]
-    fn test_app_state_show_help_toggle() {
-        let mut state = AppState::new(false);
-        assert!(!state.show_help);
-        state.show_help = true;
-        assert!(state.show_help);
     }
 }

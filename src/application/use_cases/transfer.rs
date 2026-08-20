@@ -189,7 +189,7 @@ fn transfer_file<FS: FileSystemPort>(
         match decide(dest, ctx) {
             ConflictResolution::Cancel => return ItemStatus::Cancelled,
             ConflictResolution::Skip => {
-                bump(ctx, src);
+                bump(ctx, src, 1);
                 return ItemStatus::Done {
                     fully_resolved: false,
                 };
@@ -205,7 +205,7 @@ fn transfer_file<FS: FileSystemPort>(
         TransferKind::Move => move_file(src, dest, ctx.fs_port),
     };
 
-    bump(ctx, src);
+    bump(ctx, src, 1);
     match result {
         Ok(()) => ItemStatus::Done {
             fully_resolved: true,
@@ -230,7 +230,7 @@ fn transfer_dir<FS: FileSystemPort>(
         match decide(dest, ctx) {
             ConflictResolution::Cancel => return ItemStatus::Cancelled,
             ConflictResolution::Skip => {
-                bump_subtree(ctx, src);
+                bump(ctx, src, count_items(src));
                 return ItemStatus::Done {
                     fully_resolved: false,
                 };
@@ -240,7 +240,7 @@ fn transfer_dir<FS: FileSystemPort>(
             | ConflictResolution::SkipAll => {
                 if let Err(e) = fs::remove_file(dest) {
                     ctx.failed.push((src.to_path_buf(), e.to_string()));
-                    bump_subtree(ctx, src);
+                    bump(ctx, src, count_items(src));
                     return ItemStatus::Done {
                         fully_resolved: false,
                     };
@@ -252,13 +252,13 @@ fn transfer_dir<FS: FileSystemPort>(
         && let Err(e) = ctx.fs_port.create_dir(dest)
     {
         ctx.failed.push((src.to_path_buf(), e.to_string()));
-        bump_subtree(ctx, src);
+        bump(ctx, src, count_items(src));
         return ItemStatus::Done {
             fully_resolved: false,
         };
     }
     // dest now exists as a directory, either freshly created or a pre-existing merge target.
-    bump(ctx, src);
+    bump(ctx, src, 1);
 
     let entries = match fs::read_dir(src) {
         Ok(rd) => rd,
@@ -313,14 +313,9 @@ fn decide<FS: FileSystemPort>(dest: &Path, ctx: &mut Ctx<FS>) -> ConflictResolut
     }
 }
 
-fn bump<FS: FileSystemPort>(ctx: &mut Ctx<FS>, current: &Path) {
-    ctx.done += 1;
+fn bump<FS: FileSystemPort>(ctx: &mut Ctx<FS>, current: &Path, by: usize) {
+    ctx.done += by;
     (ctx.on_progress)(current.to_path_buf(), ctx.done.min(ctx.total), ctx.total);
-}
-
-fn bump_subtree<FS: FileSystemPort>(ctx: &mut Ctx<FS>, src: &Path) {
-    ctx.done += count_items(src);
-    (ctx.on_progress)(src.to_path_buf(), ctx.done.min(ctx.total), ctx.total);
 }
 
 fn move_file(src: &Path, dest: &Path, fs_port: &impl FileSystemPort) -> Result<(), String> {

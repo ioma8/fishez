@@ -2,26 +2,23 @@
 
 use crate::application::ports::ClipboardPort;
 use crate::application::use_cases::navigate;
-use crate::application::use_cases::transfer::TransferEvent;
+use crate::application::use_cases::transfer::{TransferEvent, TransferKind};
 use crate::application::{ActivePane, AppState, PanelMode, PanelState, SizeFigure};
 use crate::infrastructure::{
     StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, mark_onboarded,
 };
 use crate::presentation::TerminalRenderer;
 use crate::presentation::input_handler::{
-    ContextMenuAction, ContextMenuResponse, ContextMenuState, CopyMoveState, Message, MouseOutcome,
-    PendingConflict, TransferUiState, handle_context_menu_input, handle_copy_dest_input,
-    handle_delete_confirmation, handle_favorites_input, handle_filter_mode, handle_find_input,
-    handle_mouse_event, handle_move_dest_input, handle_new_folder_input, handle_normal_mode,
-    handle_quick_view_mode, handle_rename_input, handle_ripgrep_input, handle_shell_input,
-    handle_transfer_input, is_quit, schedule_quick_view,
+    ContextMenuAction, ContextMenuResponse, Message, MouseOutcome, OverlayKind, UiState,
+    handle_context_menu_input, handle_copy_move_dest_input, handle_delete_confirmation,
+    handle_favorites_input, handle_filter_mode, handle_find_input, handle_mouse_event,
+    handle_new_folder_input, handle_normal_mode, handle_quick_view_mode, handle_rename_input,
+    handle_ripgrep_input, handle_shell_input, handle_transfer_input, is_quit, schedule_quick_view,
 };
 use crate::presentation::shortcuts;
 use crate::presentation::terminal::overlays;
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
-use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender};
-use tui_input::Input;
 
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -33,21 +30,7 @@ pub fn run(
     clipboard_adapter: &mut SystemClipboard,
     sender: &Sender<Message>,
     receiver: &Receiver<Message>,
-    delete_paths: &mut Option<Vec<PathBuf>>,
-    find_filter: &mut Option<Input>,
-    ripgrep_filter: &mut Option<Input>,
-    shell_command: &mut Option<Input>,
-    shell_history: &mut Vec<String>,
-    shell_history_idx: &mut Option<usize>,
-    rename_input: &mut Option<Input>,
-    new_folder_input: &mut Option<Input>,
-    copy_dest: &mut Option<CopyMoveState>,
-    transfer_state: &mut Option<TransferUiState>,
-    move_dest: &mut Option<CopyMoveState>,
-    context_menu: &mut Option<ContextMenuState>,
-    favorites_active: &mut bool,
-    favorites_items: &mut Vec<String>,
-    favorites_selected: &mut usize,
+    ui: &mut UiState,
 ) {
     loop {
         if event::poll(std::time::Duration::from_millis(15)).unwrap() {
@@ -55,41 +38,9 @@ pub fn run(
                 Event::Key(ev) if ev.kind == event::KeyEventKind::Press => {
                     if dismiss_onboarding(app_state) {
                         mark_onboarded();
-                        redraw_current_view(
-                            renderer,
-                            app_state,
-                            delete_paths,
-                            find_filter,
-                            ripgrep_filter,
-                            shell_command,
-                            rename_input,
-                            new_folder_input,
-                            copy_dest,
-                            transfer_state,
-                            move_dest,
-                            context_menu,
-                            *favorites_active,
-                            favorites_items,
-                            *favorites_selected,
-                        );
+                        redraw_current_view(renderer, app_state, ui);
                     }
-                    if is_quit(ev)
-                        || should_quit_with_escape(
-                            ev,
-                            app_state,
-                            delete_paths,
-                            find_filter,
-                            ripgrep_filter,
-                            shell_command,
-                            rename_input,
-                            new_folder_input,
-                            copy_dest,
-                            transfer_state,
-                            move_dest,
-                            context_menu,
-                            *favorites_active,
-                        )
-                    {
+                    if is_quit(ev) || should_quit_with_escape(ev, app_state, ui) {
                         renderer.reset_terminal();
                         return;
                     }
@@ -102,21 +53,7 @@ pub fn run(
                         vscode_adapter,
                         clipboard_adapter,
                         sender,
-                        delete_paths,
-                        find_filter,
-                        ripgrep_filter,
-                        shell_command,
-                        shell_history,
-                        shell_history_idx,
-                        rename_input,
-                        new_folder_input,
-                        copy_dest,
-                        transfer_state,
-                        move_dest,
-                        context_menu,
-                        favorites_active,
-                        favorites_items,
-                        favorites_selected,
+                        ui,
                     );
                 }
                 Event::Mouse(ev) => {
@@ -125,29 +62,12 @@ pub fn run(
                         app_state,
                         renderer.rows,
                         renderer.columns,
-                        context_menu,
-                        sender,
+                        &mut ui.context_menu,
                     );
                     match outcome {
                         MouseOutcome::Nothing => {}
                         MouseOutcome::Redraw => {
-                            redraw_current_view(
-                                renderer,
-                                app_state,
-                                delete_paths,
-                                find_filter,
-                                ripgrep_filter,
-                                shell_command,
-                                rename_input,
-                                new_folder_input,
-                                copy_dest,
-                                transfer_state,
-                                move_dest,
-                                context_menu,
-                                *favorites_active,
-                                favorites_items,
-                                *favorites_selected,
-                            );
+                            redraw_current_view(renderer, app_state, ui);
                         }
                         MouseOutcome::ExecuteContext {
                             action,
@@ -165,71 +85,22 @@ pub fn run(
                                 clipboard_adapter,
                                 sender,
                                 renderer,
-                                rename_input,
-                                delete_paths,
+                                ui,
                             );
-                            redraw_current_view(
-                                renderer,
-                                app_state,
-                                delete_paths,
-                                find_filter,
-                                ripgrep_filter,
-                                shell_command,
-                                rename_input,
-                                new_folder_input,
-                                copy_dest,
-                                transfer_state,
-                                move_dest,
-                                context_menu,
-                                *favorites_active,
-                                favorites_items,
-                                *favorites_selected,
-                            );
+                            redraw_current_view(renderer, app_state, ui);
                         }
                     }
                 }
                 Event::Resize(cols, rows) => {
                     renderer.update_size(cols, rows);
-                    redraw_current_view(
-                        renderer,
-                        app_state,
-                        delete_paths,
-                        find_filter,
-                        ripgrep_filter,
-                        shell_command,
-                        rename_input,
-                        new_folder_input,
-                        copy_dest,
-                        transfer_state,
-                        move_dest,
-                        context_menu,
-                        *favorites_active,
-                        favorites_items,
-                        *favorites_selected,
-                    );
+                    redraw_current_view(renderer, app_state, ui);
                 }
                 _ => {}
             }
         }
-        handle_async_messages(receiver, app_state, renderer, fs_adapter, transfer_state);
+        handle_async_messages(receiver, app_state, renderer, fs_adapter, ui);
         if clear_expired_notification(app_state, 3000) {
-            redraw_current_view(
-                renderer,
-                app_state,
-                delete_paths,
-                find_filter,
-                ripgrep_filter,
-                shell_command,
-                rename_input,
-                new_folder_input,
-                copy_dest,
-                transfer_state,
-                move_dest,
-                context_menu,
-                *favorites_active,
-                favorites_items,
-                *favorites_selected,
-            );
+            redraw_current_view(renderer, app_state, ui);
         }
     }
 }
@@ -242,35 +113,11 @@ fn dismiss_onboarding(app_state: &mut AppState) -> bool {
     true
 }
 
-#[allow(clippy::too_many_arguments)]
-fn should_quit_with_escape(
-    event: KeyEvent,
-    app_state: &AppState,
-    delete_paths: &Option<Vec<PathBuf>>,
-    find_filter: &Option<Input>,
-    ripgrep_filter: &Option<Input>,
-    shell_command: &Option<Input>,
-    rename_input: &Option<Input>,
-    new_folder_input: &Option<Input>,
-    copy_dest: &Option<CopyMoveState>,
-    transfer_state: &Option<TransferUiState>,
-    move_dest: &Option<CopyMoveState>,
-    context_menu: &Option<ContextMenuState>,
-    favorites_active: bool,
-) -> bool {
+/// Esc quits only from a clean state: no overlay, no multi-selection, normal mode.
+fn should_quit_with_escape(event: KeyEvent, app_state: &AppState, ui: &UiState) -> bool {
     event.code == KeyCode::Esc
         && !app_state.show_help
-        && delete_paths.is_none()
-        && find_filter.is_none()
-        && ripgrep_filter.is_none()
-        && shell_command.is_none()
-        && rename_input.is_none()
-        && new_folder_input.is_none()
-        && copy_dest.is_none()
-        && transfer_state.is_none()
-        && move_dest.is_none()
-        && context_menu.is_none()
-        && !favorites_active
+        && !ui.has_active_overlay()
         && app_state.active_panel().multi_selected_count() == 0
         && matches!(app_state.active_panel().mode, PanelMode::Normal)
 }
@@ -285,25 +132,11 @@ fn route_input(
     vscode_adapter: &VsCodeAdapter,
     clipboard_adapter: &mut SystemClipboard,
     sender: &Sender<Message>,
-    delete_paths: &mut Option<Vec<PathBuf>>,
-    find_filter: &mut Option<Input>,
-    ripgrep_filter: &mut Option<Input>,
-    shell_command: &mut Option<Input>,
-    shell_history: &mut Vec<String>,
-    shell_history_idx: &mut Option<usize>,
-    rename_input: &mut Option<Input>,
-    new_folder_input: &mut Option<Input>,
-    copy_dest: &mut Option<CopyMoveState>,
-    transfer_state: &mut Option<TransferUiState>,
-    move_dest: &mut Option<CopyMoveState>,
-    context_menu: &mut Option<ContextMenuState>,
-    favorites_active: &mut bool,
-    favorites_items: &mut Vec<String>,
-    favorites_selected: &mut usize,
+    ui: &mut UiState,
 ) {
     // Context menu takes absolute priority when open.
-    if context_menu.is_some() {
-        match handle_context_menu_input(event, context_menu) {
+    if ui.context_menu.is_some() {
+        match handle_context_menu_input(event, &mut ui.context_menu) {
             ContextMenuResponse::Handled | ContextMenuResponse::Close => {}
             ContextMenuResponse::Execute {
                 action,
@@ -321,113 +154,29 @@ fn route_input(
                     clipboard_adapter,
                     sender,
                     renderer,
-                    rename_input,
-                    delete_paths,
+                    ui,
                 );
             }
         }
-        redraw_current_view(
-            renderer,
-            app_state,
-            delete_paths,
-            find_filter,
-            ripgrep_filter,
-            shell_command,
-            rename_input,
-            new_folder_input,
-            copy_dest,
-            transfer_state,
-            move_dest,
-            context_menu,
-            *favorites_active,
-            favorites_items,
-            *favorites_selected,
-        );
+        redraw_current_view(renderer, app_state, ui);
         return;
     }
 
     if let Some(needs_redraw) = handle_help(event, app_state) {
         if needs_redraw {
-            redraw_current_view(
-                renderer,
-                app_state,
-                delete_paths,
-                find_filter,
-                ripgrep_filter,
-                shell_command,
-                rename_input,
-                new_folder_input,
-                copy_dest,
-                transfer_state,
-                move_dest,
-                context_menu,
-                *favorites_active,
-                favorites_items,
-                *favorites_selected,
-            );
+            redraw_current_view(renderer, app_state, ui);
         }
         return;
     }
-    if let Some(needs_redraw) = handle_modal_overlays(
-        event,
-        app_state,
-        fs_adapter,
-        sender,
-        delete_paths,
-        find_filter,
-        ripgrep_filter,
-        shell_command,
-        shell_history,
-        shell_history_idx,
-        rename_input,
-        new_folder_input,
-        copy_dest,
-        transfer_state,
-        move_dest,
-        favorites_active,
-        favorites_items,
-        favorites_selected,
-    ) {
+    if let Some(needs_redraw) = handle_modal_overlays(event, app_state, fs_adapter, sender, ui) {
         if needs_redraw {
-            redraw_current_view(
-                renderer,
-                app_state,
-                delete_paths,
-                find_filter,
-                ripgrep_filter,
-                shell_command,
-                rename_input,
-                new_folder_input,
-                copy_dest,
-                transfer_state,
-                move_dest,
-                context_menu,
-                *favorites_active,
-                favorites_items,
-                *favorites_selected,
-            );
+            redraw_current_view(renderer, app_state, ui);
         }
         return;
     }
     if app_state.two_pane_mode && event.code == KeyCode::Tab {
         app_state.switch_pane();
-        redraw_current_view(
-            renderer,
-            app_state,
-            delete_paths,
-            find_filter,
-            ripgrep_filter,
-            shell_command,
-            rename_input,
-            new_folder_input,
-            copy_dest,
-            transfer_state,
-            move_dest,
-            context_menu,
-            *favorites_active,
-            favorites_items,
-            *favorites_selected,
-        );
+        redraw_current_view(renderer, app_state, ui);
         return;
     }
     if shortcuts::is_hidden_toggle(event) {
@@ -436,60 +185,14 @@ fn route_input(
         app_state.right_panel.show_hidden = show_hidden;
         navigate::refresh_entries(fs_adapter, &mut app_state.left_panel);
         navigate::refresh_entries(fs_adapter, &mut app_state.right_panel);
-        redraw_current_view(
-            renderer,
-            app_state,
-            delete_paths,
-            find_filter,
-            ripgrep_filter,
-            shell_command,
-            rename_input,
-            new_folder_input,
-            copy_dest,
-            transfer_state,
-            move_dest,
-            context_menu,
-            *favorites_active,
-            favorites_items,
-            *favorites_selected,
-        );
+        redraw_current_view(renderer, app_state, ui);
         return;
     }
-    if let Some(needs_redraw) = shortcuts::handle(
-        event,
-        app_state,
-        renderer,
-        vscode_adapter,
-        delete_paths,
-        find_filter,
-        ripgrep_filter,
-        shell_command,
-        rename_input,
-        new_folder_input,
-        copy_dest,
-        move_dest,
-        favorites_active,
-        favorites_items,
-        sender,
-    ) {
+    if let Some(needs_redraw) =
+        shortcuts::handle(event, app_state, renderer, vscode_adapter, ui, sender)
+    {
         if needs_redraw {
-            redraw_current_view(
-                renderer,
-                app_state,
-                delete_paths,
-                find_filter,
-                ripgrep_filter,
-                shell_command,
-                rename_input,
-                new_folder_input,
-                copy_dest,
-                transfer_state,
-                move_dest,
-                context_menu,
-                *favorites_active,
-                favorites_items,
-                *favorites_selected,
-            );
+            redraw_current_view(renderer, app_state, ui);
         }
         return;
     }
@@ -502,30 +205,14 @@ fn route_input(
         clipboard_adapter,
         sender,
     ) {
-        redraw_current_view(
-            renderer,
-            app_state,
-            delete_paths,
-            find_filter,
-            ripgrep_filter,
-            shell_command,
-            rename_input,
-            new_folder_input,
-            copy_dest,
-            transfer_state,
-            move_dest,
-            context_menu,
-            *favorites_active,
-            favorites_items,
-            *favorites_selected,
-        );
+        redraw_current_view(renderer, app_state, ui);
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn execute_context_action(
     action: ContextMenuAction,
-    target: PathBuf,
+    target: std::path::PathBuf,
     name: String,
     app_state: &mut AppState,
     fs_adapter: &StdFileSystem,
@@ -534,8 +221,7 @@ fn execute_context_action(
     clipboard_adapter: &mut SystemClipboard,
     sender: &Sender<Message>,
     renderer: &mut TerminalRenderer,
-    rename_input: &mut Option<Input>,
-    delete_paths: &mut Option<Vec<PathBuf>>,
+    ui: &mut UiState,
 ) {
     let renderer_columns = renderer.columns;
     match action {
@@ -552,10 +238,10 @@ fn execute_context_action(
             schedule_quick_view(panel, pane, renderer_columns, sender);
         }
         ContextMenuAction::Rename => {
-            *rename_input = Some(Input::new(name));
+            ui.rename_input = Some(tui_input::Input::new(name));
         }
         ContextMenuAction::Delete => {
-            *delete_paths = Some(vec![target]);
+            ui.delete_paths = Some(vec![target]);
         }
         ContextMenuAction::CopyPath => {
             let path_str = target.to_string_lossy().to_string();
@@ -590,109 +276,84 @@ fn handle_help(event: KeyEvent, app_state: &mut AppState) -> Option<bool> {
     None
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Routes input to whichever overlay currently owns it, in `OverlayKind` priority order.
+/// The context menu is handled separately in `route_input`, before this is reached.
 fn handle_modal_overlays(
     event: KeyEvent,
     app_state: &mut AppState,
     fs_adapter: &StdFileSystem,
     sender: &Sender<Message>,
-    delete_paths: &mut Option<Vec<PathBuf>>,
-    find_filter: &mut Option<Input>,
-    ripgrep_filter: &mut Option<Input>,
-    shell_command: &mut Option<Input>,
-    shell_history: &mut Vec<String>,
-    shell_history_idx: &mut Option<usize>,
-    rename_input: &mut Option<Input>,
-    new_folder_input: &mut Option<Input>,
-    copy_dest: &mut Option<CopyMoveState>,
-    transfer_state: &mut Option<TransferUiState>,
-    move_dest: &mut Option<CopyMoveState>,
-    favorites_active: &mut bool,
-    favorites_items: &[String],
-    favorites_selected: &mut usize,
+    ui: &mut UiState,
 ) -> Option<bool> {
-    if transfer_state.is_some() {
-        return Some(handle_transfer_input(event, transfer_state));
-    }
-    if *favorites_active {
-        return Some(handle_favorites_input(
+    match ui.active_overlay() {
+        Some(OverlayKind::Transfer) => Some(handle_transfer_input(event, &mut ui.transfer_state)),
+        Some(OverlayKind::Favorites) => Some(handle_favorites_input(
             event,
-            favorites_active,
-            favorites_items,
-            favorites_selected,
+            &mut ui.favorites_active,
+            &ui.favorites_items,
+            &mut ui.favorites_selected,
             fs_adapter,
             app_state,
-        ));
-    }
-    if delete_paths.is_some() {
-        return Some(handle_delete_confirmation(
+        )),
+        Some(OverlayKind::Delete) => Some(handle_delete_confirmation(
             event,
-            delete_paths,
+            &mut ui.delete_paths,
             fs_adapter,
             app_state,
-        ));
-    }
-    if find_filter.is_some() {
-        return Some(handle_find_input(
+        )),
+        Some(OverlayKind::Find) => Some(handle_find_input(
             event,
-            find_filter,
+            &mut ui.find_filter,
             sender,
             fs_adapter,
             app_state,
-        ));
-    }
-    if ripgrep_filter.is_some() {
-        return Some(handle_ripgrep_input(
+        )),
+        Some(OverlayKind::Ripgrep) => Some(handle_ripgrep_input(
             event,
-            ripgrep_filter,
+            &mut ui.ripgrep_filter,
             fs_adapter,
             app_state,
-        ));
-    }
-    if shell_command.is_some() {
-        return Some(handle_shell_input(
+        )),
+        Some(OverlayKind::Shell) => Some(handle_shell_input(
             event,
-            shell_command,
-            shell_history,
-            shell_history_idx,
+            &mut ui.shell_command,
+            &mut ui.shell_history,
+            &mut ui.shell_history_idx,
             sender,
             app_state,
-        ));
-    }
-    if rename_input.is_some() {
-        return Some(handle_rename_input(
+        )),
+        Some(OverlayKind::Rename) => Some(handle_rename_input(
             event,
-            rename_input,
+            &mut ui.rename_input,
             fs_adapter,
             app_state,
-        ));
-    }
-    if new_folder_input.is_some() {
-        return Some(handle_new_folder_input(
+        )),
+        Some(OverlayKind::NewFolder) => Some(handle_new_folder_input(
             event,
-            new_folder_input,
+            &mut ui.new_folder_input,
             fs_adapter,
             app_state,
-        ));
-    }
-    if copy_dest.is_some() {
-        return Some(handle_copy_dest_input(
+        )),
+        Some(OverlayKind::CopyDest) => Some(handle_copy_move_dest_input(
             event,
-            copy_dest,
-            transfer_state,
-            sender,
-        ));
-    }
-    if move_dest.is_some() {
-        return Some(handle_move_dest_input(
-            event,
-            move_dest,
-            transfer_state,
+            &mut ui.copy_dest,
+            &mut ui.transfer_state,
             sender,
             app_state,
-        ));
+            TransferKind::Copy,
+            false,
+        )),
+        Some(OverlayKind::MoveDest) => Some(handle_copy_move_dest_input(
+            event,
+            &mut ui.move_dest,
+            &mut ui.transfer_state,
+            sender,
+            app_state,
+            TransferKind::Move,
+            true,
+        )),
+        Some(OverlayKind::ContextMenu) | None => None,
     }
-    None
 }
 
 fn handle_mode_input(
@@ -728,55 +389,53 @@ fn handle_mode_input(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn redraw_current_view(
-    renderer: &mut TerminalRenderer,
-    app_state: &AppState,
-    delete_paths: &Option<Vec<PathBuf>>,
-    find_filter: &Option<Input>,
-    ripgrep_filter: &Option<Input>,
-    shell_command: &Option<Input>,
-    rename_input: &Option<Input>,
-    new_folder_input: &Option<Input>,
-    copy_dest: &Option<CopyMoveState>,
-    transfer_state: &Option<TransferUiState>,
-    move_dest: &Option<CopyMoveState>,
-    context_menu: &Option<ContextMenuState>,
-    favorites_active: bool,
-    favorites_items: &[String],
-    favorites_selected: usize,
-) {
-    if favorites_active {
-        overlays::draw_with_favorites(
+/// Redraws the base view plus whichever overlay is active (same priority order
+/// as `handle_modal_overlays`), then floats the context menu on top.
+fn redraw_current_view(renderer: &mut TerminalRenderer, app_state: &AppState, ui: &UiState) {
+    match ui.active_overlay() {
+        Some(OverlayKind::Favorites) => {
+            overlays::draw_favorites_overlay(renderer, &ui.favorites_items, ui.favorites_selected)
+        }
+        Some(OverlayKind::Delete) => {
+            overlays::draw_with_delete(renderer, app_state, ui.delete_paths.as_ref())
+        }
+        Some(OverlayKind::Find) => {
+            overlays::draw_with_prompt(renderer, app_state, "Find", ui.find_filter.as_ref())
+        }
+        Some(OverlayKind::Ripgrep) => {
+            overlays::draw_with_prompt(renderer, app_state, "RipGrep", ui.ripgrep_filter.as_ref())
+        }
+        Some(OverlayKind::Shell) => {
+            overlays::draw_with_prompt(renderer, app_state, "!", ui.shell_command.as_ref())
+        }
+        Some(OverlayKind::Rename) => {
+            overlays::draw_with_prompt(renderer, app_state, "Rename", ui.rename_input.as_ref())
+        }
+        Some(OverlayKind::NewFolder) => overlays::draw_with_prompt(
             renderer,
             app_state,
-            true,
-            favorites_items,
-            favorites_selected,
-        );
-    } else if delete_paths.is_some() {
-        overlays::draw_with_delete(renderer, app_state, delete_paths.as_ref());
-    } else if find_filter.is_some() {
-        overlays::draw_with_find(renderer, app_state, find_filter.as_ref());
-    } else if ripgrep_filter.is_some() {
-        overlays::draw_with_ripgrep(renderer, app_state, ripgrep_filter.as_ref());
-    } else if shell_command.is_some() {
-        overlays::draw_with_shell(renderer, app_state, shell_command.as_ref());
-    } else if rename_input.is_some() {
-        overlays::draw_with_rename(renderer, app_state, rename_input.as_ref());
-    } else if new_folder_input.is_some() {
-        overlays::draw_with_new_folder(renderer, app_state, new_folder_input.as_ref());
-    } else if let Some(state) = copy_dest.as_ref() {
-        overlays::draw_with_copy_dest(renderer, app_state, &state.dest);
-    } else if let Some(state) = move_dest.as_ref() {
-        overlays::draw_with_move_dest(renderer, app_state, &state.dest);
-    } else if let Some(job) = transfer_state.as_ref() {
-        overlays::draw_with_transfer(renderer, app_state, job);
-    } else {
-        overlays::draw(renderer, app_state);
+            "New folder",
+            ui.new_folder_input.as_ref(),
+        ),
+        Some(OverlayKind::CopyDest) => {
+            if let Some(state) = ui.copy_dest.as_ref() {
+                overlays::draw_with_copy_dest(renderer, app_state, &state.dest);
+            }
+        }
+        Some(OverlayKind::MoveDest) => {
+            if let Some(state) = ui.move_dest.as_ref() {
+                overlays::draw_with_move_dest(renderer, app_state, &state.dest);
+            }
+        }
+        Some(OverlayKind::Transfer) => {
+            if let Some(job) = ui.transfer_state.as_ref() {
+                overlays::draw_with_transfer(renderer, app_state, job);
+            }
+        }
+        Some(OverlayKind::ContextMenu) | None => overlays::draw(renderer, app_state),
     }
     // Context menu floats on top of whatever was already drawn.
-    if let Some(ctx) = context_menu.as_ref() {
+    if let Some(ctx) = ui.context_menu.as_ref() {
         overlays::draw_context_menu(renderer, ctx);
     }
 }
@@ -788,12 +447,19 @@ fn clear_expired_notification(app_state: &mut AppState, timeout_ms: u64) -> bool
     had_notification && panel.notification.is_none()
 }
 
+fn pane_panel_mut(app_state: &mut AppState, pane: ActivePane) -> &mut PanelState {
+    match pane {
+        ActivePane::Left => &mut app_state.left_panel,
+        ActivePane::Right => &mut app_state.right_panel,
+    }
+}
+
 fn handle_async_messages(
     receiver: &Receiver<Message>,
     app_state: &mut AppState,
     renderer: &mut TerminalRenderer,
     fs_adapter: &StdFileSystem,
-    transfer_state: &mut Option<TransferUiState>,
+    ui: &mut UiState,
 ) {
     while let Ok(message) = receiver.try_recv() {
         match message {
@@ -802,10 +468,7 @@ fn handle_async_messages(
                 base_path,
                 files,
             } => {
-                let panel = match pane {
-                    ActivePane::Left => &mut app_state.left_panel,
-                    ActivePane::Right => &mut app_state.right_panel,
-                };
+                let panel = pane_panel_mut(app_state, pane);
                 panel.clear_notification_force();
                 navigate::replace_entries_from_search(panel, files, &base_path);
                 overlays::draw(renderer, app_state);
@@ -815,26 +478,20 @@ fn handle_async_messages(
                 generation,
                 mode,
             } => {
-                let panel = match pane {
-                    ActivePane::Left => &mut app_state.left_panel,
-                    ActivePane::Right => &mut app_state.right_panel,
-                };
+                let panel = pane_panel_mut(app_state, pane);
                 if apply_quick_view_result(panel, generation, mode) {
                     overlays::draw(renderer, app_state);
                 }
             }
             Message::Transfer(event) => {
-                handle_transfer_event(event, app_state, renderer, fs_adapter, transfer_state);
+                handle_transfer_event(event, app_state, renderer, fs_adapter, ui);
             }
             Message::DirTotalResult {
                 pane,
                 generation,
                 total,
             } => {
-                let panel = match pane {
-                    ActivePane::Left => &mut app_state.left_panel,
-                    ActivePane::Right => &mut app_state.right_panel,
-                };
+                let panel = pane_panel_mut(app_state, pane);
                 if apply_dir_total_result(panel, generation, total) {
                     overlays::draw(renderer, app_state);
                 }
@@ -844,10 +501,7 @@ fn handle_async_messages(
                 generation,
                 total,
             } => {
-                let panel = match pane {
-                    ActivePane::Left => &mut app_state.left_panel,
-                    ActivePane::Right => &mut app_state.right_panel,
-                };
+                let panel = pane_panel_mut(app_state, pane);
                 if apply_selection_total_result(panel, generation, total) {
                     overlays::draw(renderer, app_state);
                 }
@@ -899,7 +553,7 @@ fn handle_transfer_event(
     app_state: &mut AppState,
     renderer: &mut TerminalRenderer,
     fs_adapter: &StdFileSystem,
-    transfer_state: &mut Option<TransferUiState>,
+    ui: &mut UiState,
 ) {
     match event {
         TransferEvent::Progress {
@@ -907,7 +561,7 @@ fn handle_transfer_event(
             done,
             total,
         } => {
-            if let Some(job) = transfer_state.as_mut() {
+            if let Some(job) = ui.transfer_state.as_mut() {
                 job.current = current;
                 job.done = done;
                 job.total = total;
@@ -915,8 +569,9 @@ fn handle_transfer_event(
             }
         }
         TransferEvent::Conflict { path, reply } => {
-            if let Some(job) = transfer_state.as_mut() {
-                job.pending_conflict = Some(PendingConflict { path, reply });
+            if let Some(job) = ui.transfer_state.as_mut() {
+                job.pending_conflict =
+                    Some(crate::presentation::input_handler::PendingConflict { path, reply });
                 overlays::draw_with_transfer(renderer, app_state, job);
             }
         }
@@ -928,8 +583,8 @@ fn handle_transfer_event(
             } = outcome;
             navigate::refresh_entries(fs_adapter, &mut app_state.left_panel);
             navigate::refresh_entries(fs_adapter, &mut app_state.right_panel);
-            let verb = match transfer_state.as_ref().map(|j| j.kind) {
-                Some(crate::application::use_cases::transfer::TransferKind::Move) => "Moved",
+            let verb = match ui.transfer_state.as_ref().map(|j| j.kind) {
+                Some(TransferKind::Move) => "Moved",
                 _ => "Copied",
             };
             let summary = match (cancelled, failed.len()) {
@@ -938,7 +593,7 @@ fn handle_transfer_event(
                 (false, 0) => format!("{} {} item(s)", verb, ok),
                 (false, n) => format!("{} {} item(s), {} failed", verb, ok, n),
             };
-            *transfer_state = None;
+            ui.transfer_state = None;
             app_state.active_panel_mut().set_notification(summary);
             overlays::draw(renderer, app_state);
         }
@@ -1057,21 +712,12 @@ mod tests {
     #[test]
     fn esc_quits_from_clean_normal_state() {
         let state = AppState::new(false);
+        let ui = UiState::default();
 
         assert!(should_quit_with_escape(
             KeyEvent::from(KeyCode::Esc),
             &state,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            false,
+            &ui,
         ));
     }
 
@@ -1079,21 +725,27 @@ mod tests {
     fn esc_does_not_quit_while_filtering() {
         let mut state = AppState::new(false);
         state.active_panel_mut().mode = PanelMode::Filter;
+        let ui = UiState::default();
 
         assert!(!should_quit_with_escape(
             KeyEvent::from(KeyCode::Esc),
             &state,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            &None,
-            false,
+            &ui,
+        ));
+    }
+
+    #[test]
+    fn esc_does_not_quit_while_an_overlay_is_active() {
+        let state = AppState::new(false);
+        let ui = UiState {
+            find_filter: Some(tui_input::Input::default()),
+            ..Default::default()
+        };
+
+        assert!(!should_quit_with_escape(
+            KeyEvent::from(KeyCode::Esc),
+            &state,
+            &ui,
         ));
     }
 }
