@@ -431,9 +431,9 @@ fn route_input(
         return;
     }
     if shortcuts::is_hidden_toggle(event) {
-        app_state.show_hidden = !app_state.show_hidden;
-        app_state.left_panel.show_hidden = app_state.show_hidden;
-        app_state.right_panel.show_hidden = app_state.show_hidden;
+        let show_hidden = !app_state.left_panel.show_hidden;
+        app_state.left_panel.show_hidden = show_hidden;
+        app_state.right_panel.show_hidden = show_hidden;
         navigate::refresh_entries(fs_adapter, &mut app_state.left_panel);
         navigate::refresh_entries(fs_adapter, &mut app_state.right_panel);
         redraw_current_view(
@@ -470,7 +470,6 @@ fn route_input(
         move_dest,
         favorites_active,
         favorites_items,
-        favorites_selected,
         sender,
     ) {
         if needs_redraw {
@@ -921,11 +920,12 @@ fn handle_transfer_event(
                 overlays::draw_with_transfer(renderer, app_state, job);
             }
         }
-        TransferEvent::Done {
-            ok,
-            failed,
-            cancelled,
-        } => {
+        TransferEvent::Done(outcome) => {
+            let crate::application::use_cases::transfer::Outcome {
+                ok,
+                failed,
+                cancelled,
+            } = outcome;
             navigate::refresh_entries(fs_adapter, &mut app_state.left_panel);
             navigate::refresh_entries(fs_adapter, &mut app_state.right_panel);
             let verb = match transfer_state.as_ref().map(|j| j.kind) {

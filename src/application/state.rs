@@ -178,7 +178,6 @@ pub struct AppState {
     pub show_help: bool,
     pub show_onboarding: bool,
     pub two_pane_mode: bool,
-    pub show_hidden: bool,
 }
 
 impl Default for AppState {
@@ -197,7 +196,6 @@ impl AppState {
             show_help: false,
             show_onboarding: true,
             two_pane_mode,
-            show_hidden: true,
         }
     }
 

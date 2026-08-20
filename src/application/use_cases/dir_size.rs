@@ -66,21 +66,11 @@ fn dir_size(fs_port: &impl FileSystemPort, path: &Path, cancel: &AtomicBool) -> 
     }
 }
 
-/// One `du` child process handling a slice of roots, with a dedicated thread
-/// draining its stdout so a large chunk of output can't fill the pipe and deadlock it.
-#[cfg(unix)]
-struct DuJob {
-    child: std::process::Child,
-    reader: std::thread::JoinHandle<String>,
-}
-
-/// Runs `du -sk` over `roots`, split into chunks and run as concurrent `du` processes
-/// (one per available CPU, roughly) so directories with several large sibling entries
-/// — the common case that makes this slow in the first place — benefit from I/O and
-/// CPU parallelism instead of one process working through everything sequentially.
-/// Returns `None` if `du` isn't on `PATH`, any chunk fails to spawn, or the computation
-/// was cancelled (the caller falls back to `total_size_fallback` in all of those cases,
-/// which itself respects `cancel` and returns promptly if it's already set).
+/// Runs `du -sk` over `roots` in a single process. A dedicated thread drains its
+/// stdout so a large amount of output can't fill the pipe and deadlock it.
+/// Returns `None` if `du` isn't on `PATH` or the computation was cancelled (the
+/// caller falls back to `total_size_fallback` in both cases, which itself respects
+/// `cancel` and returns promptly if it's already set).
 #[cfg(unix)]
 fn total_size_via_du(roots: &[FileEntry], cancel: &AtomicBool) -> Option<u64> {
     use std::io::Read;
@@ -91,72 +81,39 @@ fn total_size_via_du(roots: &[FileEntry], cancel: &AtomicBool) -> Option<u64> {
         return Some(0);
     }
 
-    let concurrency = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(4)
-        .min(roots.len());
-    let chunk_size = roots.len().div_ceil(concurrency).max(1);
-
-    let spawn_chunk = |chunk: &[FileEntry]| -> Option<DuJob> {
-        let mut child = Command::new("du")
-            .arg("-sk")
-            .arg("--")
-            .args(chunk.iter().map(|e| &e.path))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn()
-            .ok()?;
-        let mut stdout_pipe = child.stdout.take()?;
-        let reader = std::thread::spawn(move || {
-            let mut buf = String::new();
-            let _ = stdout_pipe.read_to_string(&mut buf);
-            buf
-        });
-        Some(DuJob { child, reader })
-    };
-
-    let mut jobs = Vec::with_capacity(concurrency);
-    for chunk in roots.chunks(chunk_size) {
-        match spawn_chunk(chunk) {
-            Some(job) => jobs.push(job),
-            None => {
-                // A chunk failed to spawn; abort everything already running and let
-                // the caller fall back to the pure-Rust walk for all of `roots`.
-                for job in &mut jobs {
-                    let _ = job.child.kill();
-                    let _ = job.child.wait();
-                }
-                return None;
-            }
-        }
-    }
+    let mut child = Command::new("du")
+        .arg("-sk")
+        .arg("--")
+        .args(roots.iter().map(|e| &e.path))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let mut stdout_pipe = child.stdout.take()?;
+    let reader = std::thread::spawn(move || {
+        let mut buf = String::new();
+        let _ = stdout_pipe.read_to_string(&mut buf);
+        buf
+    });
 
     loop {
         if cancel.load(Ordering::Relaxed) {
-            for job in &mut jobs {
-                let _ = job.child.kill();
-                let _ = job.child.wait();
-            }
+            let _ = child.kill();
+            let _ = child.wait();
             return None;
         }
-        let all_done = jobs
-            .iter_mut()
-            .all(|job| matches!(job.child.try_wait(), Ok(Some(_))));
-        if all_done {
+        if matches!(child.try_wait(), Ok(Some(_))) {
             break;
         }
         std::thread::sleep(Duration::from_millis(50));
     }
 
-    let mut total_kb = 0u64;
-    for job in jobs {
-        let stdout = job.reader.join().ok()?;
-        total_kb += stdout
-            .lines()
-            .filter_map(|line| line.split_whitespace().next())
-            .filter_map(|kb| kb.parse::<u64>().ok())
-            .sum::<u64>();
-    }
+    let stdout = reader.join().ok()?;
+    let total_kb = stdout
+        .lines()
+        .filter_map(|line| line.split_whitespace().next())
+        .filter_map(|kb| kb.parse::<u64>().ok())
+        .sum::<u64>();
     Some(total_kb * 1024)
 }
 

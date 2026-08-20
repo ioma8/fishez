@@ -133,7 +133,6 @@ fn preview_text(path: &Path, wrap_width: u16) -> QuickViewMode {
         lines.truncate(TEXT_PREVIEW_MAX_LINES);
         capped = true;
     }
-    let mut lines = highlight(lines);
     if capped {
         lines.push("… preview truncated".to_string());
     }
@@ -165,41 +164,6 @@ fn bat_lines_from_output(output: &[u8]) -> Vec<String> {
         .lines()
         .take(TEXT_PREVIEW_MAX_LINES)
         .map(String::from)
-        .collect()
-}
-
-fn highlight(lines: Vec<String>) -> Vec<String> {
-    use crossterm::style::Stylize;
-    let comments = ["//", "#", "--"];
-    let keywords = [
-        "fn", "let", "if", "else", "for", "while", "match", "struct", "enum", "impl", "function",
-        "trait", "mod", "pub", "private", "self", "super", "const", "var", "static", "type",
-        "async", "await", "return", "break", "continue", "loop", "in", "as", "where", "crate",
-        "extern", "dyn", "ref", "mut",
-    ];
-    let fullline = ["derive", "use", "import"];
-    lines
-        .iter()
-        .map(|line| {
-            let mut in_comment = false;
-            let mut in_fullline = false;
-            line.split(' ')
-                .map(|w| {
-                    if in_comment || comments.iter().any(|c| w.starts_with(c)) {
-                        in_comment = true;
-                        format!("{} ", w.with(crossterm::style::Color::DarkGreen))
-                    } else if keywords.contains(&w) {
-                        format!("{} ", w.with(crossterm::style::Color::Yellow))
-                    } else if in_fullline || fullline.contains(&w) {
-                        in_fullline = true;
-                        format!("{} ", w.with(crossterm::style::Color::Cyan))
-                    } else {
-                        w.to_string()
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(" ")
-        })
         .collect()
 }
 

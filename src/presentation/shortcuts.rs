@@ -26,7 +26,6 @@ pub fn handle(
     move_dest: &mut Option<CopyMoveState>,
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
-    favorites_selected: &mut usize,
     sender: &Sender<Message>,
 ) -> Option<bool> {
     if let Some(needs_redraw) = handle_delete(event, app_state, delete_paths) {
@@ -45,13 +44,9 @@ pub fn handle(
     if let Some(needs_redraw) = handle_search(event, find_filter, ripgrep_filter, shell_command) {
         return Some(needs_redraw);
     }
-    if let Some(needs_redraw) = handle_favorites(
-        event,
-        app_state,
-        favorites_active,
-        favorites_items,
-        favorites_selected,
-    ) {
+    if let Some(needs_redraw) =
+        handle_favorites(event, app_state, favorites_active, favorites_items)
+    {
         return Some(needs_redraw);
     }
     if let Some(needs_redraw) = handle_two_pane_toggle(event, app_state) {
@@ -191,7 +186,6 @@ fn handle_favorites(
     app_state: &mut AppState,
     favorites_active: &mut bool,
     favorites_items: &mut Vec<String>,
-    _favorites_selected: &mut usize,
 ) -> Option<bool> {
     if event.code == KeyCode::Char('d') && event.modifiers.contains(KeyModifiers::CONTROL) {
         let panel = app_state.active_panel_mut();

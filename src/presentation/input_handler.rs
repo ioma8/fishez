@@ -2,7 +2,7 @@
 
 use crate::application::ports::FileSystemPort;
 use crate::application::use_cases::transfer::{self, ConflictResolution, TransferKind};
-use crate::application::use_cases::{dir_size, file_ops, navigate, new_folder, quick_view};
+use crate::application::use_cases::{dir_size, file_ops, navigate, quick_view};
 use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode, SizeFigure};
 use crate::infrastructure::{
     FdSearchAdapter, RipGrepAdapter, StdFileSystem, SystemClipboard, SystemOpenAdapter,
@@ -1120,7 +1120,10 @@ pub fn handle_new_folder_input(
             }
             let panel = state.active_panel_mut();
             let parent = panel.current_path.clone();
-            match new_folder::create_folder(&name, &parent, fs) {
+            match fs
+                .create_dir(&parent.join(&name))
+                .map_err(|e| e.to_string())
+            {
                 Ok(()) => {
                     navigate::refresh_entries(fs, panel);
                     if let Some(pos) = panel.entries.iter().position(|e| e.name == name) {

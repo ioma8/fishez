@@ -38,13 +38,10 @@ pub enum TransferEvent {
         path: PathBuf,
         reply: mpsc::Sender<ConflictResolution>,
     },
-    Done {
-        ok: usize,
-        failed: Vec<(PathBuf, String)>,
-        cancelled: bool,
-    },
+    Done(Outcome),
 }
 
+#[derive(Debug)]
 pub struct Outcome {
     pub ok: usize,
     pub failed: Vec<(PathBuf, String)>,
@@ -88,11 +85,7 @@ pub fn spawn_transfer<FS: FileSystemPort + Send + 'static>(
             &mut resolve_conflict,
             &cancel_for_thread,
         );
-        on_event(TransferEvent::Done {
-            ok: outcome.ok,
-            failed: outcome.failed,
-            cancelled: outcome.cancelled,
-        });
+        on_event(TransferEvent::Done(outcome));
     });
     cancel
 }
@@ -687,21 +680,17 @@ mod tests {
                 reply.send(ConflictResolution::Overwrite).unwrap();
                 continue;
             }
-            if let TransferEvent::Done { .. } = event {
+            if let TransferEvent::Done(_) = event {
                 done_event = Some(event);
                 break;
             }
         }
 
         match done_event.expect("worker thread must send a Done event") {
-            TransferEvent::Done {
-                ok,
-                failed,
-                cancelled,
-            } => {
-                assert_eq!(ok, 1);
-                assert!(failed.is_empty());
-                assert!(!cancelled);
+            TransferEvent::Done(outcome) => {
+                assert_eq!(outcome.ok, 1);
+                assert!(outcome.failed.is_empty());
+                assert!(!outcome.cancelled);
             }
             _ => unreachable!(),
         }

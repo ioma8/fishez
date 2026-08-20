@@ -16,7 +16,6 @@ pub struct FileEntry {
     pub path: PathBuf,
     pub name: String,
     pub kind: EntryKind,
-    #[allow(dead_code)]
     pub size: u64,
     pub modified: Option<SystemTime>,
 }

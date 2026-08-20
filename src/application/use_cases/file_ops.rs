@@ -6,7 +6,6 @@ use crate::application::use_cases::navigate;
 use std::path::Path;
 
 /// Deletes the selected file or directory (moves to trash).
-#[allow(dead_code)]
 pub fn delete_selected(
     fs: &dyn FileSystemPort,
     panel: &mut PanelState,
