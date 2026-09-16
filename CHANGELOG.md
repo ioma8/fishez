@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-16
+
 ### Added
 - Animated GIF quick-view previews that play in kitty-graphics and iTerm2 terminals
 - `fz` cd-on-exit shell wrapper via `fishez --init`
@@ -81,5 +83,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Uses semantic versioning
 - MIT licensed
 
-[Unreleased]: https://github.com/ioma8/fishez/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/ioma8/fishez/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/ioma8/fishez/releases/tag/v0.5.0
 [0.1.0]: https://github.com/ioma8/fishez/releases/tag/v0.1.0
