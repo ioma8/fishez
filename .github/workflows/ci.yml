@@ -60,7 +60,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            crossbuild-essential \
+            crossbuild-essential-arm64 \
             libxcb1-dev \
             libxcb-render0-dev \
             libxcb-shape0-dev \
@@ -88,7 +88,7 @@ jobs:
         id: version
         run: |
           VERSION=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Package binary
         run: |
@@ -110,7 +110,7 @@ jobs:
 
       - name: Upload binary to release (if on tag)
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: dist/fishez-${{ matrix.platform }}
 
