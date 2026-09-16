@@ -254,6 +254,15 @@ cargo test      # Run tests
 
 Additional docs live under [`docs/`](docs).
 
+### Previewing the landing page
+
+```bash
+./scripts/build-site.sh
+python3 -m http.server --directory . 8000
+```
+
+Open <http://localhost:8000/_site/>. The production page is <https://ioma8.github.io/fishez/>.
+
 ### Regenerating the demo GIF
 
 The README demo is a scripted [vhs](https://github.com/charmbracelet/vhs) recording, so it can be re-recorded any time the UI changes:

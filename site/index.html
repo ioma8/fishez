@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fishez — Total Commander-style terminal file manager</title>
+  <meta name="description" content="A keyboard-driven terminal file manager for macOS and Linux. Type to filter, preview with F3, copy with F5, and leave your shell in the directory you found.">
+  <link rel="canonical" href="https://ioma8.github.io/fishez/">
+  <meta property="og:title" content="fishez — Total Commander-style terminal file manager">
+  <meta property="og:description" content="Type to filter. F3 to preview. F5 to copy. Leave your shell in the directory you found.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://ioma8.github.io/fishez/">
+  <meta property="og:image" content="https://ioma8.github.io/fishez/social-preview.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="fishez — Total Commander-style terminal file manager">
+  <meta name="twitter:description" content="A keyboard-driven file manager for macOS and Linux.">
+  <meta name="twitter:image" content="https://ioma8.github.io/fishez/social-preview.png">
+  <link rel="icon" href="./assets/Fishez_logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header"><a class="brand" href="./"><img src="./assets/Fishez_logo.svg" alt="fishez logo"><span>fishez</span></a><nav aria-label="Primary"><a href="#install">Install</a><a href="#workflow">Workflow</a><a href="https://github.com/ioma8/fishez">GitHub</a></nav></header>
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title"><div class="eyebrow">Open source · MIT licensed · Built with Rust</div><h1 id="hero-title">Total Commander muscle memory, <em>in your terminal.</em></h1><p class="lead">Type to filter. F3 to preview. F5 to copy. Leave your shell in the directory you found.</p><p class="intro">A keyboard-driven file manager for macOS and Linux, with dual panes, familiar function keys, and actions for fd, ripgrep, and your editor.</p><div class="actions"><a class="button primary" href="#install">Install fishez</a><a class="button secondary" href="https://github.com/ioma8/fishez">View on GitHub <span aria-hidden="true">↗</span></a></div></section>
+    <figure class="demo"><div class="window-bar"><span></span><span></span><span></span><b>fishez</b></div><div class="demo-stage"><img id="demo-image" src="./assets/demo-poster.png" alt="fishez terminal demo showing filtering, preview, and shell navigation"><button id="play-demo" class="play" type="button">Play demo</button></div><figcaption>Filter a directory, preview files, search code, and return to your shell. <a href="./assets/demo.gif">Open animated demo</a></figcaption></figure>
+    <section id="workflow" class="workflow" aria-labelledby="workflow-title"><div class="section-heading"><span class="eyebrow">The workflow</span><h2 id="workflow-title">A few keys carry you a long way.</h2></div><div class="benefits"><article><kbd>⌕</kbd><h3>Find by typing</h3><p>Start typing to filter the current directory. Use <code>Ctrl+F</code> for file search and <code>Ctrl+R</code> for content search.</p></article><article><kbd>F3</kbd><h3>Work like a Commander</h3><p><code>Ctrl+T</code> opens two panes, <code>Tab</code> switches them, and <code>F5</code> copies to the opposite pane. Preview with F3; open your editor with F4.</p></article><article><kbd>fz</kbd><h3>Continue in your shell</h3><p>Launch with <code>fz</code>, browse to a directory, and exit there. Running <code>fishez</code> directly leaves your parent shell unchanged.</p></article></div><a class="text-link" href="https://github.com/ioma8/fishez/blob/main/docs/commander-workflow.md">Read the complete workflow guide ↗</a></section>
+    <section id="install" class="install" aria-labelledby="install-title"><div class="section-heading"><span class="eyebrow">Start here</span><h2 id="install-title">Install in one minute.</h2><p>Homebrew includes fd and ripgrep. <code>bat</code> is optional for text previews.</p></div><div class="command"><pre><code>brew install ioma8/tap/fishez
+fishez --install-shell</code></pre><button class="copy" type="button" data-copy="brew install ioma8/tap/fishez\nfishez --install-shell">Copy</button></div><p class="after-command">Open a new terminal, or source the file printed by setup. Then run:</p><div class="command"><pre><code>fz</code></pre><button class="copy" type="button" data-copy="fz">Copy</button></div><div class="first-task"><strong>Your first task</strong><span>Type to filter</span><i>→</i><span><code>Esc</code> clears</span><i>→</i><span><code>F3</code> previews</span><i>→</i><span>Exit and run <code>pwd</code></span></div><p class="alt-install">Prefer another route? See <a href="https://github.com/ioma8/fishez#one-line-binary-installer">binary installer and Cargo options in the README</a>.</p><div id="copy-status" class="sr-only" role="status" aria-live="polite"></div></section>
+    <section class="faq" aria-labelledby="faq-title"><div class="section-heading"><span class="eyebrow">Good to know</span><h2 id="faq-title">Before you start.</h2></div><details><summary>Which platforms are supported?</summary><p>Published binaries cover macOS and Linux on ARM64 and x86-64. Windows is not covered by the release and CI matrix.</p></details><details><summary>Do I need a special terminal?</summary><p>Text previews work without image support. Inline image and GIF previews require kitty-graphics or iTerm2 image support.</p></details><details><summary>What if my function keys control brightness or volume?</summary><p>Use Fn, or the Ctrl alternatives: <code>Ctrl+P</code> preview, <code>Ctrl+O</code> editor, and <code>Ctrl+Y</code> copy.</p></details><details><summary>How is fishez different?</summary><p>Its focus is a Commander-style default keymap combined with typing to filter and a shell wrapper that returns you to the selected directory.</p></details></section>
+  </main>
+  <footer><div class="brand"><img src="./assets/Fishez_logo.svg" alt=""><span>fishez</span></div><div><a href="https://github.com/ioma8/fishez/releases/latest">Latest release</a><a href="https://github.com/ioma8/fishez/issues/new">Report an issue</a><a href="https://github.com/ioma8/fishez/blob/main/LICENSE">MIT license</a></div><p>Independent project. Not affiliated with Total Commander.</p></footer>
+  <script src="./script.js" defer></script>
+</body>
+</html>

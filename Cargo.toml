@@ -17,6 +17,8 @@ exclude = [
     "tests/",
     "*.md",
     "!README.md",
+    "site/",
+    "LANDING_PAGE.md",
 ]
 
 [dependencies]
