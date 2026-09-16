@@ -14,6 +14,7 @@ use application::AppState;
 use application::use_cases::navigate;
 use infrastructure::{
     StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, is_onboarded, load_favorites,
+    load_recents, save_recents,
 };
 use presentation::input_handler::{Message, UiState};
 use presentation::{TerminalRenderer, overlays, run};
@@ -78,6 +79,7 @@ fn main() {
     // Modal-overlay and feature state
     let mut ui = UiState {
         favorites_items: load_favorites(),
+        recent_items: load_recents(),
         ..Default::default()
     };
     let cwd_file = args.cwd_file;
@@ -95,6 +97,7 @@ fn main() {
         &receiver,
         &mut ui,
     );
+    save_recents(&ui.recent_items);
 
     if let Some(path) = cwd_file {
         write_cwd_file(&path, &state.active_panel().current_path);

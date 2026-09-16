@@ -29,6 +29,11 @@ pub fn handle(
     if let Some(needs_redraw) = handle_favorites(event, app_state, ui) {
         return Some(needs_redraw);
     }
+    if event.code == KeyCode::Char('j') && event.modifiers.contains(KeyModifiers::CONTROL) {
+        ui.recent_active = true;
+        ui.recent_selected = 0;
+        return Some(true);
+    }
     if let Some(needs_redraw) = handle_two_pane_toggle(event, app_state) {
         return Some(needs_redraw);
     }
@@ -176,12 +181,23 @@ fn handle_vscode(
         let panel = app_state.active_panel_mut();
         if let Some(entry) = panel.selected_entry() {
             let path = entry.path.clone();
+            let line = panel.search_match_lines.get(&path).copied();
             // Terminal editors need the TTY to themselves: suspend, block, resume.
             if let Some(parts) = vscode_adapter.terminal_editor() {
-                renderer.suspend(|| vscode_adapter.open_in_terminal(&parts, &path));
+                renderer.suspend(|| {
+                    if let Some(line) = line {
+                        vscode_adapter.open_in_terminal_at_line(&parts, &path, line)
+                    } else {
+                        vscode_adapter.open_in_terminal(&parts, &path)
+                    }
+                });
                 return Some(true);
             }
-            vscode_adapter.open(&path);
+            if let Some(line) = line {
+                vscode_adapter.open_at_line(&path, line);
+            } else {
+                vscode_adapter.open(&path);
+            }
         }
         return Some(false);
     }

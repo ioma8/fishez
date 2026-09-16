@@ -9,7 +9,10 @@ pub mod search_adapter;
 
 pub use clipboard_adapter::SystemClipboard;
 pub use disk_usage_adapter::disk_free_and_total;
-pub use favorites_adapter::{add_favorite, is_onboarded, load_favorites, mark_onboarded};
+pub use favorites_adapter::{
+    add_favorite, is_onboarded, load_favorites, load_recents, mark_onboarded, record_recent,
+    save_recents,
+};
 pub use fs_adapter::StdFileSystem;
 pub use open_adapter::{SystemOpenAdapter, VsCodeAdapter};
 pub use search_adapter::{FdSearchAdapter, RipGrepAdapter};

@@ -922,6 +922,7 @@ const HELP_SECTIONS: &[(&str, &[(&str, &str)])] = &[
         &[
             ("Ctrl+D", "Open favorites"),
             ("Ctrl+Shift+D", "Add current dir"),
+            ("Ctrl+J", "Recent directories"),
         ],
     ),
     (

@@ -147,6 +147,7 @@ Press `Ctrl+T` for two panes, `F3` / `Ctrl+P` for quick view, `F4` / `Ctrl+O` fo
 | **Content Search** | `Ctrl+R` | Search file contents with `ripgrep` |
 | **Shell Command** | `!` | Run a shell command; use `{1}` for selected file, `{@}` for all selected |
 | **Favorites** | `Ctrl+D` | Quick-jump to pinned directories (stored in `~/.fishez/favorites.txt`) |
+| **Recent directories** | `Ctrl+J` | Jump to recently visited directories (stored in `~/.fishez/recent.txt`) |
 | **Hidden files** | `Ctrl+H` | Toggle dotfiles |
 | **Filter** | *Start typing* | Instantly filter current directory |
 | **Help** | `F1` | Show all shortcuts |
@@ -171,6 +172,8 @@ Written in Rust with zero-copy rendering. Directory listings, inline filters, an
 - **fd integration** for blazing-fast fuzzy file search
 - **Raw image previews** via the `jpgfromrawlib`-supported camera formats directly in quick view
 - **Animated GIF previews** that play in any terminal with kitty-graphics or iTerm2 image support
+
+Directory loads and previews run through bounded background workers, so fast keyboard navigation stays responsive even when a folder or preview is expensive. Content-search results retain their first matching line; quick view and editor actions open at that line.
 
 ### Clean Architecture
 Built with maintainability in mind using Clean Architecture principles. Domain logic stays pure, adapters are swappable, and the codebase remains readable. Contributing is straightforward.

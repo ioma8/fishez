@@ -38,6 +38,23 @@ impl VsCodeAdapter {
         let _ = Command::new(&parts[0]).args(&parts[1..]).arg(path).status();
     }
 
+    pub fn open_in_terminal_at_line(&self, parts: &[String], path: &Path, line: usize) {
+        let editor = Path::new(&parts[0])
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+        let mut command = Command::new(&parts[0]);
+        command.args(&parts[1..]);
+        if editor == "code" || editor == "code-insiders" {
+            command.args(["--goto", &format!("{}:{}", path.display(), line)]);
+        } else if matches!(editor, "vim" | "nvim" | "vi") {
+            command.arg(format!("+{}", line)).arg(path);
+        } else {
+            command.arg(path);
+        }
+        let _ = command.status();
+    }
+
     /// GUI fallback: opens the file in VS Code without blocking.
     pub fn open(&self, path: &Path) {
         let path_str = path.to_string_lossy();
@@ -54,6 +71,11 @@ impl VsCodeAdapter {
         } else {
             let _ = Command::new("code").arg(&*path_str).spawn();
         }
+    }
+
+    pub fn open_at_line(&self, path: &Path, line: usize) {
+        let target = format!("{}:{}", path.display(), line);
+        let _ = Command::new("code").arg("--goto").arg(target).spawn();
     }
 }
 

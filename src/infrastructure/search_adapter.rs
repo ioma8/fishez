@@ -1,5 +1,7 @@
 //! Search adapters for fd and ripgrep.
 
+use std::collections::HashMap;
+use std::io::Read;
 use std::path::{MAIN_SEPARATOR, Path};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -68,39 +70,102 @@ impl RipGrepAdapter {
         }
     }
 
-    pub fn find_with_cancel(&self, query: &str, path: &Path, cancel: &AtomicBool) -> Vec<String> {
+    pub fn find_with_cancel_and_lines(
+        &self,
+        query: &str,
+        path: &Path,
+        cancel: &AtomicBool,
+    ) -> (Vec<String>, HashMap<String, usize>) {
         let Ok(mut child) = Command::new("rg")
-            .args(["--files-with-matches", "-0", query])
+            .args(["--json", "-m", "1", query])
             .current_dir(path)
             .stdout(Stdio::piped())
             .spawn()
         else {
-            return Vec::new();
+            return (Vec::new(), HashMap::new());
         };
+        let Some(mut stdout) = child.stdout.take() else {
+            return (Vec::new(), HashMap::new());
+        };
+        let reader = thread::spawn(move || {
+            let mut bytes = Vec::new();
+            let _ = stdout.read_to_end(&mut bytes);
+            bytes
+        });
 
         loop {
             if cancel.load(Ordering::Relaxed) {
                 let _ = child.kill();
                 let _ = child.wait();
-                return Vec::new();
+                let _ = reader.join();
+                return (Vec::new(), HashMap::new());
             }
             match child.try_wait() {
                 Ok(Some(status)) => {
                     if !status.success() {
-                        return Vec::new();
+                        let _ = reader.join();
+                        return (Vec::new(), HashMap::new());
                     }
                     break;
                 }
                 Ok(None) => thread::sleep(Duration::from_millis(10)),
-                Err(_) => return Vec::new(),
+                Err(_) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    let _ = reader.join();
+                    return (Vec::new(), HashMap::new());
+                }
             }
         }
 
-        let Ok(output) = child.wait_with_output() else {
-            return Vec::new();
+        let Ok(_) = child.wait() else {
+            let _ = reader.join();
+            return (Vec::new(), HashMap::new());
         };
-        parse_rg_output(&String::from_utf8_lossy(&output.stdout))
+        let output = reader.join().unwrap_or_default();
+        parse_rg_json(&String::from_utf8_lossy(&output))
     }
+}
+
+fn parse_rg_json(output: &str) -> (Vec<String>, HashMap<String, usize>) {
+    let mut files = Vec::new();
+    let mut lines = HashMap::new();
+    for record in output.lines() {
+        if !record.contains(r#""type":"match""#) {
+            continue;
+        }
+        let Some(path_start) = record.find(r#""path":{"text":""#).map(|i| i + 15) else {
+            continue;
+        };
+        let mut escaped = false;
+        let Some(path_end) = record[path_start..].char_indices().find_map(|(i, c)| {
+            if escaped {
+                escaped = false;
+                return None;
+            }
+            if c == '\\' {
+                escaped = true;
+                return None;
+            }
+            (c == '"').then_some(i)
+        }) else {
+            continue;
+        };
+        let file = record[path_start..path_start + path_end]
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\");
+        let Some(line_start) = record.find(r#""line_number":"#).map(|i| i + 15) else {
+            continue;
+        };
+        let Some(line_end) = record[line_start..].find(',') else {
+            continue;
+        };
+        if let Ok(line) = record[line_start..line_start + line_end].parse() {
+            files.push(file.clone());
+            lines.insert(file, line);
+        }
+    }
+    (files, lines)
 }
 
 fn parse_fd_output(output: &str, dir: &Path) -> Vec<String> {

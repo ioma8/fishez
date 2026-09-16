@@ -18,7 +18,9 @@ impl FileSystemPort for StdFileSystem {
             let file_name = entry.file_name().to_string_lossy().to_string();
             let file_path = entry.path();
             let is_dir = entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false);
-            let metadata = entry.metadata().ok();
+            // Directories do not need size/mtime in the listing; avoid a second syscall
+            // for them. Files still get one metadata lookup for the size and timestamp.
+            let metadata = (!is_dir).then(|| entry.metadata().ok()).flatten();
             let size = if is_dir {
                 0
             } else {

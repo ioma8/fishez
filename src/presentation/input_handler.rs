@@ -12,9 +12,9 @@ use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
+use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::thread;
 use tui_input::Input;
 use tui_input::backend::crossterm::EventHandler;
@@ -97,6 +97,13 @@ pub enum Message {
         base_path: PathBuf,
         files: Vec<String>,
         generation: u64,
+        match_lines: std::collections::HashMap<PathBuf, usize>,
+    },
+    DirectoryLoaded {
+        pane: ActivePane,
+        path: PathBuf,
+        entries: Vec<crate::domain::FileEntry>,
+        generation: u64,
     },
     QuickViewResult {
         pane: ActivePane,
@@ -136,6 +143,9 @@ pub struct UiState {
     pub favorites_active: bool,
     pub favorites_items: Vec<String>,
     pub favorites_selected: usize,
+    pub recent_active: bool,
+    pub recent_items: Vec<String>,
+    pub recent_selected: usize,
 }
 
 /// The overlay currently owning input, in dispatch priority order. `active_overlay()`
@@ -145,6 +155,7 @@ pub struct UiState {
 pub enum OverlayKind {
     Transfer,
     Favorites,
+    Recent,
     Delete,
     Find,
     Ripgrep,
@@ -164,6 +175,9 @@ impl UiState {
         }
         if self.favorites_active {
             return Some(OverlayKind::Favorites);
+        }
+        if self.recent_active {
+            return Some(OverlayKind::Recent);
         }
         if self.delete_paths.is_some() {
             return Some(OverlayKind::Delete);
@@ -209,7 +223,7 @@ struct PanelUiState {
     current_path: PathBuf,
     cursor: usize,
     scroll: usize,
-    mode: PanelMode,
+    mode: (u8, usize),
     filter_string: String,
     notification: Option<String>,
     multi_selected_count: usize,
@@ -221,7 +235,17 @@ impl PanelUiState {
             current_path: panel.current_path.clone(),
             cursor: panel.cursor,
             scroll: panel.scroll,
-            mode: panel.mode.clone(),
+            mode: match &panel.mode {
+                PanelMode::Normal => (0, 0),
+                PanelMode::Filter => (1, 0),
+                PanelMode::QuickView(mode) => (
+                    2,
+                    match mode {
+                        QuickViewMode::Text { start, .. } => *start,
+                        _ => 0,
+                    },
+                ),
+            },
             filter_string: panel.filter_string.clone(),
             notification: panel.notification.clone(),
             multi_selected_count: panel.multi_selected_count(),
@@ -251,7 +275,16 @@ pub fn handle_normal_mode(
             panel.filter_string.push(c);
             navigate::apply_filter(panel);
         }
-        KeyCode::Backspace => navigate::go_up_one_level(fs, state.active_panel_mut()),
+        KeyCode::Backspace => load_directory_async(
+            state,
+            sender,
+            state
+                .active_panel()
+                .current_path
+                .parent()
+                .unwrap_or(Path::new("/"))
+                .to_path_buf(),
+        ),
         _ => handle_panel_navigation(event, fs, open, clipboard, state, renderer, sender),
     }
     PanelUiState::capture(state.active_panel()) != before
@@ -289,9 +322,87 @@ pub fn handle_filter_mode(
     PanelUiState::capture(state.active_panel()) != before
 }
 
+fn load_directory_async(state: &mut AppState, sender: &Sender<Message>, path: PathBuf) {
+    let pane = state.active_pane;
+    let panel = state.active_panel_mut();
+    if let Some(cancel) = panel.preview_cancel.take() {
+        cancel.store(true, Ordering::Relaxed);
+    }
+    panel.current_path = path.clone();
+    panel.mode = PanelMode::Normal;
+    panel.filter_string.clear();
+    panel.entries.clear();
+    panel.search_match_lines.clear();
+    if let Some(cancel) = panel.search_cancel.take() {
+        cancel.store(true, Ordering::Relaxed);
+    }
+    if let Some(cancel) = panel.directory_cancel.take() {
+        cancel.store(true, Ordering::Relaxed);
+    }
+    let cancel = Arc::new(AtomicBool::new(false));
+    panel.directory_cancel = Some(cancel.clone());
+    panel.search_generation += 1;
+    let generation = panel.search_generation;
+    enqueue_directory(DirectoryJob {
+        path,
+        pane,
+        generation,
+        cancel,
+        sender: sender.clone(),
+    });
+}
+
+struct DirectoryJob {
+    path: PathBuf,
+    pane: ActivePane,
+    generation: u64,
+    cancel: Arc<AtomicBool>,
+    sender: Sender<Message>,
+}
+struct DirectoryQueue {
+    pending: Mutex<Option<DirectoryJob>>,
+    wake: Condvar,
+}
+static DIRECTORY_QUEUE: OnceLock<Arc<DirectoryQueue>> = OnceLock::new();
+
+fn enqueue_directory(job: DirectoryJob) {
+    let queue = DIRECTORY_QUEUE.get_or_init(|| {
+        let queue = Arc::new(DirectoryQueue {
+            pending: Mutex::new(None),
+            wake: Condvar::new(),
+        });
+        let worker = queue.clone();
+        thread::spawn(move || {
+            loop {
+                let mut pending = worker.pending.lock().unwrap();
+                while pending.is_none() {
+                    pending = worker.wake.wait(pending).unwrap();
+                }
+                let job = pending.take().unwrap();
+                drop(pending);
+                if job.cancel.load(Ordering::Relaxed) {
+                    continue;
+                }
+                let entries = StdFileSystem.list_dir(&job.path).unwrap_or_default();
+                if !job.cancel.load(Ordering::Relaxed) {
+                    let _ = job.sender.send(Message::DirectoryLoaded {
+                        pane: job.pane,
+                        path: job.path,
+                        entries,
+                        generation: job.generation,
+                    });
+                }
+            }
+        });
+        queue
+    });
+    *queue.pending.lock().unwrap() = Some(job);
+    queue.wake.notify_one();
+}
+
 fn handle_panel_navigation(
     event: KeyEvent,
-    fs: &StdFileSystem,
+    _fs: &StdFileSystem,
     open: &SystemOpenAdapter,
     clipboard: &mut SystemClipboard,
     state: &mut AppState,
@@ -307,7 +418,7 @@ fn handle_panel_navigation(
         KeyCode::Down => navigate::move_cursor(panel, 1, visible_rows),
         KeyCode::Home => navigate::navigate_home(panel),
         KeyCode::End => navigate::navigate_end(panel, visible_rows),
-        KeyCode::Enter => handle_enter(event, fs, open, clipboard, panel),
+        KeyCode::Enter => handle_enter(event, open, clipboard, panel, pane, sender),
         KeyCode::F(3) => schedule_quick_view(panel, pane, columns, sender),
         // Ctrl+P alias for terminals/keyboards where F3 is awkward (macOS media keys).
         KeyCode::Char('p') if event.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -323,6 +434,9 @@ pub fn schedule_quick_view(
     columns: u16,
     sender: &Sender<Message>,
 ) {
+    if let Some(cancel) = panel.preview_cancel.take() {
+        cancel.store(true, Ordering::Relaxed);
+    }
     if let Some(path) = panel.get_selected_path() {
         panel.quick_view_generation += 1;
         let generation = panel.quick_view_generation;
@@ -332,16 +446,65 @@ pub fn schedule_quick_view(
             .map(|name| format!("Loading {}", name))
             .unwrap_or_else(|| format!("Loading {}", path.display()));
         panel.mode = PanelMode::QuickView(QuickViewMode::Loading { message: file_name });
-        let sender = sender.clone();
-        thread::spawn(move || {
-            let mode = quick_view::preview(path, columns);
-            let _ = sender.send(Message::QuickViewResult {
-                pane,
-                generation,
-                mode,
-            });
+        let cancel = Arc::new(AtomicBool::new(false));
+        panel.preview_cancel = Some(cancel.clone());
+        enqueue_preview(PreviewJob {
+            path,
+            columns,
+            pane,
+            generation,
+            cancel,
+            sender: sender.clone(),
         });
     }
+}
+
+struct PreviewJob {
+    path: PathBuf,
+    columns: u16,
+    pane: ActivePane,
+    generation: u64,
+    cancel: Arc<AtomicBool>,
+    sender: Sender<Message>,
+}
+struct PreviewQueue {
+    pending: Mutex<Option<PreviewJob>>,
+    wake: Condvar,
+}
+static PREVIEW_QUEUE: OnceLock<Arc<PreviewQueue>> = OnceLock::new();
+
+fn enqueue_preview(job: PreviewJob) {
+    let queue = PREVIEW_QUEUE.get_or_init(|| {
+        let queue = Arc::new(PreviewQueue {
+            pending: Mutex::new(None),
+            wake: Condvar::new(),
+        });
+        let worker_queue = queue.clone();
+        thread::spawn(move || {
+            loop {
+                let mut pending = worker_queue.pending.lock().unwrap();
+                while pending.is_none() {
+                    pending = worker_queue.wake.wait(pending).unwrap();
+                }
+                let job = pending.take().unwrap();
+                drop(pending);
+                if job.cancel.load(Ordering::Relaxed) {
+                    continue;
+                }
+                let mode = quick_view::preview(job.path, job.columns);
+                if !job.cancel.load(Ordering::Relaxed) {
+                    let _ = job.sender.send(Message::QuickViewResult {
+                        pane: job.pane,
+                        generation: job.generation,
+                        mode,
+                    });
+                }
+            }
+        });
+        queue
+    });
+    *queue.pending.lock().unwrap() = Some(job);
+    queue.wake.notify_one();
 }
 
 /// Kicks off (or cancels) the background recursive-size jobs for the active panel's
@@ -411,19 +574,51 @@ fn spawn_dir_total(panel: &mut PanelState, pane: ActivePane, sender: &Sender<Mes
 
 fn handle_enter(
     event: KeyEvent,
-    fs: &StdFileSystem,
     open: &SystemOpenAdapter,
     clipboard: &mut SystemClipboard,
     panel: &mut PanelState,
+    pane: ActivePane,
+    sender: &Sender<Message>,
 ) {
     if event.modifiers.contains(KeyModifiers::CONTROL) {
         let absolute = event.modifiers.contains(KeyModifiers::SHIFT);
         let _ = file_ops::copy_to_clipboard(clipboard, panel, absolute);
-    } else if !navigate::enter_selected(fs, panel)
-        && let Some(entry) = panel.selected_entry()
-        && entry.is_file()
-    {
-        open.open(&entry.path);
+    } else if let Some(entry) = panel.selected_entry().cloned() {
+        if entry.name == ".." || entry.is_dir() {
+            let path = if entry.name == ".." {
+                panel
+                    .current_path
+                    .parent()
+                    .unwrap_or(Path::new("/"))
+                    .to_path_buf()
+            } else {
+                entry.path
+            };
+            panel.current_path = path.clone();
+            panel.mode = PanelMode::Normal;
+            panel.filter_string.clear();
+            panel.entries.clear();
+            panel.search_match_lines.clear();
+            if let Some(cancel) = panel.search_cancel.take() {
+                cancel.store(true, Ordering::Relaxed);
+            }
+            if let Some(cancel) = panel.directory_cancel.take() {
+                cancel.store(true, Ordering::Relaxed);
+            }
+            let cancel = Arc::new(AtomicBool::new(false));
+            panel.directory_cancel = Some(cancel.clone());
+            panel.search_generation += 1;
+            let generation = panel.search_generation;
+            enqueue_directory(DirectoryJob {
+                path,
+                pane,
+                generation,
+                cancel,
+                sender: sender.clone(),
+            });
+        } else if entry.is_file() {
+            open.open(&entry.path);
+        }
     }
 }
 
@@ -527,6 +722,7 @@ pub fn handle_find_input(
                 base_path: pwd,
                 files: results,
                 generation,
+                match_lines: std::collections::HashMap::new(),
             });
         });
     })
@@ -554,12 +750,18 @@ pub fn handle_ripgrep_input(
             .set_notification("Searching...".into());
         let sender = sender.clone();
         thread::spawn(move || {
-            let files = RipGrepAdapter.find_with_cancel(&query, &base_path, &cancel);
+            let (files, relative_lines) =
+                RipGrepAdapter.find_with_cancel_and_lines(&query, &base_path, &cancel);
+            let match_lines = relative_lines
+                .into_iter()
+                .map(|(file, line)| (base_path.join(file), line))
+                .collect();
             let _ = sender.send(Message::DrawFiles {
                 pane,
                 base_path,
                 files,
                 generation,
+                match_lines,
             });
         });
     })
@@ -829,6 +1031,44 @@ pub fn handle_favorites_input(
             }
         }
         KeyCode::Esc if *active => {
+            *active = false;
+            true
+        }
+        _ => false,
+    }
+}
+
+pub fn handle_recent_input(
+    event: KeyEvent,
+    active: &mut bool,
+    items: &[String],
+    selected: &mut usize,
+    fs: &StdFileSystem,
+    state: &mut AppState,
+) -> bool {
+    match event.code {
+        KeyCode::Up => {
+            let n = selected.saturating_sub(1);
+            let changed = n != *selected;
+            *selected = n;
+            changed
+        }
+        KeyCode::Down => {
+            let n = (*selected + 1).min(items.len().saturating_sub(1));
+            let changed = n != *selected;
+            *selected = n;
+            changed
+        }
+        KeyCode::Enter => {
+            if let Some(item) = items.get(*selected) {
+                navigate::change_directory(fs, state.active_panel_mut(), PathBuf::from(item));
+                *active = false;
+                true
+            } else {
+                false
+            }
+        }
+        KeyCode::Esc => {
             *active = false;
             true
         }

@@ -7,6 +7,11 @@ use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 
 /// Refreshes the panel entries from the file system.
 pub fn refresh_entries(fs: &dyn FileSystemPort, panel: &mut PanelState) {
+    panel.search_match_lines.clear();
+    if let Some(cancel) = panel.preview_cancel.take() {
+        cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+    panel.quick_view_generation += 1;
     panel.clear_multi_selection();
     panel.dir_total = match panel.dir_total_cache.get(&panel.current_path) {
         Some(&cached) => SizeFigure::Ready(cached),
@@ -117,6 +122,7 @@ pub fn navigate_end(panel: &mut PanelState, visible_rows: u16) {
 
 /// Opens the selected entry (enters directory or triggers file action).
 /// Returns true if the selected item is a directory and was entered.
+#[allow(dead_code)]
 pub fn enter_selected(fs: &dyn FileSystemPort, panel: &mut PanelState) -> bool {
     let Some(entry) = panel.selected_entry() else {
         return false;
@@ -198,6 +204,17 @@ pub fn replace_entries_from_search(panel: &mut PanelState, files: Vec<String>, b
         panel.entries.push(entry);
     }
     update_entry_counts(panel);
+}
+
+pub fn replace_directory_entries(panel: &mut PanelState, mut entries: Vec<FileEntry>) {
+    sort_entries(&mut entries);
+    panel.directory_entries = entries;
+    panel.directory_entry_lower_names = panel
+        .directory_entries
+        .iter()
+        .map(|e| e.name.to_lowercase())
+        .collect();
+    apply_filter(panel);
 }
 
 #[cfg(test)]

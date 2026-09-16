@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 const CONFIG_DIR: &str = ".fishez";
 const FAVORITES_FILE: &str = "favorites.txt";
+const RECENTS_FILE: &str = "recent.txt";
 const ONBOARDED_FILE: &str = "onboarded";
 
 /// Load favorites from persistent storage.
@@ -35,6 +36,40 @@ pub fn add_favorite(items: &mut Vec<String>, path: &Path) -> bool {
     } else {
         false
     }
+}
+
+/// Record a directory in the bounded most-recently-used list.
+pub fn record_recent(items: &mut Vec<String>, path: &Path) {
+    let value = path.to_string_lossy().to_string();
+    items.retain(|item| item != &value);
+    items.insert(0, value);
+    items.truncate(30);
+}
+
+pub fn save_recents(items: &[String]) {
+    let target = home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(CONFIG_DIR)
+        .join(RECENTS_FILE);
+    if let Some(parent) = target.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(target, items.join("\n"));
+}
+
+pub fn load_recents() -> Vec<String> {
+    std::fs::read_to_string(
+        home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(CONFIG_DIR)
+            .join(RECENTS_FILE),
+    )
+    .unwrap_or_default()
+    .lines()
+    .filter(|s| !s.is_empty())
+    .take(30)
+    .map(String::from)
+    .collect()
 }
 
 /// True after the first onboarding card dismissal.

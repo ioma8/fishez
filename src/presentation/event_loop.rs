@@ -5,15 +5,16 @@ use crate::application::use_cases::navigate;
 use crate::application::use_cases::transfer::{TransferEvent, TransferKind};
 use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode, SizeFigure};
 use crate::infrastructure::{
-    StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, mark_onboarded,
+    StdFileSystem, SystemClipboard, SystemOpenAdapter, VsCodeAdapter, mark_onboarded, record_recent,
 };
 use crate::presentation::TerminalRenderer;
 use crate::presentation::input_handler::{
     ContextMenuAction, ContextMenuResponse, Message, MouseOutcome, OverlayKind, UiState,
     handle_context_menu_input, handle_copy_move_dest_input, handle_delete_confirmation,
     handle_favorites_input, handle_filter_mode, handle_find_input, handle_mouse_event,
-    handle_new_folder_input, handle_normal_mode, handle_quick_view_mode, handle_rename_input,
-    handle_ripgrep_input, handle_shell_input, handle_transfer_input, is_quit, schedule_quick_view,
+    handle_new_folder_input, handle_normal_mode, handle_quick_view_mode, handle_recent_input,
+    handle_rename_input, handle_ripgrep_input, handle_shell_input, handle_transfer_input, is_quit,
+    schedule_quick_view,
 };
 use crate::presentation::shortcuts;
 use crate::presentation::terminal::overlays;
@@ -34,6 +35,8 @@ pub fn run(
     ui: &mut UiState,
 ) {
     let mut last_anim_tick: Option<Instant> = None;
+    let mut last_left = app_state.left_panel.current_path.clone();
+    let mut last_right = app_state.right_panel.current_path.clone();
     loop {
         if event::poll(std::time::Duration::from_millis(15)).unwrap() {
             match event::read().unwrap() {
@@ -57,6 +60,7 @@ pub fn run(
                         sender,
                         ui,
                     );
+                    record_changed_directories(app_state, ui, &mut last_left, &mut last_right);
                 }
                 Event::Mouse(ev) => {
                     let outcome = handle_mouse_event(
@@ -92,6 +96,7 @@ pub fn run(
                             redraw_current_view(renderer, app_state, ui);
                         }
                     }
+                    record_changed_directories(app_state, ui, &mut last_left, &mut last_right);
                 }
                 Event::Resize(cols, rows) => {
                     renderer.update_size(cols, rows);
@@ -107,6 +112,23 @@ pub fn run(
         }
         if clear_expired_notification(app_state, 3000) {
             redraw_current_view(renderer, app_state, ui);
+        }
+    }
+}
+
+fn record_changed_directories(
+    state: &AppState,
+    ui: &mut UiState,
+    left: &mut std::path::PathBuf,
+    right: &mut std::path::PathBuf,
+) {
+    for (current, previous) in [
+        (&state.left_panel.current_path, left),
+        (&state.right_panel.current_path, right),
+    ] {
+        if current != previous {
+            record_recent(&mut ui.recent_items, current);
+            *previous = current.clone();
         }
     }
 }
@@ -341,6 +363,14 @@ fn handle_modal_overlays(
             fs_adapter,
             app_state,
         )),
+        Some(OverlayKind::Recent) => Some(handle_recent_input(
+            event,
+            &mut ui.recent_active,
+            &ui.recent_items,
+            &mut ui.recent_selected,
+            fs_adapter,
+            app_state,
+        )),
         Some(OverlayKind::Delete) => Some(handle_delete_confirmation(
             event,
             &mut ui.delete_paths,
@@ -443,6 +473,9 @@ fn redraw_current_view(renderer: &mut TerminalRenderer, app_state: &AppState, ui
         Some(OverlayKind::Favorites) => {
             overlays::draw_favorites_overlay(renderer, &ui.favorites_items, ui.favorites_selected)
         }
+        Some(OverlayKind::Recent) => {
+            overlays::draw_favorites_overlay(renderer, &ui.recent_items, ui.recent_selected)
+        }
         Some(OverlayKind::Delete) => {
             overlays::draw_with_delete(renderer, app_state, ui.delete_paths.as_ref())
         }
@@ -538,6 +571,20 @@ fn handle_async_messages(
     let mut dirty = false;
     for message in receiver.try_iter() {
         match message {
+            Message::DirectoryLoaded {
+                pane,
+                path,
+                entries,
+                generation,
+            } => {
+                let panel = pane_panel_mut(app_state, pane);
+                if panel.current_path != path || panel.search_generation != generation {
+                    continue;
+                }
+                panel.directory_cancel = None;
+                navigate::replace_directory_entries(panel, entries);
+                dirty = true;
+            }
             Message::DiskUsage { pane, path, usage } => {
                 let panel = pane_panel_mut(app_state, pane);
                 panel.disk_usage_pending = false;
@@ -562,6 +609,7 @@ fn handle_async_messages(
                 base_path,
                 files,
                 generation,
+                match_lines,
             } => {
                 let panel = pane_panel_mut(app_state, pane);
                 if panel.current_path != base_path || panel.search_generation != generation {
@@ -569,6 +617,7 @@ fn handle_async_messages(
                 }
                 panel.clear_notification_force();
                 navigate::replace_entries_from_search(panel, files, &base_path);
+                panel.search_match_lines = match_lines;
                 dirty = true;
             }
             Message::QuickViewResult {
@@ -618,6 +667,18 @@ fn apply_quick_view_result(
     mode: crate::application::QuickViewMode,
 ) -> bool {
     if panel.quick_view_generation == generation {
+        panel.preview_cancel = None;
+        let mode = match mode {
+            crate::application::QuickViewMode::Text { lines, .. } => {
+                let start = panel
+                    .get_selected_path()
+                    .and_then(|path| panel.search_match_lines.get(&path).copied())
+                    .unwrap_or(1)
+                    .saturating_sub(1);
+                crate::application::QuickViewMode::Text { lines, start }
+            }
+            other => other,
+        };
         panel.mode = PanelMode::QuickView(mode);
         true
     } else {
@@ -714,6 +775,7 @@ mod tests {
                 base_path: path.clone(),
                 files: vec![format!("result-{generation}")],
                 generation,
+                match_lines: std::collections::HashMap::new(),
             })
             .unwrap();
         }
