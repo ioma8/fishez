@@ -53,7 +53,19 @@ pub struct RipGrepAdapter;
 impl RipGrepAdapter {
     #[allow(dead_code)]
     pub fn find(&self, query: &str, path: &Path) -> Vec<String> {
-        self.find_with_cancel(query, path, &AtomicBool::new(false))
+        let Ok(output) = Command::new("rg")
+            .args(["--files-with-matches", "-0", query])
+            .current_dir(path)
+            .output()
+        else {
+            return Vec::new();
+        };
+
+        if output.status.success() {
+            parse_rg_output(&String::from_utf8_lossy(&output.stdout))
+        } else {
+            Vec::new()
+        }
     }
 
     pub fn find_with_cancel(&self, query: &str, path: &Path, cancel: &AtomicBool) -> Vec<String> {
