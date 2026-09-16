@@ -61,7 +61,17 @@ pub fn spawn_transfer<FS: FileSystemPort + Send + 'static>(
     let cancel = Arc::new(AtomicBool::new(false));
     let cancel_for_thread = Arc::clone(&cancel);
     thread::spawn(move || {
+        let mut last_progress = None;
         let mut on_progress = |current: PathBuf, done: usize, total: usize| {
+            let now = std::time::Instant::now();
+            if done != total
+                && last_progress.is_some_and(|last| {
+                    now.duration_since(last) < std::time::Duration::from_millis(50)
+                })
+            {
+                return;
+            }
+            last_progress = Some(now);
             on_event(TransferEvent::Progress {
                 current,
                 done,

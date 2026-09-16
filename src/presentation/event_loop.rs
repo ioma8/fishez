@@ -100,6 +100,7 @@ pub fn run(
                 _ => {}
             }
         }
+        schedule_disk_usage(app_state, sender);
         handle_async_messages(receiver, app_state, renderer, fs_adapter, ui);
         if advance_quick_view_animation(app_state, renderer, &mut last_anim_tick) {
             continue;
@@ -343,7 +344,7 @@ fn handle_modal_overlays(
         Some(OverlayKind::Delete) => Some(handle_delete_confirmation(
             event,
             &mut ui.delete_paths,
-            fs_adapter,
+            sender,
             app_state,
         )),
         Some(OverlayKind::Find) => Some(handle_find_input(
@@ -357,6 +358,7 @@ fn handle_modal_overlays(
             event,
             &mut ui.ripgrep_filter,
             fs_adapter,
+            sender,
             app_state,
         )),
         Some(OverlayKind::Shell) => Some(handle_shell_input(
@@ -499,6 +501,33 @@ fn pane_panel_mut(app_state: &mut AppState, pane: ActivePane) -> &mut PanelState
     }
 }
 
+fn schedule_disk_usage(state: &mut AppState, sender: &Sender<Message>) {
+    let pane = state.active_pane;
+    let panel = state.active_panel_mut();
+    if panel.disk_usage_pending {
+        return;
+    }
+    if panel.disk_usage_path == panel.current_path
+        && panel
+            .disk_usage_checked
+            .is_some_and(|time| time.elapsed() < Duration::from_secs(5))
+    {
+        return;
+    }
+    if panel.disk_usage_path != panel.current_path {
+        panel.disk_usage = None;
+    }
+    panel.disk_usage_path = panel.current_path.clone();
+    panel.disk_usage_pending = true;
+    panel.disk_usage_checked = Some(Instant::now());
+    let path = panel.current_path.clone();
+    let sender = sender.clone();
+    std::thread::spawn(move || {
+        let usage = crate::infrastructure::disk_free_and_total(&path);
+        let _ = sender.send(Message::DiskUsage { pane, path, usage });
+    });
+}
+
 fn handle_async_messages(
     receiver: &Receiver<Message>,
     app_state: &mut AppState,
@@ -506,17 +535,41 @@ fn handle_async_messages(
     fs_adapter: &StdFileSystem,
     ui: &mut UiState,
 ) {
-    while let Ok(message) = receiver.try_recv() {
+    let mut dirty = false;
+    for message in receiver.try_iter() {
         match message {
+            Message::DiskUsage { pane, path, usage } => {
+                let panel = pane_panel_mut(app_state, pane);
+                panel.disk_usage_pending = false;
+                if panel.current_path == path && panel.disk_usage != usage {
+                    panel.disk_usage = usage;
+                    dirty = true;
+                }
+            }
+            Message::DeleteDone { pane, path, result } => {
+                let panel = pane_panel_mut(app_state, pane);
+                if panel.current_path == path {
+                    navigate::refresh_entries(fs_adapter, panel);
+                }
+                panel.set_notification(match result {
+                    Ok(()) => "Deleted".into(),
+                    Err(error) => error,
+                });
+                dirty = true;
+            }
             Message::DrawFiles {
                 pane,
                 base_path,
                 files,
+                generation,
             } => {
                 let panel = pane_panel_mut(app_state, pane);
+                if panel.current_path != base_path || panel.search_generation != generation {
+                    continue;
+                }
                 panel.clear_notification_force();
                 navigate::replace_entries_from_search(panel, files, &base_path);
-                overlays::draw(renderer, app_state);
+                dirty = true;
             }
             Message::QuickViewResult {
                 pane,
@@ -525,11 +578,12 @@ fn handle_async_messages(
             } => {
                 let panel = pane_panel_mut(app_state, pane);
                 if apply_quick_view_result(panel, generation, mode) {
-                    overlays::draw(renderer, app_state);
+                    dirty = true;
                 }
             }
             Message::Transfer(event) => {
-                handle_transfer_event(event, app_state, renderer, fs_adapter, ui);
+                handle_transfer_event(event, app_state, fs_adapter, ui);
+                dirty = true;
             }
             Message::DirTotalResult {
                 pane,
@@ -538,7 +592,7 @@ fn handle_async_messages(
             } => {
                 let panel = pane_panel_mut(app_state, pane);
                 if apply_dir_total_result(panel, generation, total) {
-                    overlays::draw(renderer, app_state);
+                    dirty = true;
                 }
             }
             Message::SelectionTotalResult {
@@ -548,10 +602,13 @@ fn handle_async_messages(
             } => {
                 let panel = pane_panel_mut(app_state, pane);
                 if apply_selection_total_result(panel, generation, total) {
-                    overlays::draw(renderer, app_state);
+                    dirty = true;
                 }
             }
         }
+    }
+    if dirty {
+        redraw_current_view(renderer, app_state, ui);
     }
 }
 
@@ -596,7 +653,6 @@ fn apply_selection_total_result(panel: &mut PanelState, generation: u64, total: 
 fn handle_transfer_event(
     event: TransferEvent,
     app_state: &mut AppState,
-    renderer: &mut TerminalRenderer,
     fs_adapter: &StdFileSystem,
     ui: &mut UiState,
 ) {
@@ -610,14 +666,12 @@ fn handle_transfer_event(
                 job.current = current;
                 job.done = done;
                 job.total = total;
-                overlays::draw_with_transfer(renderer, app_state, job);
             }
         }
         TransferEvent::Conflict { path, reply } => {
             if let Some(job) = ui.transfer_state.as_mut() {
                 job.pending_conflict =
                     Some(crate::presentation::input_handler::PendingConflict { path, reply });
-                overlays::draw_with_transfer(renderer, app_state, job);
             }
         }
         TransferEvent::Done(outcome) => {
@@ -640,7 +694,6 @@ fn handle_transfer_event(
             };
             ui.transfer_state = None;
             app_state.active_panel_mut().set_notification(summary);
-            overlays::draw(renderer, app_state);
         }
     }
 }
@@ -648,6 +701,64 @@ fn handle_transfer_event(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_async_results_redraw_once_and_ignore_stale_search() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut state = AppState::new(false);
+        state.show_onboarding = false;
+        let path = state.left_panel.current_path.clone();
+        for generation in [0, 1] {
+            tx.send(Message::DrawFiles {
+                pane: ActivePane::Left,
+                base_path: path.clone(),
+                files: vec![format!("result-{generation}")],
+                generation,
+            })
+            .unwrap();
+        }
+        tx.send(Message::DiskUsage {
+            pane: ActivePane::Left,
+            path,
+            usage: Some((1024, 4096)),
+        })
+        .unwrap();
+        let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 24);
+        handle_async_messages(
+            &rx,
+            &mut state,
+            &mut renderer,
+            &StdFileSystem,
+            &mut UiState::default(),
+        );
+        assert_eq!(state.left_panel.entries[0].name, "result-0");
+        let output = String::from_utf8(buffer.borrow().clone()).unwrap();
+        assert_eq!(output.matches("PWD:").count(), 1);
+    }
+
+    #[test]
+    fn test_delete_completion_clears_selection() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut state = AppState::new(false);
+        state.left_panel.multi_selected.insert(0);
+        tx.send(Message::DeleteDone {
+            pane: ActivePane::Left,
+            path: state.left_panel.current_path.clone(),
+            result: Ok(()),
+        })
+        .unwrap();
+        let (mut renderer, _) = TerminalRenderer::with_test_writer(80, 24);
+        handle_async_messages(
+            &rx,
+            &mut state,
+            &mut renderer,
+            &StdFileSystem,
+            &mut UiState::default(),
+        );
+        assert_eq!(state.left_panel.multi_selected_count(), 0);
+        assert_eq!(state.left_panel.notification.as_deref(), Some("Deleted"));
+    }
+
     use crossterm::event::KeyEvent;
 
     #[test]

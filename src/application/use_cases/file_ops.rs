@@ -2,20 +2,13 @@
 
 use crate::application::ports::{ClipboardPort, FileSystemPort};
 use crate::application::state::PanelState;
-use crate::application::use_cases::navigate;
 use std::path::Path;
 
 /// Deletes the selected file or directory (moves to trash).
-pub fn delete_selected(
-    fs: &dyn FileSystemPort,
-    panel: &mut PanelState,
-    paths: &[&Path],
-) -> Result<(), String> {
+pub fn delete_selected(fs: &dyn FileSystemPort, paths: &[&Path]) -> Result<(), String> {
     for path in paths {
         fs.delete(path)?;
     }
-    panel.clear_multi_selection();
-    navigate::refresh_entries(fs, panel);
     Ok(())
 }
 
@@ -74,11 +67,9 @@ mod tests {
     #[test]
     fn test_delete_selected_single() {
         let fs = MockFileSystem::new();
-        let mut panel = PanelState::new();
-        panel.current_path = PathBuf::from("/home/user");
         let path = PathBuf::from("/home/user/file1.txt");
         let paths: Vec<&Path> = vec![path.as_path()];
-        let result = delete_selected(&fs, &mut panel, &paths);
+        let result = delete_selected(&fs, &paths);
         assert!(result.is_ok());
         assert_eq!(fs.deleted_paths(), vec![path]);
     }
@@ -86,38 +77,20 @@ mod tests {
     #[test]
     fn test_delete_selected_multiple() {
         let fs = MockFileSystem::new();
-        let mut panel = PanelState::new();
-        panel.current_path = PathBuf::from("/home/user");
         let path1 = PathBuf::from("/home/user/file1.txt");
         let path2 = PathBuf::from("/home/user/file2.txt");
         let paths: Vec<&Path> = vec![path1.as_path(), path2.as_path()];
-        let result = delete_selected(&fs, &mut panel, &paths);
+        let result = delete_selected(&fs, &paths);
         assert!(result.is_ok());
         assert_eq!(fs.deleted_paths(), vec![path1, path2]);
     }
 
     #[test]
-    fn test_delete_selected_clears_multi_selection() {
-        let fs = MockFileSystem::new();
-        let mut panel = PanelState::new();
-        panel.current_path = PathBuf::from("/home/user");
-        panel.entries = create_test_entries();
-        panel.toggle_multi_selection(0);
-        panel.toggle_multi_selection(1);
-        assert_eq!(panel.multi_selected_count(), 2);
-        let paths: Vec<&Path> = vec![];
-        delete_selected(&fs, &mut panel, &paths).unwrap();
-        assert_eq!(panel.multi_selected_count(), 0);
-    }
-
-    #[test]
     fn test_delete_selected_error() {
         let fs = MockFileSystem::with_delete_error();
-        let mut panel = PanelState::new();
-        panel.current_path = PathBuf::from("/home/user");
         let path = PathBuf::from("/home/user/file1.txt");
         let paths: Vec<&Path> = vec![path.as_path()];
-        let result = delete_selected(&fs, &mut panel, &paths);
+        let result = delete_selected(&fs, &paths);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err(), "Delete failed");
     }
@@ -125,10 +98,8 @@ mod tests {
     #[test]
     fn test_delete_selected_empty_paths() {
         let fs = MockFileSystem::new();
-        let mut panel = PanelState::new();
-        panel.current_path = PathBuf::from("/home/user");
         let paths: Vec<&Path> = vec![];
-        let result = delete_selected(&fs, &mut panel, &paths);
+        let result = delete_selected(&fs, &paths);
         assert!(result.is_ok());
     }
 

@@ -1,7 +1,10 @@
 //! Search adapters for fd and ripgrep.
 
 use std::path::{MAIN_SEPARATOR, Path};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread;
+use std::time::Duration;
 
 /// Search adapter using fd command.
 #[derive(Default)]
@@ -48,19 +51,43 @@ fn find_windows(filter: &str, dir: &Path) -> Vec<String> {
 pub struct RipGrepAdapter;
 
 impl RipGrepAdapter {
+    #[allow(dead_code)]
     pub fn find(&self, query: &str, path: &Path) -> Vec<String> {
-        let output = Command::new("rg")
+        self.find_with_cancel(query, path, &AtomicBool::new(false))
+    }
+
+    pub fn find_with_cancel(&self, query: &str, path: &Path, cancel: &AtomicBool) -> Vec<String> {
+        let Ok(mut child) = Command::new("rg")
             .args(["--files-with-matches", "-0", query])
             .current_dir(path)
-            .output();
+            .stdout(Stdio::piped())
+            .spawn()
+        else {
+            return Vec::new();
+        };
 
-        if let Ok(output) = output
-            && output.status.success()
-        {
-            let result = String::from_utf8_lossy(&output.stdout);
-            return parse_rg_output(&result);
+        loop {
+            if cancel.load(Ordering::Relaxed) {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Vec::new();
+            }
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    if !status.success() {
+                        return Vec::new();
+                    }
+                    break;
+                }
+                Ok(None) => thread::sleep(Duration::from_millis(10)),
+                Err(_) => return Vec::new(),
+            }
         }
-        Vec::new()
+
+        let Ok(output) = child.wait_with_output() else {
+            return Vec::new();
+        };
+        parse_rg_output(&String::from_utf8_lossy(&output.stdout))
     }
 }
 

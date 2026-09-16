@@ -82,10 +82,21 @@ pub struct TransferUiState {
 
 #[derive(Debug)]
 pub enum Message {
+    DiskUsage {
+        pane: ActivePane,
+        path: PathBuf,
+        usage: Option<(u64, u64)>,
+    },
+    DeleteDone {
+        pane: ActivePane,
+        path: PathBuf,
+        result: Result<(), String>,
+    },
     DrawFiles {
         pane: ActivePane,
         base_path: PathBuf,
         files: Vec<String>,
+        generation: u64,
     },
     QuickViewResult {
         pane: ActivePane,
@@ -192,7 +203,6 @@ impl UiState {
 
 const MAX_QUERY_LEN: usize = 64;
 const MAX_REPEAT_RUN: usize = 16;
-const SYNC_PREVIEW_MAX: u64 = 1024 * 1024;
 
 #[derive(PartialEq)]
 struct PanelUiState {
@@ -239,7 +249,7 @@ pub fn handle_normal_mode(
             let panel = state.active_panel_mut();
             panel.mode = PanelMode::Filter;
             panel.filter_string.push(c);
-            navigate::refresh_entries(fs, panel);
+            navigate::apply_filter(panel);
         }
         KeyCode::Backspace => navigate::go_up_one_level(fs, state.active_panel_mut()),
         _ => handle_panel_navigation(event, fs, open, clipboard, state, renderer, sender),
@@ -262,17 +272,17 @@ pub fn handle_filter_mode(
             let panel = state.active_panel_mut();
             panel.mode = PanelMode::Normal;
             panel.filter_string.clear();
-            navigate::refresh_entries(fs, panel);
+            navigate::apply_filter(panel);
         }
         KeyCode::Backspace => {
             let panel = state.active_panel_mut();
             panel.filter_string.pop();
-            navigate::refresh_entries(fs, panel);
+            navigate::apply_filter(panel);
         }
         KeyCode::Char(c) if !event.modifiers.contains(KeyModifiers::CONTROL) => {
             let panel = state.active_panel_mut();
             panel.filter_string.push(c);
-            navigate::refresh_entries(fs, panel);
+            navigate::apply_filter(panel);
         }
         _ => handle_panel_navigation(event, fs, open, clipboard, state, renderer, sender),
     }
@@ -316,14 +326,6 @@ pub fn schedule_quick_view(
     if let Some(path) = panel.get_selected_path() {
         panel.quick_view_generation += 1;
         let generation = panel.quick_view_generation;
-        let small = std::fs::metadata(&path)
-            .map(|metadata| metadata.is_file() && metadata.len() <= SYNC_PREVIEW_MAX)
-            .unwrap_or(false);
-        if small && !quick_view::looks_like_image(&path) {
-            panel.mode = PanelMode::QuickView(quick_view::preview(path, columns));
-            return;
-        }
-
         let file_name = path
             .file_name()
             .and_then(|name| name.to_str())
@@ -460,8 +462,12 @@ pub fn handle_quick_view_mode(
             navigate::move_cursor(panel, 1, visible_rows);
             schedule_quick_view(panel, pane, renderer.columns, sender);
         }
-        KeyCode::Esc | KeyCode::F(3) => panel.mode = PanelMode::Normal,
+        KeyCode::Esc | KeyCode::F(3) => {
+            panel.quick_view_generation += 1;
+            panel.mode = PanelMode::Normal;
+        }
         KeyCode::Char('p') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+            panel.quick_view_generation += 1;
             panel.mode = PanelMode::Normal
         }
         _ => {}
@@ -472,7 +478,7 @@ pub fn handle_quick_view_mode(
 pub fn handle_delete_confirmation(
     event: KeyEvent,
     delete_paths: &mut Option<Vec<PathBuf>>,
-    fs: &StdFileSystem,
+    sender: &Sender<Message>,
     state: &mut AppState,
 ) -> bool {
     match event.code {
@@ -480,9 +486,17 @@ pub fn handle_delete_confirmation(
             let Some(paths) = delete_paths.take() else {
                 return false;
             };
-            let refs: Vec<&std::path::Path> = paths.iter().map(PathBuf::as_path).collect();
+            let pane = state.active_pane;
+            let path = state.active_panel().current_path.clone();
             let panel = state.active_panel_mut();
-            let _ = file_ops::delete_selected(fs, panel, &refs);
+            panel.set_notification("Deleting...".into());
+            panel.clear_multi_selection();
+            let sender = sender.clone();
+            thread::spawn(move || {
+                let refs: Vec<_> = paths.iter().map(PathBuf::as_path).collect();
+                let result = file_ops::delete_selected(&StdFileSystem, &refs);
+                let _ = sender.send(Message::DeleteDone { pane, path, result });
+            });
             true
         }
         KeyCode::Char('n') | KeyCode::Esc => delete_paths.take().is_some(),
@@ -500,6 +514,8 @@ pub fn handle_find_input(
     handle_query_submit(event, find_filter, fs, state, |query, state| {
         let sender = sender.clone();
         let pane = state.active_pane;
+        state.active_panel_mut().search_generation += 1;
+        let generation = state.active_panel().search_generation;
         let pwd = state.active_panel().current_path.clone();
         state
             .active_panel_mut()
@@ -510,6 +526,7 @@ pub fn handle_find_input(
                 pane,
                 base_path: pwd,
                 files: results,
+                generation,
             });
         });
     })
@@ -519,13 +536,32 @@ pub fn handle_ripgrep_input(
     event: KeyEvent,
     filter: &mut Option<Input>,
     fs: &StdFileSystem,
+    sender: &Sender<Message>,
     state: &mut AppState,
 ) -> bool {
     handle_query_submit(event, filter, fs, state, |query, state| {
-        let results = RipGrepAdapter.find(&query, &state.active_panel().current_path);
-        let panel = state.active_panel_mut();
-        let base = panel.current_path.clone();
-        navigate::replace_entries_from_search(panel, results, &base);
+        let pane = state.active_pane;
+        if let Some(cancel) = state.active_panel_mut().search_cancel.take() {
+            cancel.store(true, Ordering::Relaxed);
+        }
+        state.active_panel_mut().search_generation += 1;
+        let generation = state.active_panel().search_generation;
+        let base_path = state.active_panel().current_path.clone();
+        let cancel = Arc::new(AtomicBool::new(false));
+        state.active_panel_mut().search_cancel = Some(cancel.clone());
+        state
+            .active_panel_mut()
+            .set_notification("Searching...".into());
+        let sender = sender.clone();
+        thread::spawn(move || {
+            let files = RipGrepAdapter.find_with_cancel(&query, &base_path, &cancel);
+            let _ = sender.send(Message::DrawFiles {
+                pane,
+                base_path,
+                files,
+                generation,
+            });
+        });
     })
 }
 
@@ -1299,7 +1335,7 @@ mod tests {
     }
 
     #[test]
-    fn schedule_quick_view_previews_small_text_immediately() {
+    fn test_schedule_quick_view_loads_small_text_in_worker() {
         let base = create_temp_dir("schedule_quick_view_small_text");
         let file_path = base.join("note.txt");
         std::fs::write(&file_path, "hello world").unwrap();
@@ -1316,9 +1352,16 @@ mod tests {
 
         assert!(matches!(
             panel.mode,
-            PanelMode::QuickView(QuickViewMode::Text { .. })
+            PanelMode::QuickView(QuickViewMode::Loading { .. })
         ));
-        assert!(rx.try_recv().is_err());
+        assert!(matches!(
+            rx.recv_timeout(std::time::Duration::from_secs(10)).unwrap(),
+            Message::QuickViewResult {
+                mode: QuickViewMode::Text { .. },
+                generation: 1,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -1346,14 +1389,14 @@ mod tests {
 
     #[test]
     fn test_handle_delete_confirmation_ignored_key_is_not_dirty() {
-        let fs = StdFileSystem;
+        let (tx, _rx) = mpsc::channel();
         let mut state = AppState::new(false);
         let mut delete_paths = Some(vec![PathBuf::from("/tmp/file.txt")]);
 
         assert!(!handle_delete_confirmation(
             KeyEvent::from(KeyCode::Char('x')),
             &mut delete_paths,
-            &fs,
+            &tx,
             &mut state
         ));
     }

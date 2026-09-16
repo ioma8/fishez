@@ -219,7 +219,7 @@ fn integration_trash_delete_selected() {
     )];
     panel.cursor = 0;
     let paths: Vec<&Path> = vec![file_path.as_path()];
-    let result = file_ops::delete_selected(&fs_adapter, &mut panel, &paths);
+    let result = file_ops::delete_selected(&fs_adapter, &paths);
     assert!(result.is_ok());
     assert!(!file_path.exists());
 }

@@ -67,17 +67,6 @@ fn get_type(path: &Path) -> FileType {
     }
 }
 
-pub fn looks_like_image(path: &Path) -> bool {
-    if raw_image::supports_path(path) {
-        return true;
-    }
-    let extension = path
-        .extension()
-        .and_then(std::ffi::OsStr::to_str)
-        .map(|ext| ext.to_ascii_lowercase());
-    matches!(classify_extension(extension.as_deref()), FileType::Image)
-}
-
 fn sniff_is_text(path: &Path) -> bool {
     let mut buf = [0u8; 8192];
     let Ok(mut file) = fs::File::open(path) else {

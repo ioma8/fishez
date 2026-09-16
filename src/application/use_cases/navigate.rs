@@ -3,7 +3,6 @@
 use crate::application::ports::FileSystemPort;
 use crate::application::state::{PanelMode, PanelState, SizeFigure};
 use crate::domain::{EntryKind, FileEntry};
-use std::cmp::Ordering;
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 
 /// Refreshes the panel entries from the file system.
@@ -14,6 +13,21 @@ pub fn refresh_entries(fs: &dyn FileSystemPort, panel: &mut PanelState) {
         None => SizeFigure::Idle,
     };
     panel.dir_total_generation += 1;
+    panel.directory_entries = fs.list_dir(&panel.current_path).unwrap_or_default();
+    sort_entries(&mut panel.directory_entries);
+    panel.directory_entry_lower_names = panel
+        .directory_entries
+        .iter()
+        .map(|entry| entry.name.to_lowercase())
+        .collect();
+    apply_filter(panel);
+}
+
+/// Filters the last directory snapshot without touching the filesystem.
+/// Each bump invalidates results from workers started for the previous view.
+pub fn apply_filter(panel: &mut PanelState) {
+    panel.search_generation += 1;
+    panel.clear_multi_selection();
     panel.entries.clear();
 
     // Add parent directory entry unless in filter mode
@@ -31,38 +45,41 @@ pub fn refresh_entries(fs: &dyn FileSystemPort, panel: &mut PanelState) {
         panel.entries.push(parent_entry);
     }
 
-    // List directory contents
-    if let Ok(mut entries) = fs.list_dir(&panel.current_path) {
-        if !panel.show_hidden {
-            entries.retain(|entry| !entry.name.starts_with('.'));
-        }
-        sort_entries(&mut entries);
-        if panel.filter_string.is_empty() {
-            panel.entries.extend(entries);
-        } else {
-            let needle = panel.filter_string.to_lowercase();
-            panel.entries.extend(
-                entries
-                    .into_iter()
-                    .filter(|entry| entry.name.to_lowercase().contains(&needle)),
-            );
-        }
-    }
+    let needle = panel.filter_string.to_lowercase();
+    panel.entries.extend(
+        panel
+            .directory_entries
+            .iter()
+            .zip(&panel.directory_entry_lower_names)
+            .filter(|(entry, lower_name)| {
+                (panel.show_hidden || !entry.name.starts_with('.'))
+                    && (needle.is_empty() || lower_name.contains(&needle))
+            })
+            .map(|(entry, _)| entry.clone()),
+    );
 
+    update_entry_counts(panel);
     panel.cursor = 0;
     panel.scroll = 0;
 }
 
+pub fn update_entry_counts(panel: &mut PanelState) {
+    let dirs = panel
+        .entries
+        .iter()
+        .filter(|e| e.is_dir() && e.name != "..")
+        .count();
+    let files = panel.entries.iter().filter(|e| !e.is_dir()).count();
+    panel.entry_counts = (dirs, files);
+}
+
 fn sort_entries(entries: &mut [FileEntry]) {
-    entries.sort_by(|a, b| match (a.name.as_str(), b.name.as_str()) {
-        ("..", "..") => Ordering::Equal,
-        ("..", _) => Ordering::Less,
-        (_, "..") => Ordering::Greater,
-        _ => match (a.is_dir(), b.is_dir()) {
-            (true, false) => Ordering::Less,
-            (false, true) => Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-        },
+    entries.sort_by_cached_key(|entry| {
+        (
+            entry.name != "..",
+            !entry.is_dir(),
+            entry.name.to_lowercase(),
+        )
     });
 }
 
@@ -180,12 +197,30 @@ pub fn replace_entries_from_search(panel: &mut PanelState, files: Vec<String>, b
         let entry = FileEntry::new(path, file, kind, 0);
         panel.entries.push(entry);
     }
+    update_entry_counts(panel);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_support::MockFileSystem;
+
+    #[test]
+    fn test_filter_backspace_restores_snapshot_without_reading_disk() {
+        let fs = MockFileSystem::with_entries(create_test_entries());
+        let mut panel = PanelState::new();
+        refresh_entries(&fs, &mut panel);
+        let count = panel.entries.len();
+        panel.mode = PanelMode::Filter;
+        panel.filter_string = "file1".into();
+        apply_filter(&mut panel);
+        assert_eq!(panel.entries.len(), 1);
+        panel.filter_string.clear();
+        panel.mode = PanelMode::Normal;
+        apply_filter(&mut panel);
+        assert_eq!(panel.entries.len(), count);
+        assert_eq!(panel.entry_counts.0 + panel.entry_counts.1 + 1, count);
+    }
 
     fn create_test_entries() -> Vec<FileEntry> {
         vec![

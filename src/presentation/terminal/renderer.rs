@@ -6,7 +6,6 @@ use super::image_protocol::{
 use crate::application::use_cases::quick_view::human_size;
 use crate::application::{ActivePane, AppState, PanelMode, PanelState, QuickViewMode, SizeFigure};
 use crate::domain::FileEntry;
-use crate::infrastructure::disk_free_and_total;
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::style::{Color, Print, StyledContent, Stylize};
 use crossterm::terminal::{ClearType, enable_raw_mode};
@@ -529,21 +528,9 @@ impl TerminalRenderer {
             };
             (text, Color::Yellow, None)
         } else {
-            let has_parent = panel
-                .entries
-                .first()
-                .map(|e| e.name == "..")
-                .unwrap_or(false);
-            let dirs = panel
-                .entries
-                .iter()
-                .filter(|e| e.is_dir() && e.name != "..")
-                .count();
-            let files = panel
-                .entries
-                .len()
-                .saturating_sub(dirs + if has_parent { 1 } else { 0 });
-            let disk_text = disk_free_and_total(&panel.current_path)
+            let (dirs, files) = panel.entry_counts;
+            let disk_text = panel
+                .disk_usage
                 .map(|(free, total)| format!("{} of {} free", human_size(free), human_size(total)));
             (
                 format!("{} dirs, {} files", dirs, files),
@@ -1343,6 +1330,8 @@ mod tests {
         let mut panel = PanelState::new();
         panel.current_path = std::path::PathBuf::from("/");
         panel.entries = vec![file("a.txt", 1024), dir("subdir/")];
+        panel.entry_counts = (1, 1);
+        panel.disk_usage = Some((1024, 4096));
         renderer.draw_footer(&panel);
         let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
         assert!(
@@ -1357,12 +1346,9 @@ mod tests {
 
     #[test]
     fn footer_omits_disk_usage_when_it_cannot_be_determined() {
-        use std::os::unix::ffi::OsStrExt;
         let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 20);
-        let mut panel = PanelState::new();
-        // A path with an interior NUL byte can't be turned into a CString, so
-        // disk_free_and_total returns None; the footer must just omit the figure.
-        panel.current_path = std::path::PathBuf::from(std::ffi::OsStr::from_bytes(b"/tmp\0bad"));
+        let panel = PanelState::new();
+        // Disk lookup failures are covered by the adapter; the renderer only sees None.
         renderer.draw_footer(&panel);
         let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
         assert!(
@@ -1399,6 +1385,8 @@ mod tests {
         let (mut renderer, buffer) = TerminalRenderer::with_test_writer(80, 20);
         let mut panel = PanelState::new();
         panel.entries = vec![file("a.txt", 1024), dir("subdir/")];
+        panel.entry_counts = (1, 1);
+        panel.disk_usage = Some((1024, 4096));
         panel.toggle_multi_selection(0);
         panel.toggle_multi_selection(1);
         // Neither total has resolved yet (Idle/Computing) — must not show a bogus size.
@@ -1442,6 +1430,8 @@ mod tests {
         let mut panel = PanelState::new();
         panel.current_path = std::path::PathBuf::from("/");
         panel.entries = vec![file("a.txt", 1024)];
+        panel.entry_counts = (0, 1);
+        panel.disk_usage = Some((1024, 4096));
         renderer.draw_footer(&panel);
         let out = String::from_utf8_lossy(&buffer.borrow()).to_string();
         assert!(
