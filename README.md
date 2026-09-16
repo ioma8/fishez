@@ -4,15 +4,15 @@
 
 # fishez
 
-**A lightning-fast terminal file manager built for developers**
+**Total Commander muscle memory, in your terminal.**
 
 [![CI](https://github.com/ioma8/fishez/actions/workflows/ci.yml/badge.svg)](https://github.com/ioma8/fishez/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2024-orange.svg)](https://www.rust-lang.org/)
 
-Browse files fast, filter by just typing, quick-view almost anything, and leave your shell in exactly the directory you found.
+Type to filter. F3 to preview. F5 to copy. Leave your shell in the directory you found.
 
-**Think Total Commander-speed controls for the terminal: `cd` + instant filtering + quick preview + developer search. Zero config.**
+A keyboard-driven file manager for macOS and Linux, with dual panes, familiar function keys, and built-in actions for fd, ripgrep, and your editor.
 
 <img src="demo.gif" alt="fishez demo" width="900" />
 
@@ -22,30 +22,32 @@ Browse files fast, filter by just typing, quick-view almost anything, and leave 
 
 ## 🚀 Install
 
-### Recommended prerequisites
-
-fishez works standalone, but these make it feel complete:
-
-```bash
-# macOS
-brew install fd ripgrep bat
-
-# Ubuntu/Debian
-sudo apt install fd-find ripgrep bat
-
-# Arch
-sudo pacman -S fd ripgrep bat
-```
-
 ### Homebrew, recommended
 
 ```bash
 brew install ioma8/tap/fishez
 fishez --install-shell
-fz ~/projects
 ```
 
-Homebrew will also remind you to run `fishez --install-shell` after install.
+Open a new terminal (or source the file printed by the installer), then run:
+
+```bash
+fz
+```
+
+Homebrew includes `fd` and `ripgrep`. `bat` is optional for text previews.
+
+### Your first minute
+
+1. Run `fz` inside a project and start typing part of a filename to filter the current directory.
+2. Press `Esc` to clear the filter. Use the arrow keys and `Enter` to navigate.
+3. Press `F3` / `Ctrl+P` to preview a file; press `Esc` to close the preview.
+4. Press `Ctrl+T` for two panes and `Tab` to switch between them. `F5` / `Ctrl+Y` copies to the other pane.
+5. From the normal browsing view, press `Esc` to quit. Run `pwd`: your shell is now in the directory you were browsing.
+
+On laptops where function keys control brightness or volume, use the Ctrl alternatives above. `F1` opens help.
+
+See [a Total Commander-style workflow on macOS and Linux](docs/commander-workflow.md) for a complete example.
 
 ### One-line binary installer
 
@@ -119,7 +121,7 @@ Now run:
 fz ~/projects
 ```
 
-## ✨ Why Developers Share It
+## Why fishez?
 
 - **Fast browsing beats `cd` guessing.** Open `fz`, move visually, quit in the right directory.
 - **Inline filtering is the superpower.** Start typing and the current directory narrows instantly.
@@ -160,41 +162,25 @@ Press `Ctrl+T` for a split view. `-2` / `--two-pane` still work as startup alias
 
 Copy (`F5`) and move (`F6`) run in the background, so the UI stays responsive during large transfers — a progress line shows the current file and how many are done. If a destination file already exists, fishez pauses and asks: **(O)verwrite**, **(S)kip**, **Overwrite (A)ll**, **Skip a(L)l**, or **(Esc)** to cancel the whole transfer. Copying or moving a directory onto an existing one merges the two instead of silently replacing it. Press `Esc` at any time to stop a transfer after the current file.
 
-## 💪 Why fishez?
+## Is it for you?
 
-### Speed First
-Written in Rust with zero-copy rendering. Directory listings, inline filters, and previews stay responsive.
+Try fishez if you like Commander-style function keys, typing directly to filter, and switching between browsing and your shell. These defaults are the focus; you don't need to configure a keymap to try the workflow.
 
-### Developer-Focused
-- **Syntax-aware previews** via built-in highlighting or optional `bat`
-- **One-key editor integration** (`F4` / `Ctrl+O`) using `$EDITOR`, with VS Code fallback
-- **ripgrep-powered search** finds content across thousands of files in seconds
-- **fd integration** for blazing-fast fuzzy file search
-- **Raw image previews** via the `jpgfromrawlib`-supported camera formats directly in quick view
-- **Animated GIF previews** that play in any terminal with kitty-graphics or iTerm2 image support
+Other terminal file managers also offer previews, search, and shell integration. The reason to choose fishez is whether its interaction style fits your habits. It is an independent project, not affiliated with Total Commander.
 
-Directory loads and previews run through bounded background workers, so fast keyboard navigation stays responsive even when a folder or preview is expensive. Content-search results retain their first matching line; quick view and editor actions open at that line.
+### Platform and preview support
 
-### Clean Architecture
-Built with maintainability in mind using Clean Architecture principles. Domain logic stays pure, adapters are swappable, and the codebase remains readable. Contributing is straightforward.
+Release binaries and CI builds cover macOS and Linux on ARM64 and x86-64. Windows is not currently covered by the release/CI matrix.
 
-### Cross-Platform
-Works on macOS, Linux, and Windows. Uses native system commands for opening files and integrates with your existing toolchain.
+Text previews work without an image-capable terminal. Inline images and animated GIFs require kitty-graphics or iTerm2 image support. RAW previews use embedded thumbnails from formats supported by `jpgfromraw-lib`.
 
-## 🥊 Why not yazi/ranger/nnn?
+Content-search results retain their first matching line; quick view and editor actions open at that line.
 
-Use those if you want a highly configurable file manager. Use fishez when you want:
+## Feedback from your first real task
 
-- Zero-config developer defaults.
-- `fz` cd-on-exit as the core workflow.
-- fd, ripgrep, and editor actions built into the default keymap.
-- Quick previews without writing a config file first.
+Try finding, previewing, and copying a file in a project you already use. If something gets in the way, [open an issue](https://github.com/ioma8/fishez/issues/new) with your OS, terminal, installation method, and what you expected to happen. Feedback about why you returned to another tool is welcome too.
 
-## 🏆 The Unfair Advantage
-
-**fishez is built for the modern developer workflow.**
-
-While other file managers try to be general-purpose, fishez optimizes for one thing: getting developers to their files faster. The combination of instant preview, one-key editor opening, and ripgrep/fd integration means you spend less time navigating and more time coding.
+If fishez earns a place in your workflow, a GitHub star or a demo shared with a friend helps others discover it.
 
 ## 📦 Requirements
 
