@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OSC52 path copy for terminal clipboard workflows
 - Hidden-file toggle with `Ctrl+H`
 - Optional `bat` integration for richer text previews
+- Cancellable background ripgrep searches with stale-result protection
+- Cached directory filtering without rereading the filesystem on each keystroke
+- Background disk-usage lookup with cached footer rendering
 
 ### Features
 - Keyboard-driven terminal file manager
@@ -78,5 +81,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Uses semantic versioning
 - MIT licensed
 
-[Unreleased]: https://github.com/ioma8/fishez/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ioma8/fishez/compare/v0.4.0...HEAD
 [0.1.0]: https://github.com/ioma8/fishez/releases/tag/v0.1.0

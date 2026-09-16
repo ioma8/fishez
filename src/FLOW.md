@@ -62,6 +62,6 @@ flowchart TD
 - Preview text with F3, including syntax-highlighted files. A loading view appears while the worker runs. Press Escape before completion; the preview must stay closed.
 - Confirm deletion of disposable files, then navigate while the trash operation runs. The originating directory refreshes on completion if it is still open; errors appear as notifications.
 - Hold an arrow key while browsing a slow mount. Footer counts come from the listing, and free space refreshes in a worker at five-second intervals, with at most one disk query in flight per pane.
-- Copy many small files. Progress updates are throttled to 50 ms, queued messages are processed in bounded batches, and each batch redraws once. Verify cancellation and conflict prompts still respond.
+- Copy many small files. Progress updates are throttled to 50 ms, queued messages are drained each loop, and each loop redraws once. Verify cancellation and conflict prompts still respond.
 
 Directory enumeration on entry/refresh remains synchronous. These changes remove repeated enumeration while filtering; they do not guarantee a latency bound when entering a slow filesystem.
