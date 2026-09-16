@@ -11,6 +11,8 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    env:
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
     strategy:
       matrix:
         include:
