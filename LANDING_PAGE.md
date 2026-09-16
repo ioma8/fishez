@@ -131,14 +131,14 @@ Footer links: GitHub, latest release, report an issue, workflow guide, and MIT l
 - [x] Run the staging script, then use the official configure, artifact-upload, and deploy Pages actions. Resolve supported action versions at implementation time using GitHub's documentation.
 - [x] Grant `contents: read`, `pages: write`, and `id-token: write` only where needed. Use the `github-pages` environment, expose the deployment URL, and serialize Pages deployments with a concurrency group.
 - [x] If build and deploy are separate jobs, make deploy depend on build; upload `_site/`, never the repository root. Do not deploy pull-request branches.
-- [ ] Enable GitHub Pages with GitHub Actions as the publishing source and deploy the page.
+- [x] Enable GitHub Pages with GitHub Actions as the publishing source and deploy the page.
 
 ### 6. Verify production and connect discovery paths
 
-- [ ] Verify the deployed `/fishez/` URL returns successfully and CSS, JS, logo, GIF, poster, and social image all load from that subpath.
+- [x] Verify the deployed `/fishez/` URL returns successfully and CSS, JS, logo, GIF, poster, and social image all load from that subpath.
 - [ ] Repeat installation-copy and demo-control checks over production HTTPS; check browser console and network failures.
 - [ ] Inspect page-source metadata and load the social image URL directly. Do not assume social platforms refresh cached previews immediately.
-- [ ] Set the repository homepage to the live URL and add a Website link near the README introduction after successful deployment.
+- [x] Set the repository homepage to the live URL and add a Website link near the README introduction after successful deployment.
 - [ ] Report the live URL, changed files, verification results, and any remaining limitations. Mark this checklist complete only for work actually verified.
 
 ## Acceptance criteria
