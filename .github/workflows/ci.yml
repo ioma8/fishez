@@ -76,7 +76,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target/${{ matrix.target }}
+            /tmp/fishez_target/${{ matrix.target }}
           key: ${{ runner.os }}-${{ matrix.platform }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.platform }}-cargo-
@@ -84,7 +84,7 @@ jobs:
       - name: Build binary
         run: |
           cargo build --release --target ${{ matrix.target }}
-          chmod +x target/${{ matrix.target }}/release/fishez
+          chmod +x /tmp/fishez_target/${{ matrix.target }}/release/fishez
 
       - name: Get version
         id: version
@@ -95,7 +95,7 @@ jobs:
       - name: Package binary
         run: |
           mkdir -p dist
-          cp target/${{ matrix.target }}/release/fishez dist/fishez-${{ matrix.platform }}
+          cp /tmp/fishez_target/${{ matrix.target }}/release/fishez dist/fishez-${{ matrix.platform }}
           chmod +x dist/fishez-${{ matrix.platform }}
           ls -lh dist/
 
@@ -137,7 +137,7 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
+            /tmp/fishez_target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -164,7 +164,7 @@ jobs:
         run: cargo doc --no-deps --document-private-items
 
       - name: Verify docs build
-        run: test -f target/doc/fishez/index.html
+        run: test -f /tmp/fishez_target/doc/fishez/index.html
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
